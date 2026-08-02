@@ -52,6 +52,22 @@ abstract class AppTextStyles {
         height: 1.4,
       );
 
+  /// Label: 14 / w600 — form field labels
+  static TextStyle get label => GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimaryDark,
+        height: 1.3,
+      );
+
+  /// Button: 15 / w600 — button text
+  static TextStyle get button => GoogleFonts.inter(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        height: 1.2,
+      );
+
   /// Caption: 12 / w500 — small muted labels, timestamps
   static TextStyle get caption => GoogleFonts.inter(
         fontSize: 12,

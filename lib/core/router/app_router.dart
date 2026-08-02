@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/login_screen.dart';
 import '../../features/demo/design_system_demo_page.dart';
 import '../../features/history/history_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/interview/interview_practice_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/profile/profile_screen.dart';
+import '../../features/profile/profile_setup_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/results/results_screen.dart';
 
 abstract class AppRouter {
   static const String onboarding = '/';
+  static const String login = '/login';
+  static const String profileSetup = '/profile-setup';
   static const String home = '/home';
   static const String history = '/history';
   static const String interview = '/interview';
@@ -58,6 +62,25 @@ abstract class AppRouter {
           context: context,
           state: state,
           child: const OnboardingScreen(),
+        ),
+      ),
+      GoRoute(
+        path: login,
+        pageBuilder: (context, state) {
+          final isSignUp = state.extra as bool? ?? false;
+          return _buildSlideFadeTransition(
+            context: context,
+            state: state,
+            child: LoginScreen(isSignUpInitial: isSignUp),
+          );
+        },
+      ),
+      GoRoute(
+        path: profileSetup,
+        pageBuilder: (context, state) => _buildSlideFadeTransition(
+          context: context,
+          state: state,
+          child: const ProfileSetupScreen(),
         ),
       ),
       GoRoute(

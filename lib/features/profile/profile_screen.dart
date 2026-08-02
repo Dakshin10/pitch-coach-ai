@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../core/providers/user_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
@@ -17,6 +19,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final user = userProvider.user;
+
     return Scaffold(
       backgroundColor: AppColors.surfaceLight,
       body: SafeArea(
@@ -36,18 +41,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: AppColors.textPrimaryDark,
                     ),
                   ),
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.divider),
-                    ),
-                    child: const Icon(
-                      Icons.settings_outlined,
-                      size: 20,
-                      color: AppColors.textPrimaryDark,
+                  GestureDetector(
+                    onTap: () => context.push('/profile-setup'),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.divider),
+                      ),
+                      child: const Icon(
+                        Icons.settings_outlined,
+                        size: 20,
+                        color: AppColors.textPrimaryDark,
+                      ),
                     ),
                   ),
                 ],
@@ -55,13 +63,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 20),
 
-              // 2. Profile Header Card
-              _buildProfileHeaderCard(),
+              // 2. Profile Header Card (Dynamic)
+              _buildProfileHeaderCard(user),
 
               const SizedBox(height: 16),
 
               // 3. Stats Row
-              _buildStatsRow(),
+              _buildStatsRow(user),
 
               const SizedBox(height: 24),
 
@@ -72,7 +80,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildListRow(
                   icon: Icons.person_outline_rounded,
                   label: 'Personal Information',
-                  onTap: () {},
+                  trailingText: user.name,
+                  onTap: () => context.push('/profile-setup'),
                 ),
                 const Divider(height: 1),
                 _buildListRow(
@@ -84,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildListRow(
                   icon: Icons.flag_outlined,
                   label: 'Practice Goals & Reminders',
-                  onTap: () {},
+                  onTap: () => context.push('/profile-setup'),
                 ),
                 const Divider(height: 1),
                 _buildListRow(
@@ -205,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeaderCard() {
+  Widget _buildProfileHeaderCard(UserProfile user) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -223,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          // Avatar
+          // Dynamic Avatar with Initials
           Container(
             width: 80,
             height: 80,
@@ -238,10 +247,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'NS',
-                style: TextStyle(
+                user.initials,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -251,20 +260,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Dakshin',
+            user.name,
             style: AppTextStyles.headingL,
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
-            'Computer Science Student',
-            style: AppTextStyles.bodyM,
+            user.role,
+            style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),
           SizedBox(
             width: 140,
             height: 38,
             child: OutlinedButton(
-              onPressed: () {},
+              onPressed: () => context.push('/profile-setup'),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: AppColors.primaryPurple.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -283,14 +294,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(UserProfile user) {
     return Row(
       children: [
-        Expanded(child: _buildProfileStatTile('Sessions', '42')),
+        Expanded(child: _buildProfileStatTile('Sessions', '${user.sessionsCompleted}')),
         const SizedBox(width: 8),
-        Expanded(child: _buildProfileStatTile('Avg Score', '78%')),
+        Expanded(child: _buildProfileStatTile('Avg Score', '${user.avgScore.toInt()}%')),
         const SizedBox(width: 8),
-        Expanded(child: _buildProfileStatTile('Member Since', 'Jan 2025')),
+        Expanded(child: _buildProfileStatTile('Member Since', user.memberSince)),
       ],
     );
   }
@@ -419,18 +430,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Log Out'),
         content: const Text('Are you sure you want to log out of Pitch Coach?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              Provider.of<UserProvider>(context, listen: false).logout();
               context.go('/');
             },
             style: ElevatedButton.styleFrom(

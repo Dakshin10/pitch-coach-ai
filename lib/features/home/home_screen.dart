@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../core/providers/user_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
@@ -45,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<UserProvider>(context).user;
+
     return Scaffold(
       backgroundColor: AppColors.surfaceLight,
       body: SafeArea(
@@ -58,8 +62,8 @@ class _HomeScreenState extends State<HomeScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Top Header Row
-                _buildHeaderRow(),
+                // 1. Top Header Row (Dynamic User Greeting)
+                _buildHeaderRow(context, user),
 
                 const SizedBox(height: 24),
 
@@ -202,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildHeaderRow() {
+  Widget _buildHeaderRow(BuildContext context, UserProfile user) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -214,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen>
             Row(
               children: [
                 Text(
-                  'Hello, Nihil',
+                  'Hello, ${user.name.split(' ').first}',
                   style: AppTextStyles.headingXL.copyWith(
                     color: AppColors.textPrimaryDark,
                   ),
@@ -243,8 +247,8 @@ class _HomeScreenState extends State<HomeScreen>
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEBEBF5),
+              decoration: const BoxDecoration(
+                color: Color(0xFFEBEBF5),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -255,20 +259,23 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             const SizedBox(width: 10),
 
-            // User Avatar (Fallback Circle with initials "D")
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: AppColors.primaryPurple,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  'D',
-                  style: AppTextStyles.bodySmallBold.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+            // User Avatar (Dynamic Initials)
+            GestureDetector(
+              onTap: () => context.go('/profile'),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryPurple,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    user.initials,
+                    style: AppTextStyles.bodySmallBold.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
