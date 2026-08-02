@@ -207,6 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildProfileHeaderCard() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
