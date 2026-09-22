@@ -29,6 +29,40 @@ class SessionRepository {
     return status.isGranted;
   }
 
+  Stream<Amplitude> get amplitudeStream =>
+      _recorder.onAmplitudeChanged(const Duration(milliseconds: 120));
+
+  /// Guest Mode records locally for a genuine microphone experience, but never
+  /// creates a backend session or uploads the resulting file.
+  Future<void> startDemoRecording() async {
+    if (!await _recorder.hasPermission()) {
+      throw StateError('Microphone permission is required to record.');
+    }
+    final dir = await getApplicationDocumentsDirectory();
+    _currentAudioPath =
+        '${dir.path}/demo_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(
+      const RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        sampleRate: 44100,
+        numChannels: 1,
+        bitRate: 64000,
+      ),
+      path: _currentAudioPath!,
+    );
+  }
+
+  Future<String> finishDemoRecording() async {
+    final path = await _recorder.stop() ?? _currentAudioPath;
+    _currentAudioPath = null;
+    if (path == null) throw StateError('Recording did not produce an audio file.');
+    final file = File(path);
+    if (!await file.exists() || await file.length() == 0) {
+      throw StateError('The recording is missing or empty. Please try again.');
+    }
+    return path;
+  }
+
   // ── Session lifecycle ─────────────────────────────────────────────────────
 
   /// Step 1: create session row on backend and start recording.

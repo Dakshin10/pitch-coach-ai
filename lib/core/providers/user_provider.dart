@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../repositories/auth_repository.dart';
 
 enum AuthState { loading, unauthenticated, guest, authenticated, error }
@@ -14,6 +15,7 @@ class UserProfile {
   String targetIndustry;
   String feedbackTone;
   bool isGuest;
+  bool darkMode;
 
   // Stats are now fetched separately via StatsProvider; keep as fallback defaults
   int sessionsCompleted;
@@ -30,6 +32,7 @@ class UserProfile {
     required this.targetIndustry,
     required this.feedbackTone,
     this.isGuest = false,
+    this.darkMode = false,
     this.sessionsCompleted = 0,
     this.avgScore = 0.0,
     this.memberSince = '',
@@ -55,6 +58,7 @@ class UserProfile {
         targetIndustry: j['target_industry'] as String? ?? '',
         feedbackTone: j['feedback_style'] as String? ?? 'Encouraging & Constructive',
         isGuest: j['is_guest'] as bool? ?? false,
+        darkMode: j['dark_mode'] as bool? ?? false,
         memberSince: '',
       );
 }
@@ -90,6 +94,7 @@ class UserProvider extends ChangeNotifier {
               : _user.isGuest ? AuthState.guest : AuthState.authenticated;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  ThemeMode get themeMode => _user.darkMode ? ThemeMode.dark : ThemeMode.light;
 
   // ── App startup: try to restore session ──────────────────────────────────
 
@@ -218,6 +223,22 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> setDarkMode(bool enabled) async {
+    final previous = _user.darkMode;
+    _user.darkMode = enabled;
+    notifyListeners();
+    if (_user.isGuest) return;
+    try {
+      final updated = await _auth.updateMe({'dark_mode': enabled});
+      _user = UserProfile.fromJson(updated);
+      notifyListeners();
+    } catch (_) {
+      _user.darkMode = previous;
+      _error = 'Unable to save theme preference. Please try again.';
+      notifyListeners();
+    }
+  }
+
   // ── Logout ────────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
@@ -249,6 +270,16 @@ class UserProvider extends ChangeNotifier {
   }
 
   String _extractErrorMessage(Object e) {
+    if (e is DioException) {
+      final detail = (e.response?.data as Map?)?['detail'];
+      if (detail is String && detail.isNotEmpty) return detail;
+      if (detail is List && detail.isNotEmpty) {
+        return 'Please check the highlighted registration details.';
+      }
+      if (e.response?.statusCode == 409) return 'An account with this email already exists.';
+      if (e.response?.statusCode == 400) return 'Please check your details and try again.';
+      if (e.response?.statusCode != null) return 'The server could not complete your request. Please try again.';
+    }
     final str = e.toString();
     // Dio DioException message often contains the backend detail string
     if (str.contains('detail')) {

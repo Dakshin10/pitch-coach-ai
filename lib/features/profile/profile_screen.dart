@@ -16,7 +16,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _darkModeEnabled = false;
   TimeOfDay? _reminderTime; // TimePicker (Unit 2)
 
   @override
@@ -25,7 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = userProvider.user;
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -49,7 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+          color: Theme.of(context).cardTheme.color,
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.divider),
                       ),
@@ -147,13 +146,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       Switch(
-                        value: _darkModeEnabled,
+                        value: userProvider.user.darkMode,
                         activeThumbColor: AppColors.primaryPurple,
                         activeTrackColor: AppColors.primaryPurple.withValues(alpha: 0.4),
                         onChanged: (val) {
-                          setState(() {
-                            _darkModeEnabled = val;
-                          });
+                          userProvider.setDarkMode(val);
                         },
                       ),
                     ],
@@ -243,7 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.divider),
         boxShadow: const [
@@ -334,7 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider),
       ),

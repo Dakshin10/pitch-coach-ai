@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
 
@@ -22,6 +23,7 @@ class ApiClient {
       ),
     );
     d.interceptors.add(_AuthInterceptor(d, _storage));
+    if (kDebugMode) d.interceptors.add(_SafeNetworkLogger());
     return d;
   }
 
@@ -64,6 +66,16 @@ class ApiClient {
 
   static Future<String?> getRefreshToken() =>
       _storage.read(key: 'refresh_token');
+}
+
+/// Development diagnostics deliberately exclude request bodies and headers.
+class _SafeNetworkLogger extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    debugPrint('API ${err.requestOptions.method} ${err.requestOptions.path} '
+        'failed with HTTP ${err.response?.statusCode ?? 'network'}');
+    handler.next(err);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

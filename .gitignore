@@ -31,6 +31,19 @@ migrate_working_dir/
 # Environment files
 .env
 .env.*
+!backend/.env.example
+
+# Python environments and backend runtime state
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+backend/audio_files/
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
 
 # Flutter / Dart / Pub
 **/doc/api/

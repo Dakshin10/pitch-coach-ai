@@ -90,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen>
     final user = Provider.of<UserProvider>(context).user;
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _handleRefresh,
@@ -304,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 

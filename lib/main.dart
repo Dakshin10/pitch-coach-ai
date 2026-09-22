@@ -35,7 +35,7 @@ class PitchCoachApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: context.watch<UserProvider>().themeMode,
       routerConfig: AppRouter.router,
     );
   }

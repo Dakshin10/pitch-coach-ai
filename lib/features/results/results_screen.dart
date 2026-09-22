@@ -162,7 +162,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         resultsProvider.state == ResultsLoadState.loading;
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [

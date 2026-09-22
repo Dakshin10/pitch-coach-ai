@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:record/record.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
@@ -11,6 +12,7 @@ import '../../core/widgets/circular_gauge_painter.dart';
 /// State Controller managing speech analysis metrics and session timers.
 class InterviewSessionController extends ChangeNotifier {
   Timer? _timer;
+  StreamSubscription<Amplitude>? _amplitudeSubscription;
   final bool isGuest;
 
   InterviewSessionController({required this.isGuest});
@@ -23,6 +25,7 @@ class InterviewSessionController extends ChangeNotifier {
   int _clarityPercentage = 0;
   String _liveMessage = 'Preparing your recording...';
   String? _errorMessage;
+  double _audioLevel = 0;
   bool _isProcessing = false;
 
   int get elapsedSeconds => _elapsedSeconds;
@@ -34,6 +37,7 @@ class InterviewSessionController extends ChangeNotifier {
   String get liveMessage => _liveMessage;
   bool get isProcessing => _isProcessing;
   String? get errorMessage => _errorMessage;
+  double get audioLevel => _audioLevel;
 
   String get formattedTime {
     final minutes = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
@@ -53,19 +57,27 @@ class InterviewSessionController extends ChangeNotifier {
     _errorMessage = null;
 
     try {
+      final hasPermission = await _sessionRepo.requestMicPermission();
+      if (!hasPermission) {
+        _errorMessage = 'Microphone permission was denied. Enable it in Settings to practice.';
+        _liveMessage = _errorMessage!;
+        notifyListeners();
+        return;
+      }
       if (isGuest) {
+        await _sessionRepo.startDemoRecording();
         _sessionId = 'demo-session';
       } else {
-        final hasPermission = await _sessionRepo.requestMicPermission();
-        if (!hasPermission) {
-          _errorMessage = 'Microphone permission was denied. Enable it in Settings to practice.';
-          _liveMessage = _errorMessage!;
-          notifyListeners();
-          return;
-        }
         _sessionId = await _sessionRepo.startSession(
             mode: 'interview', topicOrQuestion: 'Tell me about yourself.');
       }
+      _amplitudeSubscription?.cancel();
+      _amplitudeSubscription = _sessionRepo.amplitudeStream.listen((amplitude) {
+        // `current` is decibels. This is the actual recorder signal, mapped
+        // only for display; it is not used as speech-analysis data.
+        _audioLevel = ((amplitude.current + 60) / 60).clamp(0.0, 1.0);
+        notifyListeners();
+      });
     } catch (e) {
       _errorMessage = 'Unable to start recording. Check your microphone permission and connection.';
       _liveMessage = _errorMessage!;
@@ -91,9 +103,12 @@ class InterviewSessionController extends ChangeNotifier {
     notifyListeners();
 
     _timer?.cancel();
+    await _amplitudeSubscription?.cancel();
+    _amplitudeSubscription = null;
     String? resolvedSessionId = _sessionId;
     try {
       if (isGuest) {
+        await _sessionRepo.finishDemoRecording();
         resolvedSessionId = null;
       } else if (_sessionId != null) {
         // Upload audio — pipeline runs in background on server
@@ -115,6 +130,7 @@ class InterviewSessionController extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    _amplitudeSubscription?.cancel();
     super.dispose();
   }
 }
@@ -612,7 +628,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     return Column(
       children: [
         // Horizontal Waveform Strip
-        const _AudioWaveformStrip(),
+        _AudioWaveformStrip(level: controller.audioLevel),
 
         const SizedBox(height: 12),
 
@@ -718,60 +734,30 @@ class _SparklinePainter extends CustomPainter {
   bool shouldRepaint(covariant _SparklinePainter oldDelegate) => true;
 }
 
-class _AudioWaveformStrip extends StatefulWidget {
-  const _AudioWaveformStrip();
-
-  @override
-  State<_AudioWaveformStrip> createState() => _AudioWaveformStripState();
-}
-
-class _AudioWaveformStripState extends State<_AudioWaveformStrip>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+class _AudioWaveformStrip extends StatelessWidget {
+  const _AudioWaveformStrip({required this.level});
+  final double level;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 36,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List.generate(40, (index) {
-              final phase = (index * 0.1) % 1.0;
-              final animVal =
-                  (Curves.easeInOut.transform((_controller.value + phase) % 1.0));
-              final height = 6.0 + 26.0 * animVal;
-              final opacity = 0.35 + 0.65 * animVal;
-
-              return Container(
-                width: 3.0,
-                height: height,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPurpleLight.withValues(alpha: opacity),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              );
-            }),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: List.generate(24, (index) {
+          final distance = (index - 11.5).abs() / 11.5;
+          final barLevel = (level * (1 - distance * .55)).clamp(0.0, 1.0);
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            width: 3,
+            height: 5 + 29 * barLevel,
+            decoration: BoxDecoration(
+              color: AppColors.primaryPurpleLight.withValues(alpha: .35 + .65 * barLevel),
+              borderRadius: BorderRadius.circular(2),
+            ),
           );
-        },
+        }),
       ),
     );
   }

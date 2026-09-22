@@ -39,7 +39,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final isLoading = statsProvider.isLoading || statsProvider.state == StatsLoadState.idle;
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
