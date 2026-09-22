@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../core/providers/user_provider.dart';
+import '../../core/repositories/demo_repository.dart';
 import '../../core/models/session_result.dart';
 import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
@@ -45,6 +48,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _errorMessage = null;
     });
     try {
+      if (context.read<UserProvider>().isGuest) {
+        if (mounted) setState(() => _sessions = DemoRepository.instance.sessions);
+        return;
+      }
       // Map filter chip → API mode value
       final modeParam = _selectedFilter == 'All'
           ? null

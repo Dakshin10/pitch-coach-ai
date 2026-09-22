@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/stats_models.dart';
 import '../repositories/stats_repository.dart';
+import '../repositories/demo_repository.dart';
 
 enum StatsLoadState { idle, loading, ready, error }
 
@@ -52,5 +53,16 @@ class StatsProvider extends ChangeNotifier {
       _summary = await _repo.getSummary();
       notifyListeners();
     } catch (_) {}
+  }
+
+  void loadDemo() {
+    final demo = DemoRepository.instance;
+    _summary = demo.summary;
+    _trend = demo.trend;
+    _skills = demo.skills;
+    _achievements = [];
+    _state = StatsLoadState.ready;
+    _error = null;
+    notifyListeners();
   }
 }

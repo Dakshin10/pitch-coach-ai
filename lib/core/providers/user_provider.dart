@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../repositories/auth_repository.dart';
 
+enum AuthState { loading, unauthenticated, guest, authenticated, error }
+
 /// UserProfile — keeps the same shape as before so all screens compile unchanged.
 class UserProfile {
   String id;
@@ -78,6 +80,14 @@ class UserProvider extends ChangeNotifier {
 
   UserProfile get user => _user;
   bool get isLoggedIn => _isLoggedIn;
+  bool get isGuest => _isLoggedIn && _user.isGuest;
+  AuthState get authState => _isLoading
+      ? AuthState.loading
+      : _error != null
+          ? AuthState.error
+          : !_isLoggedIn
+              ? AuthState.unauthenticated
+              : _user.isGuest ? AuthState.guest : AuthState.authenticated;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -144,21 +154,18 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<bool> loginAsGuest() async {
-    _setLoading(true);
-    try {
-      final userData = await _auth.loginAsGuest();
-      _user = UserProfile.fromJson(userData);
-      _isLoggedIn = true;
-      _error = null;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = _extractErrorMessage(e);
-      notifyListeners();
-      return false;
-    } finally {
-      _setLoading(false);
-    }
+    // Guest is a local demo identity. It has no token and never calls protected APIs.
+    await _auth.logout();
+    _user = UserProfile(
+      id: 'demo-guest', name: 'Guest', email: '', role: 'Student',
+      targetGoal: 'Build confidence', experienceLevel: 'Beginner',
+      targetIndustry: '', feedbackTone: 'Encouraging & Constructive',
+      isGuest: true, sessionsCompleted: 5, avgScore: 82,
+    );
+    _isLoggedIn = true;
+    _error = null;
+    notifyListeners();
+    return true;
   }
 
   // ── Profile update ────────────────────────────────────────────────────────
@@ -199,6 +206,7 @@ class UserProvider extends ChangeNotifier {
     }
 
     notifyListeners(); // optimistic UI update
+    if (_user.isGuest) return;
     if (fields.isNotEmpty) {
       try {
         final updated = await _auth.updateMe(fields);

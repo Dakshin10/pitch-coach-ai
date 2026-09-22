@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/session_result.dart';
 import '../../core/providers/session_results_provider.dart';
+import '../../core/providers/user_provider.dart';
+import '../../core/repositories/demo_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
@@ -153,7 +155,9 @@ class _ResultsScreenState extends State<ResultsScreen>
   @override
   Widget build(BuildContext context) {
     final resultsProvider = context.watch<SessionResultsProvider>();
-    final result = resultsProvider.result;
+    final isGuest = context.watch<UserProvider>().isGuest;
+    final result = resultsProvider.result ??
+        (isGuest && widget.sessionId == null ? DemoRepository.instance.result : null);
     final isAnalyzing = resultsProvider.state == ResultsLoadState.analyzing ||
         resultsProvider.state == ResultsLoadState.loading;
 

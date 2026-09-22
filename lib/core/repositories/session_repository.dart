@@ -36,7 +36,10 @@ class SessionRepository {
     required String mode,
     required String topicOrQuestion,
   }) async {
-    // 1a. Create session on backend
+    if (!await _recorder.hasPermission()) {
+      throw StateError('Microphone permission is required to record.');
+    }
+    // 1a. Create session on backend after permission is known.
     final data = await _api.post('/sessions/start', data: {
       'mode': mode,
       'topic_or_question': topicOrQuestion,
@@ -68,10 +71,14 @@ class SessionRepository {
     // Stop recorder — returns the file path
     final path = await _recorder.stop();
     final audioPath = path ?? _currentAudioPath;
-    if (audioPath == null) return null;
+    if (audioPath == null) {
+      throw StateError('Recording did not produce an audio file.');
+    }
 
     final file = File(audioPath);
-    if (!await file.exists()) return null;
+    if (!await file.exists() || await file.length() == 0) {
+      throw StateError('The recording is missing or empty. Please try again.');
+    }
 
     final formData = FormData.fromMap({
       'audio_file': await MultipartFile.fromFile(
@@ -110,12 +117,13 @@ class SessionRepository {
     int page = 1,
     int limit = 20,
   }) async {
-    final raw = await _api.get('/sessions', params: {
-      'mode': ?mode,
-      'search': ?search,
+    final params = <String, dynamic>{
       'page': page.toString(),
       'limit': limit.toString(),
-    }) as List<dynamic>;
+    };
+    if (mode != null) params['mode'] = mode;
+    if (search != null) params['search'] = search;
+    final raw = await _api.get('/sessions', params: params) as List<dynamic>;
     return raw
         .map((e) => SessionSummary.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -124,7 +132,7 @@ class SessionRepository {
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
   Future<void> cancelSession() async {
-    await _recorder.stop();
+    if (await _recorder.isRecording()) await _recorder.stop();
     _currentSessionId = null;
     _currentAudioPath = null;
   }

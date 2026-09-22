@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/stats_models.dart';
 import '../../core/providers/stats_provider.dart';
+import '../../core/providers/user_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
@@ -23,7 +24,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
     super.initState();
     // Load all stats data when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<StatsProvider>().loadAll(trendRange: 'week');
+      final stats = context.read<StatsProvider>();
+      if (context.read<UserProvider>().isGuest) {
+        stats.loadDemo();
+      } else {
+        stats.loadAll(trendRange: 'week');
+      }
     });
   }
 
@@ -36,9 +42,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
       backgroundColor: AppColors.surfaceLight,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => statsProvider.loadAll(
-            trendRange: _selectedRange.toLowerCase(),
-          ),
+          onRefresh: () async {
+            if (context.read<UserProvider>().isGuest) {
+              statsProvider.loadDemo();
+            } else {
+              await statsProvider.loadAll(trendRange: _selectedRange.toLowerCase());
+            }
+          },
           color: AppColors.primaryPurple,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -402,7 +412,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return GestureDetector(
       onTap: () {
         setState(() => _selectedRange = label);
-        provider.loadAll(trendRange: label.toLowerCase());
+        if (context.read<UserProvider>().isGuest) {
+          provider.loadDemo();
+        } else {
+          provider.loadAll(trendRange: label.toLowerCase());
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

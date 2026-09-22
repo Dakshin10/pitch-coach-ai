@@ -14,7 +14,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()..tryRestoreSession()),
         ChangeNotifierProvider(create: (_) => StatsProvider()),
         // SessionResultsProvider is created per-results-screen via ChangeNotifierProvider.value
         // but we expose one top-level instance for convenience

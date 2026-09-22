@@ -18,9 +18,9 @@ class _LoginScreenState extends State<LoginScreen> {
   late bool _isSignUp;
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _nameController = TextEditingController(text: 'Dakshin');
-  final TextEditingController _emailController = TextEditingController(text: 'dakshin@example.com');
-  final TextEditingController _passwordController = TextEditingController(text: 'password123');
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
 
@@ -346,8 +346,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 52,
                   borderColor: Colors.white.withValues(alpha: 0.12),
                   textColor: Colors.white,
-                  onPressed: () {
-                    Provider.of<UserProvider>(context, listen: false).loginAsGuest();
+                  onPressed: () async {
+                    await Provider.of<UserProvider>(context, listen: false).loginAsGuest();
+                    if (!context.mounted) return;
                     context.go('/home');
                   },
                 ),

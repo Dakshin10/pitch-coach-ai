@@ -17,6 +17,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _waveController;
+  bool _restoredRouteHandled = false;
 
   @override
   void initState() {
@@ -35,6 +36,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    // A secure-token restore is only allowed to enter the real account flow.
+    // Local guest mode is never persisted as an authenticated backend session.
+    if (!_restoredRouteHandled && context.watch<UserProvider>().isLoggedIn) {
+      _restoredRouteHandled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/home');
+      });
+    }
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -303,8 +312,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           height: 56,
           borderColor: Colors.white.withValues(alpha: 0.2),
           textColor: Colors.white,
-          onPressed: () {
-            Provider.of<UserProvider>(context, listen: false).loginAsGuest();
+          onPressed: () async {
+            await Provider.of<UserProvider>(context, listen: false).loginAsGuest();
+            if (!context.mounted) return;
             context.go('/home');
           },
         ),

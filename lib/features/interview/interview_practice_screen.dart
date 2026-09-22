@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/providers/user_provider.dart';
 import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -11,26 +11,19 @@ import '../../core/widgets/circular_gauge_painter.dart';
 /// State Controller managing speech analysis metrics and session timers.
 class InterviewSessionController extends ChangeNotifier {
   Timer? _timer;
-  Timer? _mockDataTimer;
+  final bool isGuest;
 
-  int _elapsedSeconds = 165; // Starts at 02:45
-  double _confidenceScore = 76.0;
-  int _fillerWordsCount = 3;
-  int _speakingSpeedWpm = 128;
-  int _pausesCount = 4;
-  int _clarityPercentage = 81;
-  String _liveMessage = 'Good pace! Keep it up.';
+  InterviewSessionController({required this.isGuest});
+
+  int _elapsedSeconds = 0;
+  double _confidenceScore = 0;
+  int _fillerWordsCount = 0;
+  int _speakingSpeedWpm = 0;
+  int _pausesCount = 0;
+  int _clarityPercentage = 0;
+  String _liveMessage = 'Preparing your recording...';
+  String? _errorMessage;
   bool _isProcessing = false;
-
-  final List<String> _encouragingMessages = [
-    'Good pace! Keep it up.',
-    'Clear articulation & steady cadence.',
-    'Great posture & natural volume.',
-    'Optimal speaking rhythm.',
-    'Minimal filler words detected.',
-  ];
-
-  int _messageIndex = 0;
 
   int get elapsedSeconds => _elapsedSeconds;
   double get confidenceScore => _confidenceScore;
@@ -40,6 +33,7 @@ class InterviewSessionController extends ChangeNotifier {
   int get clarityPercentage => _clarityPercentage;
   String get liveMessage => _liveMessage;
   bool get isProcessing => _isProcessing;
+  String? get errorMessage => _errorMessage;
 
   String get formattedTime {
     final minutes = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
@@ -55,26 +49,28 @@ class InterviewSessionController extends ChangeNotifier {
 
   Future<void> startSession() async {
     _timer?.cancel();
-    _mockDataTimer?.cancel();
     _elapsedSeconds = 0;
-
-    // Request mic permission and start real recording
-    final hasPermission = await _sessionRepo.requestMicPermission();
-    if (!hasPermission) {
-      _liveMessage = 'Microphone permission denied.';
-      notifyListeners();
-      return;
-    }
+    _errorMessage = null;
 
     try {
-      _sessionId = await _sessionRepo.startSession(
-        mode: 'interview',
-        topicOrQuestion: 'Tell me about yourself.',
-      );
+      if (isGuest) {
+        _sessionId = 'demo-session';
+      } else {
+        final hasPermission = await _sessionRepo.requestMicPermission();
+        if (!hasPermission) {
+          _errorMessage = 'Microphone permission was denied. Enable it in Settings to practice.';
+          _liveMessage = _errorMessage!;
+          notifyListeners();
+          return;
+        }
+        _sessionId = await _sessionRepo.startSession(
+            mode: 'interview', topicOrQuestion: 'Tell me about yourself.');
+      }
     } catch (e) {
-      // If backend is unreachable fall back to local-only mode
-      _liveMessage = 'Offline mode — results won\'t be saved.';
+      _errorMessage = 'Unable to start recording. Check your microphone permission and connection.';
+      _liveMessage = _errorMessage!;
       notifyListeners();
+      return;
     }
 
     // Start elapsed-time timer
@@ -83,21 +79,9 @@ class InterviewSessionController extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Live gauge stays animated (v1 approximate display)
-    _mockDataTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      _nudgeMockData();
-    });
-  }
-
-  void _nudgeMockData() {
-    final randomNudge = (math.Random().nextInt(11) - 5).toDouble(); // -5 to +5
-    _confidenceScore = (_confidenceScore + randomNudge).clamp(65.0, 96.0);
-    _speakingSpeedWpm = (_speakingSpeedWpm + math.Random().nextInt(5) - 2).clamp(115, 145);
-    _clarityPercentage = (_clarityPercentage + math.Random().nextInt(3) - 1).clamp(75, 98);
-    _fillerWordsCount = math.max(0, _fillerWordsCount + math.Random().nextInt(3) - 1);
-    _pausesCount = math.max(0, _pausesCount + math.Random().nextInt(3) - 1);
-    _messageIndex = (_messageIndex + 1) % _encouragingMessages.length;
-    _liveMessage = _encouragingMessages[_messageIndex];
+    _liveMessage = isGuest
+        ? 'Demo recording in progress.'
+        : 'Recording. Analysis starts after upload.';
     notifyListeners();
   }
 
@@ -107,11 +91,11 @@ class InterviewSessionController extends ChangeNotifier {
     notifyListeners();
 
     _timer?.cancel();
-    _mockDataTimer?.cancel();
-
     String? resolvedSessionId = _sessionId;
     try {
-      if (_sessionId != null) {
+      if (isGuest) {
+        resolvedSessionId = null;
+      } else if (_sessionId != null) {
         // Upload audio — pipeline runs in background on server
         final result = await _sessionRepo.finishSession(
           _elapsedSeconds.toDouble(),
@@ -119,19 +103,18 @@ class InterviewSessionController extends ChangeNotifier {
         resolvedSessionId = result?.id ?? _sessionId;
       }
     } catch (e) {
-      // Upload failed — proceed to results with what we have
+      _errorMessage = 'We could not upload your recording. Check your connection and try again.';
     } finally {
       _isProcessing = false;
       notifyListeners();
     }
 
-    onComplete(resolvedSessionId);
+    if (_errorMessage == null) onComplete(resolvedSessionId);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _mockDataTimer?.cancel();
     super.dispose();
   }
 }
@@ -142,8 +125,10 @@ class InterviewPracticeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) {
-        final ctrl = InterviewSessionController();
+      create: (context) {
+        final ctrl = InterviewSessionController(
+          isGuest: context.read<UserProvider>().isGuest,
+        );
         // Start async — must not await in create callback
         ctrl.startSession();
         return ctrl;
@@ -217,7 +202,9 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                       const SizedBox(height: 16),
 
                       // 4. 2x2 Grid of Stat Cards with Dark Background & Green Sparklines
-                      _buildStatCardGrid(controller),
+                      controller.isGuest
+                          ? _buildStatCardGrid(controller)
+                          : _buildPostRecordingNotice(),
                     ],
                   ),
                 ),
@@ -322,6 +309,30 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
   }
 
   Widget _buildLiveFeedbackCard(InterviewSessionController controller) {
+    if (!controller.isGuest) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.cardDark,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.graphic_eq_rounded,
+                color: AppColors.primaryPurpleLight, size: 42),
+            const SizedBox(height: 12),
+            Text('Recording your practice',
+                style: AppTextStyles.headingM.copyWith(color: AppColors.textOnDark)),
+            const SizedBox(height: 8),
+            Text(controller.liveMessage,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary)),
+          ],
+        ),
+      );
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -480,6 +491,22 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     );
   }
 
+  Widget _buildPostRecordingNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Text(
+        'Live metrics are not shown because the connected backend analyzes the completed recording. Stop when you are ready to upload for real AI feedback.',
+        style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
+      ),
+    );
+  }
+
   Widget _buildDarkSparklineStatCard({
     required String label,
     required String value,
@@ -591,10 +618,16 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
 
         // Large Circular Stop Button (72px)
         GestureDetector(
-          onTap: () {
-            controller.stopSession((sessionId) {
+          onTap: () async {
+            await controller.stopSession((sessionId) {
               context.push('/results', extra: sessionId);
             });
+            if (context.mounted && controller.errorMessage != null) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(controller.errorMessage!),
+                backgroundColor: AppColors.dangerRed,
+              ));
+            }
           },
           child: Container(
             width: 72,

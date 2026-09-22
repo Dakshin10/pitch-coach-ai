@@ -99,3 +99,18 @@ lib/
 ## 📄 License
 
 This project is created for educational and development purposes.
+# Pitch Coach
+
+## Running the real app
+
+Start the FastAPI backend from `backend` (with its environment, including a valid
+`GROQ_API_KEY`, configured), then run Flutter with the reachable backend URL:
+
+```powershell
+flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8000
+```
+
+For an Android emulator, `http://10.0.2.2:8000` is the default. A physical phone
+must be on the same network as the computer, use the computer's LAN IP in the
+command above, and have inbound port 8000 permitted by the firewall. Guest Mode
+is deliberately local-only and does not call the backend.

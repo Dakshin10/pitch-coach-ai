@@ -5,6 +5,7 @@ import '../../core/models/session_result.dart';
 import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/repositories/session_repository.dart';
+import '../../core/repositories/demo_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
@@ -46,6 +47,14 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadData() async {
+    if (context.read<UserProvider>().isGuest) {
+      context.read<StatsProvider>().loadDemo();
+      if (mounted) setState(() {
+        _recentSession = DemoRepository.instance.sessions.first;
+        _recentSessionLoading = false;
+      });
+      return;
+    }
     // Load summary stats (feeds the 3 stat cards)
     context.read<StatsProvider>().loadSummaryOnly();
 
