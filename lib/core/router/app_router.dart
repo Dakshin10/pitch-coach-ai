@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/models/lesson_model.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/demo/design_system_demo_page.dart';
 import '../../features/history/history_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/interview/interview_practice_screen.dart';
+import '../../features/learn/lesson_detail_screen.dart';
+import '../../features/learn/lessons_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/profile_setup_screen.dart';
@@ -22,6 +25,8 @@ abstract class AppRouter {
   static const String progress = '/progress';
   static const String profile = '/profile';
   static const String demo = '/demo';
+  static const String lessons = '/lessons';
+  static const String lessonDetail = '/lessons/detail';
 
   static CustomTransitionPage<T> _buildSlideFadeTransition<T>({
     required BuildContext context,
@@ -142,6 +147,25 @@ abstract class AppRouter {
           state: state,
           child: const DesignSystemDemoPage(),
         ),
+      ),
+      GoRoute(
+        path: lessons,
+        pageBuilder: (context, state) => _buildSlideFadeTransition(
+          context: context,
+          state: state,
+          child: const LessonsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: lessonDetail,
+        pageBuilder: (context, state) {
+          final lesson = state.extra as Lesson;
+          return _buildSlideFadeTransition(
+            context: context,
+            state: state,
+            child: LessonDetailScreen(lesson: lesson),
+          );
+        },
       ),
     ],
   );

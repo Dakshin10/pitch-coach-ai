@@ -118,48 +118,60 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _buildTopSummaryRow(StatsProvider provider, bool isLoading) {
     final s = provider.summary;
-    return Row(
-      children: [
-        Expanded(
-          child: _buildSummaryCard(
-            label: 'Total Sessions',
-            value: isLoading ? '...' : '${s.totalSessions}',
-            trend: isLoading ? '' : '+${(s.totalSessions * 0.14).round()}%',
-            isTrendPositive: true,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildSummaryCard(
-            label: 'Avg. Confidence',
-            value: isLoading ? '...' : '${s.avgConfidence.toStringAsFixed(0)}%',
-            trend: isLoading ? '' : '+5%',
-            isTrendPositive: true,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildSummaryCard(
-            label: 'Streak',
-            value: isLoading ? '...' : '${s.streakDays}',
-            trend: 'days 🔥',
-            isTrendPositive: true,
-            isStreak: true,
-          ),
-        ),
-      ],
+
+    // Metric items for the grid
+    final metrics = [
+      _GridMetric(
+        label: 'Total Sessions',
+        value: isLoading ? '...' : '${s.totalSessions}',
+        trend: isLoading ? '' : '+${(s.totalSessions * 0.14).round()}%',
+        icon: Icons.mic_rounded,
+        color: AppColors.primaryPurple,
+        isTrendPositive: true,
+      ),
+      _GridMetric(
+        label: 'Avg. Confidence',
+        value: isLoading ? '...' : '${s.avgConfidence.toStringAsFixed(0)}%',
+        trend: isLoading ? '' : '+5%',
+        icon: Icons.emoji_emotions_rounded,
+        color: AppColors.successGreen,
+        isTrendPositive: true,
+      ),
+      _GridMetric(
+        label: 'Streak',
+        value: isLoading ? '...' : '${s.streakDays} 🔥',
+        trend: isLoading ? '' : 'days',
+        icon: Icons.local_fire_department_rounded,
+        color: AppColors.warningAmber,
+        isTrendPositive: true,
+        isStreak: true,
+      ),
+      _GridMetric(
+        label: 'Best Score',
+        value: isLoading ? '...' : '${s.avgConfidence.toStringAsFixed(0)}%',
+        trend: isLoading ? '' : 'all time',
+        icon: Icons.star_rounded,
+        color: AppColors.accentBlue,
+        isTrendPositive: true,
+        isStreak: true,
+      ),
+    ];
+
+    // GridView.count — Unit 1 GridView requirement
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 1.4,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: metrics.map((m) => _buildGridMetricCard(m)).toList(),
     );
   }
 
-  Widget _buildSummaryCard({
-    required String label,
-    required String value,
-    required String trend,
-    required bool isTrendPositive,
-    bool isStreak = false,
-  }) {
+  Widget _buildGridMetricCard(_GridMetric m) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -170,47 +182,48 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                m.label,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Icon(m.icon, size: 16, color: m.color),
+            ],
           ),
-          const SizedBox(height: 6),
           Text(
-            value,
+            m.value,
             style: AppTextStyles.headingXL.copyWith(
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
+              color: m.color,
             ),
           ),
-          const SizedBox(height: 4),
-          if (trend.isNotEmpty)
+          if (m.trend.isNotEmpty)
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!isStreak) ...[
+                if (!m.isStreak)
                   Icon(
-                    isTrendPositive
-                        ? Icons.arrow_upward_rounded
-                        : Icons.arrow_downward_rounded,
-                    size: 12,
-                    color: isTrendPositive ? AppColors.successGreen : AppColors.dangerRed,
+                    m.isTrendPositive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                    size: 11,
+                    color: m.isTrendPositive ? AppColors.successGreen : AppColors.dangerRed,
                   ),
-                  const SizedBox(width: 2),
-                ],
+                const SizedBox(width: 2),
                 Flexible(
                   child: Text(
-                    trend,
+                    m.trend,
                     style: AppTextStyles.caption.copyWith(
-                      color: isStreak ? AppColors.textPrimaryDark : AppColors.successGreen,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
+                      color: m.isStreak ? AppColors.textSecondary : AppColors.successGreen,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -222,8 +235,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
+
   Widget _buildConfidenceChartCard(StatsProvider provider, bool isLoading) {
     final isWeek = _selectedRange == 'Week';
+
 
     // Build chart spots from real trend data; fall back to empty list
     List<FlSpot> spots = [];
@@ -705,4 +720,26 @@ class _ProgressScreenState extends State<ProgressScreen> {
         break;
     }
   }
+}
+
+// ── Data class for GridView metric cards ─────────────────────────────────────
+
+class _GridMetric {
+  final String label;
+  final String value;
+  final String trend;
+  final IconData icon;
+  final Color color;
+  final bool isTrendPositive;
+  final bool isStreak;
+
+  const _GridMetric({
+    required this.label,
+    required this.value,
+    required this.trend,
+    required this.icon,
+    required this.color,
+    required this.isTrendPositive,
+    this.isStreak = false,
+  });
 }

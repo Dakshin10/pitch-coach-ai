@@ -18,6 +18,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
   String _searchQuery = '';
+  DateTime? _selectedDate; // DatePicker filter (Unit 2)
 
   // Real data from API
   List<SessionSummary> _sessions = [];
@@ -116,19 +117,50 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       color: AppColors.textPrimaryDark,
                     ),
                   ),
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.divider),
-                    ),
-                    child: const Icon(
-                      Icons.tune_rounded,
-                      size: 20,
-                      color: AppColors.textPrimaryDark,
-                    ),
+                  // DatePicker filter button (Unit 2)
+                  Row(
+                    children: [
+                      if (_selectedDate != null)
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _selectedDate = null);
+                            _loadSessions();
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Clear',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.primaryPurple,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      GestureDetector(
+                        onTap: _pickDate,
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: _selectedDate != null
+                                ? AppColors.primaryPurple
+                                : Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.divider),
+                          ),
+                          child: Icon(
+                            Icons.calendar_month_rounded,
+                            size: 20,
+                            color: _selectedDate != null
+                                ? Colors.white
+                                : AppColors.textPrimaryDark,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -305,10 +337,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ? AppColors.accentGreen
             : AppColors.primaryPurple;
 
-    return GestureDetector(
+    return InkWell(
       onTap: () => context.push('/results', extra: session.id),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -321,10 +353,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ],
         ),
-        child: Row(
-          children: [
-            // Mode Icon
-            Container(
+          // Use ListTile for session cards (Unit 1)
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            leading: Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
@@ -333,55 +365,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               child: Icon(icon, color: iconBg, size: 24),
             ),
-            const SizedBox(width: 14),
-
-            // Session Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    session.topicOrQuestion,
-                    style: AppTextStyles.headingM.copyWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    session.modeLabel,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${session.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
-                    '${session.createdAt.toLocal().minute.toString().padLeft(2, '0')}'
-                    ' · ${session.durationFormatted}',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary.withValues(alpha: 0.7),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+            title: Text(
+              session.topicOrQuestion,
+              style: AppTextStyles.headingM.copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-
-            // Score Gauge
-            CircularGauge(
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 2),
+                Text(
+                  session.modeLabel,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${session.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
+                  '${session.createdAt.toLocal().minute.toString().padLeft(2, '0')}'
+                  ' · ${session.durationFormatted}',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+            trailing: CircularGauge(
               value: score,
               size: 46,
               strokeWidth: 4.5,
               centerBigText: '${score.round()}%',
               gradientColors: [scoreColor, scoreColor],
             ),
-          ],
+            isThreeLine: true,
+          ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildEmptyState() {
@@ -389,16 +414,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.primaryPurple.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.mic_none_rounded,
-              size: 54,
-              color: AppColors.primaryPurple,
+          // Image.asset illustration (Unit 1)
+          Image.asset(
+            'assets/images/empty_history.png',
+            height: 160,
+            errorBuilder: (_, _, _) => Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.primaryPurple.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.mic_none_rounded,
+                size: 54,
+                color: AppColors.primaryPurple,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -407,7 +437,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Text(
             _searchQuery.isNotEmpty
                 ? 'No results for "$_searchQuery". Try a different search.'
-                : 'Start practicing to build your session history.',
+                : _selectedDate != null
+                    ? 'No sessions on the selected date.'
+                    : 'Start practicing to build your session history.',
             style: AppTextStyles.bodyM,
             textAlign: TextAlign.center,
           ),
@@ -465,6 +497,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
       case 4:
         context.go('/profile');
         break;
+    }
+  }
+
+  /// Show the DatePicker and reload sessions filtered to that date (Unit 2).
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryPurple,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimaryDark,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+      _loadSessions();
     }
   }
 }

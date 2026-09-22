@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +32,16 @@ class _ResultsScreenState extends State<ResultsScreen>
   late Animation<double> _card3Anim;
 
   int _navIndex = 0;
+
+  // ── Audio Playback (Unit 2) ────────────────────────────────────────────
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+  Duration _audioDuration = Duration.zero;
+  Duration _audioPosition = Duration.zero;
+  StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<PlayerState>? _playerStateSub;
+  StreamSubscription<void>? _playerCompleteSub;
 
   @override
   void initState() {
@@ -86,6 +98,25 @@ class _ResultsScreenState extends State<ResultsScreen>
         _mainController.forward();
       }
     });
+
+    // Audio player listeners
+    _durationSub = _audioPlayer.onDurationChanged.listen((d) {
+      if (mounted) setState(() => _audioDuration = d);
+    });
+    _positionSub = _audioPlayer.onPositionChanged.listen((p) {
+      if (mounted) setState(() => _audioPosition = p);
+    });
+    _playerStateSub = _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) setState(() => _isPlaying = state == PlayerState.playing);
+    });
+    _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _audioPosition = Duration.zero;
+        });
+      }
+    });
   }
 
   void _onResultsUpdate() {
@@ -106,7 +137,12 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   @override
   void dispose() {
+    _durationSub?.cancel();
+    _positionSub?.cancel();
+    _playerStateSub?.cancel();
+    _playerCompleteSub?.cancel();
     _mainController.dispose();
+    _audioPlayer.dispose();
     // Remove listener if still attached
     try {
       context.read<SessionResultsProvider>().removeListener(_onResultsUpdate);
@@ -170,6 +206,14 @@ class _ResultsScreenState extends State<ResultsScreen>
                     _buildAnimatedSection(
                       animation: _card0Anim,
                       child: _buildOverallScoreCard(result),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Section 0.5: Audio Playback Card (Unit 2)
+                    _buildAnimatedSection(
+                      animation: _card0Anim,
+                      child: _buildAudioPlaybackCard(result),
                     ),
 
                     const SizedBox(height: 20),
@@ -248,6 +292,140 @@ class _ResultsScreenState extends State<ResultsScreen>
 
           // Empty spacer for symmetry
           const SizedBox(width: 36),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAudioPlaybackCard(SessionResult? result) {
+    // result.audioPath may be null if no local file is available
+    final audioPath = result?.audioPath;
+    final hasAudio = audioPath != null && audioPath.isNotEmpty;
+
+    String fmtDuration(Duration d) {
+      final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+      final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+      return '$m:$s';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: const [
+          BoxShadow(color: AppColors.cardShadow, blurRadius: 14, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryPurple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.headphones_rounded,
+                    color: AppColors.primaryPurple, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Listen to Your Recording',
+                        style: AppTextStyles.headingM.copyWith(fontSize: 14)),
+                    Text(
+                      hasAudio ? 'Tap play to review your speech' : 'No recording available',
+                      style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          if (hasAudio) ...[
+            const SizedBox(height: 14),
+
+            // Progress slider
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                activeTrackColor: AppColors.primaryPurple,
+                inactiveTrackColor: AppColors.divider,
+                thumbColor: AppColors.primaryPurple,
+                overlayColor: AppColors.primaryPurple.withValues(alpha: 0.12),
+              ),
+              child: Slider(
+                value: _audioDuration.inMilliseconds > 0
+                    ? (_audioPosition.inMilliseconds / _audioDuration.inMilliseconds)
+                        .clamp(0.0, 1.0)
+                    : 0.0,
+                onChanged: (val) {
+                  final seek = Duration(
+                    milliseconds: (val * _audioDuration.inMilliseconds).toInt(),
+                  );
+                  _audioPlayer.seek(seek);
+                },
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Play / Pause Button
+                  GestureDetector(
+                    onTap: () async {
+                      if (_isPlaying) {
+                        await _audioPlayer.pause();
+                      } else {
+                        if (_audioDuration == Duration.zero) {
+                          await _audioPlayer.play(
+                            DeviceFileSource(audioPath),
+                          );
+                        } else {
+                          await _audioPlayer.resume();
+                        }
+                      }
+                    },
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryPurple,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                  // Time labels
+                  Text(
+                    '${fmtDuration(_audioPosition)} / ${fmtDuration(_audioDuration)}',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

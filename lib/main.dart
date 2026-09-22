@@ -4,10 +4,13 @@ import 'core/providers/session_results_provider.dart';
 import 'core/providers/stats_provider.dart';
 import 'core/providers/user_provider.dart';
 import 'core/router/app_router.dart';
+import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Initialize notification service (handles permissions gracefully)
+  await NotificationService.instance.initialize();
   runApp(
     MultiProvider(
       providers: [

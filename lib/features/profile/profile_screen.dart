@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/user_provider.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
@@ -16,6 +17,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _darkModeEnabled = false;
+  TimeOfDay? _reminderTime; // TimePicker (Unit 2)
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +95,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildListRow(
                   icon: Icons.flag_outlined,
                   label: 'Practice Goals & Reminders',
-                  onTap: () => context.push('/profile-setup'),
+                  // TimePicker-powered reminder row
+                  trailingText: _reminderTime?.format(context),
+                  onTap: _handleReminderTap,
                 ),
                 const Divider(height: 1),
                 _buildListRow(
@@ -106,7 +110,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 20),
 
-              // 5. Preferences Section
+              // 5.5. Learn Section — navigate to lesson library
+              _buildSectionTitle('Learn'),
+              const SizedBox(height: 10),
+              _buildSettingsCard([
+                _buildListRow(
+                  icon: Icons.school_rounded,
+                  label: 'Communication Lessons',
+                  trailingText: '5 lessons',
+                  onTap: () => context.push('/lessons'),
+                ),
+                const Divider(height: 1),
+                _buildListRow(
+                  icon: Icons.video_library_rounded,
+                  label: 'Watch: Filler Word Reduction',
+                  onTap: () => context.push('/lessons'),
+                ),
+              ]),
+
+              const SizedBox(height: 20),
+
+              // 6. Preferences Section
               _buildSectionTitle('Preferences'),
               const SizedBox(height: 10),
               _buildSettingsCard([
@@ -474,6 +498,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case 4:
         // Already on Profile
         break;
+    }
+  }
+
+  /// Manage practice reminder: change time or disable (Unit 2).
+  Future<void> _handleReminderTap() async {
+    if (_reminderTime != null) {
+      final action = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daily Practice Reminder',
+                  style: AppTextStyles.headingM.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Currently set for ${_reminderTime!.format(context)} daily.',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.access_time_rounded, color: AppColors.primaryPurple),
+                  title: const Text('Change Reminder Time'),
+                  onTap: () => Navigator.pop(ctx, 'change'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.notifications_off_outlined, color: AppColors.dangerRed),
+                  title: const Text('Disable Reminder', style: TextStyle(color: AppColors.dangerRed)),
+                  onTap: () => Navigator.pop(ctx, 'disable'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      if (!mounted) return;
+      if (action == 'disable') {
+        await NotificationService.instance.cancelDailyReminder();
+        if (!mounted) return;
+        setState(() => _reminderTime = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Daily practice reminder disabled.'),
+            backgroundColor: AppColors.textSecondary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        return;
+      } else if (action != 'change') {
+        return;
+      }
+    }
+
+    await _pickReminderTime();
+  }
+
+  /// Show TimePicker and schedule daily practice reminder (Unit 2).
+  Future<void> _pickReminderTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _reminderTime ?? const TimeOfDay(hour: 9, minute: 0),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryPurple,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimaryDark,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (!mounted) return;
+    if (picked != null) {
+      final formattedTime = picked.format(context);
+      setState(() => _reminderTime = picked);
+      // Schedule the daily notification
+      await NotificationService.instance.scheduleDailyReminder(picked);
+      // Confirm to the user with an instant notification
+      await NotificationService.instance.showInstantNotification(
+        '🔔 Reminder Set!',
+        'You will be reminded to practice at $formattedTime daily.',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Daily reminder set for $formattedTime ✅',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: AppColors.primaryPurple,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
     }
   }
 }

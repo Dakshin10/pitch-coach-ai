@@ -205,6 +205,51 @@ class _HomeScreenState extends State<HomeScreen>
                 _buildRecentSessionCard(context),
 
                 const SizedBox(height: 24),
+
+                // Learn section — quick access to lesson library
+                _buildSectionHeader(
+                  title: 'Learn & Improve',
+                  trailing: GestureDetector(
+                    onTap: () => context.push('/lessons'),
+                    child: Text(
+                      'All Lessons >',
+                      style: AppTextStyles.bodyM.copyWith(
+                        color: AppColors.primaryPurple,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // Lesson quick-access row
+                Row(
+                  children: [
+                    _buildLearnChip(
+                      context,
+                      icon: Icons.event_seat_rounded,
+                      label: 'Interview',
+                      color: AppColors.primaryPurple,
+                    ),
+                    const SizedBox(width: 10),
+                    _buildLearnChip(
+                      context,
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Presentation',
+                      color: AppColors.accentBlue,
+                    ),
+                    const SizedBox(width: 10),
+                    _buildLearnChip(
+                      context,
+                      icon: Icons.mic_rounded,
+                      label: 'Speaking',
+                      color: AppColors.accentGreen,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -234,6 +279,35 @@ class _HomeScreenState extends State<HomeScreen>
         },
         onMicTap: () => context.push('/interview'),
       ),
+
+      // FloatingActionButton — Quick Practice (Unit 1)
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showPracticeModeSheet(context),
+        backgroundColor: AppColors.primaryPurple,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        icon: const Icon(Icons.mic_rounded),
+        label: Text(
+          'Quick Practice',
+          style: AppTextStyles.bodySmallBold.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  void _showPracticeModeSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PracticeModeSheet(onModeTap: (route) {
+        Navigator.pop(context);
+        context.push(route);
+      }),
     );
   }
 
@@ -280,22 +354,43 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             const SizedBox(width: 10),
+      // Avatar with Image.network + initials fallback (Unit 1)
             GestureDetector(
               onTap: () => context.go('/profile'),
               child: Container(
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 decoration: const BoxDecoration(
                   color: AppColors.primaryPurple,
                   shape: BoxShape.circle,
                 ),
-                child: Center(
-                  child: Text(
-                    user.initials,
-                    style: AppTextStyles.bodySmallBold.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                child: ClipOval(
+                  child: Image.network(
+                    'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.name)}&background=6C5CE7&color=fff&size=128',
+                    width: 38,
+                    height: 38,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Center(
+                      child: Text(
+                        user.initials,
+                        style: AppTextStyles.bodySmallBold.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
+                    loadingBuilder: (_, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: Text(
+                          user.initials,
+                          style: AppTextStyles.bodySmallBold.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -303,6 +398,44 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildLearnChip(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: () => context.push('/lessons'),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -681,3 +814,157 @@ class _PracticeModeCardState extends State<_PracticeModeCard> {
     );
   }
 }
+
+// ─── Practice Mode Bottom Sheet ─────────────────────────────────────────────
+
+/// Modal bottom sheet that lets the user pick a practice mode from the FAB.
+class _PracticeModeSheet extends StatelessWidget {
+  final void Function(String route) onModeTap;
+
+  const _PracticeModeSheet({required this.onModeTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Logo + Title
+          Row(
+            children: [
+              Image.asset(
+                'assets/images/pitch_coach_logo.png',
+                width: 36,
+                height: 36,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.mic_rounded,
+                  color: AppColors.primaryPurple,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Start Practice',
+                    style: AppTextStyles.headingL.copyWith(
+                      color: AppColors.textPrimaryDark,
+                    ),
+                  ),
+                  Text(
+                    'Choose a practice mode',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Mode options
+          _buildModeOption(
+            icon: Icons.event_seat_rounded,
+            color: AppColors.primaryPurple,
+            title: 'Interview Practice',
+            subtitle: 'Practice common interview questions',
+            route: '/interview',
+          ),
+          const SizedBox(height: 12),
+          _buildModeOption(
+            icon: Icons.bar_chart_rounded,
+            color: AppColors.accentBlue,
+            title: 'Presentation Practice',
+            subtitle: 'Rehearse your slides or speeches',
+            route: '/interview',
+          ),
+          const SizedBox(height: 12),
+          _buildModeOption(
+            icon: Icons.mic_rounded,
+            color: AppColors.accentGreen,
+            title: 'Free Talk',
+            subtitle: 'Speak freely on any topic',
+            route: '/interview',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeOption({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required String route,
+  }) {
+    return InkWell(
+      onTap: () => onModeTap(route),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.headingM.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimaryDark,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

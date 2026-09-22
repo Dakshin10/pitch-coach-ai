@@ -80,9 +80,9 @@ class AuthRepository {
   // ── Update profile ────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> updateMe(Map<String, dynamic> fields) async {
-    final data = await _api.patch('/users/me', data: fields);
-    await _cacheUser(data as Map<String, dynamic>);
-    return data as Map<String, dynamic>;
+    final data = await _api.patch('/users/me', data: fields) as Map<String, dynamic>;
+    await _cacheUser(data);
+    return data;
   }
 
   // ── Logout ────────────────────────────────────────────────────────────────

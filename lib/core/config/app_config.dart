@@ -21,8 +21,10 @@ class AppConfig {
   /// Active backend URL.  Change [_usePhysicalDevice] to true when testing
   /// on a real device.
   static const bool _usePhysicalDevice = false;
-  static const String apiBaseUrl =
-      _usePhysicalDevice ? _physicalUrl : _emulatorUrl;
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: _usePhysicalDevice ? _physicalUrl : _emulatorUrl,
+  );
 
   // ── Polling interval for results screen (waits for is_analyzed = true) ────
   static const Duration resultsPollInterval = Duration(seconds: 2);

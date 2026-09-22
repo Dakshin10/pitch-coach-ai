@@ -47,6 +47,8 @@ class SessionResult {
   final List<FeedbackItem> aiFeedback;
   final DateTime createdAt;
   final bool isAnalyzed;
+  /// Local path to the recorded audio file, populated by SessionRepository after upload.
+  final String? audioPath;
 
   const SessionResult({
     required this.id,
@@ -65,6 +67,7 @@ class SessionResult {
     required this.aiFeedback,
     required this.createdAt,
     required this.isAnalyzed,
+    this.audioPath,
   });
 
   factory SessionResult.fromJson(Map<String, dynamic> j) => SessionResult(
@@ -88,6 +91,46 @@ class SessionResult {
         createdAt: DateTime.parse(j['created_at'] as String),
         isAnalyzed: j['is_analyzed'] as bool? ?? false,
       );
+
+  SessionResult copyWith({
+    String? id,
+    String? mode,
+    String? topicOrQuestion,
+    double? durationSeconds,
+    String? transcript,
+    double? wpm,
+    int? fillerWordCount,
+    Map<String, int>? fillerWordBreakdown,
+    int? pauseCount,
+    double? avgPauseLength,
+    double? clarityScore,
+    double? confidenceScore,
+    double? overallScore,
+    List<FeedbackItem>? aiFeedback,
+    DateTime? createdAt,
+    bool? isAnalyzed,
+    String? audioPath,
+  }) {
+    return SessionResult(
+      id: id ?? this.id,
+      mode: mode ?? this.mode,
+      topicOrQuestion: topicOrQuestion ?? this.topicOrQuestion,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      transcript: transcript ?? this.transcript,
+      wpm: wpm ?? this.wpm,
+      fillerWordCount: fillerWordCount ?? this.fillerWordCount,
+      fillerWordBreakdown: fillerWordBreakdown ?? this.fillerWordBreakdown,
+      pauseCount: pauseCount ?? this.pauseCount,
+      avgPauseLength: avgPauseLength ?? this.avgPauseLength,
+      clarityScore: clarityScore ?? this.clarityScore,
+      confidenceScore: confidenceScore ?? this.confidenceScore,
+      overallScore: overallScore ?? this.overallScore,
+      aiFeedback: aiFeedback ?? this.aiFeedback,
+      createdAt: createdAt ?? this.createdAt,
+      isAnalyzed: isAnalyzed ?? this.isAnalyzed,
+      audioPath: audioPath ?? this.audioPath,
+    );
+  }
 
   /// Duration formatted as "mm:ss"
   String get durationFormatted {

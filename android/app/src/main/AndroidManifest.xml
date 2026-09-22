@@ -5,6 +5,12 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Allow clear-text HTTP to 10.0.2.2 (emulator) and local LAN during dev -->
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <!-- Notifications (Android 13+ / API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Required for notification vibration and alarm scheduling -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <application
         android:label="pitch_coach"
         android:name="${applicationName}"

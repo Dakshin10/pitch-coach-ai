@@ -18,6 +18,7 @@ class SessionRepository {
 
   String? _currentSessionId;
   String? _currentAudioPath;
+  static final Map<String, String> _audioPathCache = {};
 
   String? get currentSessionId => _currentSessionId;
 
@@ -80,19 +81,26 @@ class SessionRepository {
       'duration_seconds': durationSeconds.toString(),
     });
 
+    final sessionId = _currentSessionId!;
     final raw = await _api.postMultipart(
-      '/sessions/$_currentSessionId/finish',
+      '/sessions/$sessionId/finish',
       formData,
     ) as Map<String, dynamic>;
 
+    _audioPathCache[sessionId] = audioPath;
     _currentAudioPath = null;
-    return SessionResult.fromJson(raw);
+    return SessionResult.fromJson(raw).copyWith(audioPath: audioPath);
   }
 
   /// Step 3 (polling): fetch session until is_analyzed = true.
   Future<SessionResult> getSession(String sessionId) async {
     final raw = await _api.get('/sessions/$sessionId') as Map<String, dynamic>;
-    return SessionResult.fromJson(raw);
+    final result = SessionResult.fromJson(raw);
+    final cachedPath = _audioPathCache[sessionId];
+    if (cachedPath != null) {
+      return result.copyWith(audioPath: cachedPath);
+    }
+    return result;
   }
 
   /// History list — used by HistoryScreen.
@@ -103,8 +111,8 @@ class SessionRepository {
     int limit = 20,
   }) async {
     final raw = await _api.get('/sessions', params: {
-      if (mode != null) 'mode': mode,
-      if (search != null) 'search': search,
+      'mode': ?mode,
+      'search': ?search,
       'page': page.toString(),
       'limit': limit.toString(),
     }) as List<dynamic>;
