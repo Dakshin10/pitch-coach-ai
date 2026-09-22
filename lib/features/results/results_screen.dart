@@ -1,13 +1,17 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../core/models/session_result.dart';
+import '../../core/providers/session_results_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
 
 class ResultsScreen extends StatefulWidget {
-  const ResultsScreen({super.key});
+  final String? sessionId;
+  const ResultsScreen({super.key, this.sessionId});
 
   @override
   State<ResultsScreen> createState() => _ResultsScreenState();
@@ -54,15 +58,13 @@ class _ResultsScreenState extends State<ResultsScreen>
       curve: const Interval(0.36, 0.72, curve: Curves.easeOutCubic),
     );
 
-    // Score ring fill (1200ms)
-    _scoreGaugeAnimation = Tween<double>(begin: 0.0, end: 82.0).animate(
+    // Score ring animation — target is real score once loaded, otherwise 0
+    _scoreGaugeAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _mainController,
         curve: const Interval(0.1, 0.85, curve: Curves.easeOutCubic),
       ),
     );
-
-
 
     // Chart draw animation
     _chartAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -72,17 +74,53 @@ class _ResultsScreenState extends State<ResultsScreen>
       ),
     );
 
-    _mainController.forward();
+    // Start polling if we have a session_id
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final sessionId = widget.sessionId;
+      if (sessionId != null && sessionId.isNotEmpty) {
+        final provider = context.read<SessionResultsProvider>();
+        provider.loadSession(sessionId);
+        provider.addListener(_onResultsUpdate);
+      } else {
+        // No session id (e.g. navigated directly) — just run the animation
+        _mainController.forward();
+      }
+    });
+  }
+
+  void _onResultsUpdate() {
+    final provider = context.read<SessionResultsProvider>();
+    if (provider.state == ResultsLoadState.ready && provider.result != null) {
+      final score = provider.result!.overallScore;
+      // Re-create the tween with the real score target and replay
+      _scoreGaugeAnimation = Tween<double>(begin: 0.0, end: score).animate(
+        CurvedAnimation(
+          parent: _mainController,
+          curve: const Interval(0.1, 0.85, curve: Curves.easeOutCubic),
+        ),
+      );
+      _mainController.forward(from: 0);
+      provider.removeListener(_onResultsUpdate);
+    }
   }
 
   @override
   void dispose() {
     _mainController.dispose();
+    // Remove listener if still attached
+    try {
+      context.read<SessionResultsProvider>().removeListener(_onResultsUpdate);
+    } catch (_) {}
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final resultsProvider = context.watch<SessionResultsProvider>();
+    final result = resultsProvider.result;
+    final isAnalyzing = resultsProvider.state == ResultsLoadState.analyzing ||
+        resultsProvider.state == ResultsLoadState.loading;
+
     return Scaffold(
       backgroundColor: AppColors.surfaceLight,
       body: SafeArea(
@@ -90,6 +128,33 @@ class _ResultsScreenState extends State<ResultsScreen>
           children: [
             // 1. Top App Bar
             _buildTopAppBar(context),
+
+            // Analyzing banner
+            if (isAnalyzing && widget.sessionId != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                color: AppColors.primaryPurple.withValues(alpha: 0.08),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 14, height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Analyzing your speech with AI…',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.primaryPurple,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 8),
 
@@ -104,7 +169,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                     // Section 0: Overall Score Card
                     _buildAnimatedSection(
                       animation: _card0Anim,
-                      child: _buildOverallScoreCard(),
+                      child: _buildOverallScoreCard(result),
                     ),
 
                     const SizedBox(height: 20),
@@ -112,7 +177,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                     // Section 1: Performance Summary Grid
                     _buildAnimatedSection(
                       animation: _card1Anim,
-                      child: _buildPerformanceSummary(),
+                      child: _buildPerformanceSummary(result),
                     ),
 
                     const SizedBox(height: 20),
@@ -128,7 +193,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                     // Section 3: Suggestions List
                     _buildAnimatedSection(
                       animation: _card3Anim,
-                      child: _buildSuggestionsSection(),
+                      child: _buildSuggestionsSection(result),
                     ),
 
                     const SizedBox(height: 28),
@@ -208,7 +273,16 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
-  Widget _buildOverallScoreCard() {
+  Widget _buildOverallScoreCard(SessionResult? result) {
+    final score = result?.overallScore ?? 0.0;
+    final headline = score >= 80
+        ? 'Great Job!'
+        : score >= 60
+            ? 'Good Effort!'
+            : 'Keep Practicing!';
+    final summary = result != null
+        ? '${result.wpm.round()} WPM · ${result.fillerWordCount} fillers · ${result.pauseCount} pauses'
+        : 'You spoke clearly and confidently. Keep practicing to get even better.';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -264,16 +338,16 @@ class _ResultsScreenState extends State<ResultsScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Great Job!',
+                          headline,
                           style: AppTextStyles.headingM.copyWith(
-                            color: AppColors.successGreen,
+                            color: score >= 70 ? AppColors.successGreen : AppColors.warningAmber,
                             fontWeight: FontWeight.w700,
                             fontSize: 19,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'You spoke clearly and confidently. Keep practicing to get even better.',
+                          summary,
                           style: AppTextStyles.bodyM.copyWith(
                             color: AppColors.textSecondary,
                             fontSize: 12.5,
@@ -304,7 +378,7 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
-  Widget _buildPerformanceSummary() {
+  Widget _buildPerformanceSummary(SessionResult? result) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -315,9 +389,9 @@ class _ResultsScreenState extends State<ResultsScreen>
             Expanded(
               child: _buildCountUpStatCard(
                 label: 'Filler Words',
-                targetValue: 5,
+                targetValue: result?.fillerWordCount ?? 5,
                 suffix: '',
-                status: 'Great',
+                status: (result?.fillerWordCount ?? 5) <= 5 ? 'Great' : 'Needs Work',
                 delayMs: 0,
               ),
             ),
@@ -325,9 +399,12 @@ class _ResultsScreenState extends State<ResultsScreen>
             Expanded(
               child: _buildCountUpStatCard(
                 label: 'Speaking Speed',
-                targetValue: 118,
+                targetValue: result?.wpm.round() ?? 118,
                 suffix: ' WPM',
-                status: 'Good',
+                status: (() {
+                  final w = result?.wpm ?? 118;
+                  return w >= 120 && w <= 160 ? 'Optimal' : 'Adjust';
+                })(),
                 delayMs: 100,
               ),
             ),
@@ -339,7 +416,7 @@ class _ResultsScreenState extends State<ResultsScreen>
             Expanded(
               child: _buildCountUpStatCard(
                 label: 'Pauses',
-                targetValue: 6,
+                targetValue: result?.pauseCount ?? 6,
                 suffix: '',
                 status: 'Good',
                 delayMs: 200,
@@ -349,9 +426,9 @@ class _ResultsScreenState extends State<ResultsScreen>
             Expanded(
               child: _buildCountUpStatCard(
                 label: 'Clarity',
-                targetValue: 85,
+                targetValue: result?.clarityScore.round() ?? 85,
                 suffix: '%',
-                status: 'Great',
+                status: (result?.clarityScore ?? 85) >= 80 ? 'Great' : 'Good',
                 delayMs: 300,
               ),
             ),
@@ -641,7 +718,10 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
-  Widget _buildSuggestionsSection() {
+  Widget _buildSuggestionsSection(SessionResult? result) {
+    // Use AI feedback if available, otherwise fall back to static suggestions
+    final hasRealFeedback = result != null && result.aiFeedback.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -661,29 +741,64 @@ class _ResultsScreenState extends State<ResultsScreen>
             ],
           ),
           child: Column(
-            children: [
-              _buildSuggestionRow(
-                icon: Icons.lightbulb_outline_rounded,
-                iconColor: AppColors.warningAmber,
-                text: 'Try reducing filler words like "um", "like".',
-              ),
-              const Divider(height: 1),
-              _buildSuggestionRow(
-                icon: Icons.access_time_rounded,
-                iconColor: AppColors.accentBlue,
-                text: 'Pause a bit more for emphasis.',
-              ),
-              const Divider(height: 1),
-              _buildSuggestionRow(
-                icon: Icons.check_circle_outline_rounded,
-                iconColor: AppColors.successGreen,
-                text: 'Great pace! Maintain consistency.',
-              ),
-            ],
+            children: hasRealFeedback
+                ? result.aiFeedback.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final item = entry.value;
+                    return Column(
+                      children: [
+                        if (idx > 0) const Divider(height: 1),
+                        _buildSuggestionRow(
+                          icon: _iconForCategory(item.category),
+                          iconColor: _colorForSeverity(item.severity),
+                          text: item.example != null
+                              ? '${item.message}  "${item.example!}"'
+                              : item.message,
+                        ),
+                      ],
+                    );
+                  }).toList()
+                : [
+                    _buildSuggestionRow(
+                      icon: Icons.lightbulb_outline_rounded,
+                      iconColor: AppColors.warningAmber,
+                      text: 'Try reducing filler words like "um", "like".',
+                    ),
+                    const Divider(height: 1),
+                    _buildSuggestionRow(
+                      icon: Icons.access_time_rounded,
+                      iconColor: AppColors.accentBlue,
+                      text: 'Pause a bit more for emphasis.',
+                    ),
+                    const Divider(height: 1),
+                    _buildSuggestionRow(
+                      icon: Icons.check_circle_outline_rounded,
+                      iconColor: AppColors.successGreen,
+                      text: 'Great pace! Maintain consistency.',
+                    ),
+                  ],
           ),
         ),
       ],
     );
+  }
+
+  IconData _iconForCategory(String category) {
+    switch (category) {
+      case 'filler_words': return Icons.record_voice_over_rounded;
+      case 'pacing': return Icons.speed_rounded;
+      case 'structure': return Icons.list_alt_rounded;
+      case 'confidence': return Icons.emoji_emotions_rounded;
+      default: return Icons.lightbulb_outline_rounded;
+    }
+  }
+
+  Color _colorForSeverity(String severity) {
+    switch (severity) {
+      case 'positive': return AppColors.successGreen;
+      case 'warning': return AppColors.warningAmber;
+      default: return AppColors.accentBlue;
+    }
   }
 
   Widget _buildSuggestionRow({

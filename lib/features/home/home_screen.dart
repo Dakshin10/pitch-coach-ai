@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/models/session_result.dart';
+import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
+import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
@@ -19,6 +22,10 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  // Real recent session — null while loading or when user has none yet
+  SessionSummary? _recentSession;
+  bool _recentSessionLoading = true;
+
   @override
   void initState() {
     super.initState();
@@ -31,6 +38,29 @@ class _HomeScreenState extends State<HomeScreen>
       curve: Curves.easeOut,
     );
     _fadeController.forward();
+
+    // Load stats + recent session after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  Future<void> _loadData() async {
+    // Load summary stats (feeds the 3 stat cards)
+    context.read<StatsProvider>().loadSummaryOnly();
+
+    // Load the most recent session (feeds the recent session card)
+    try {
+      final sessions = await SessionRepository.instance.listSessions(limit: 1);
+      if (mounted) {
+        setState(() {
+          _recentSession = sessions.isNotEmpty ? sessions.first : null;
+          _recentSessionLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _recentSessionLoading = false);
+    }
   }
 
   @override
@@ -41,7 +71,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _handleRefresh() async {
     _fadeController.reset();
-    await Future.delayed(const Duration(milliseconds: 150));
+    setState(() => _recentSessionLoading = true);
+    await _loadData();
     _fadeController.forward();
   }
 
@@ -120,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen>
 
                 const SizedBox(height: 28),
 
-                // 4. "Your Progress" Header + Dropdown
+                // 4. "Your Progress" Header
                 _buildSectionHeader(
                   title: 'Your Progress',
                   trailing: Row(
@@ -145,10 +176,10 @@ class _HomeScreenState extends State<HomeScreen>
 
                 const SizedBox(height: 14),
 
-                // 5. Stat Cards Row (Fade animated on refresh)
+                // 5. Stat Cards Row — wired to StatsProvider
                 FadeTransition(
                   opacity: _fadeAnimation,
-                  child: _buildProgressStatCards(),
+                  child: _buildProgressStatCards(context),
                 ),
 
                 const SizedBox(height: 24),
@@ -157,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen>
                 _buildSectionHeader(
                   title: 'Recent Session',
                   trailing: GestureDetector(
-                    onTap: () => context.push('/results'),
+                    onTap: () => context.push('/history'),
                     child: Text(
                       'View All >',
                       style: AppTextStyles.bodyM.copyWith(
@@ -170,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen>
 
                 const SizedBox(height: 14),
 
-                // 7. Recent Session Item Card
+                // 7. Recent Session Card — real data
                 _buildRecentSessionCard(context),
 
                 const SizedBox(height: 24),
@@ -211,7 +242,6 @@ class _HomeScreenState extends State<HomeScreen>
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Greeting Text Stack
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -224,26 +254,18 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Text(
-                  '👋',
-                  style: TextStyle(fontSize: 22),
-                ),
+                const Text('👋', style: TextStyle(fontSize: 22)),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               'Ready to practice today?',
-              style: AppTextStyles.bodyM.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
-
-        // Action Icons: Bell + Avatar
         Row(
           children: [
-            // Bell Notification Icon
             Container(
               width: 36,
               height: 36,
@@ -258,8 +280,6 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             const SizedBox(width: 10),
-
-            // User Avatar (Dynamic Initials)
             GestureDetector(
               onTap: () => context.go('/profile'),
               child: Container(
@@ -300,36 +320,48 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildProgressStatCards() {
+  /// Stat cards driven by StatsProvider — shows '...' while loading.
+  Widget _buildProgressStatCards(BuildContext context) {
+    final stats = context.watch<StatsProvider>();
+    final isLoading = stats.isLoading || stats.state == StatsLoadState.idle;
+    final s = stats.summary;
+
+    String fillerLabel;
+    if (isLoading) {
+      fillerLabel = '...';
+    } else {
+      final pct = s.fillerReductionPct;
+      fillerLabel = pct >= 0
+          ? '-${pct.toStringAsFixed(0)}%'
+          : '+${(-pct).toStringAsFixed(0)}%';
+    }
+
     return Row(
       children: [
-        // Card 1: Sessions
         Expanded(
           child: _buildSmallStatCard(
             label: 'Sessions',
-            value: '7',
+            value: isLoading ? '...' : '${s.totalSessions}',
             valueColor: AppColors.textPrimaryDark,
           ),
         ),
         const SizedBox(width: 10),
-
-        // Card 2: Avg. Confidence
         Expanded(
           child: _buildSmallStatCard(
             label: 'Avg. Confidence',
-            value: '78%',
+            value: isLoading ? '...' : '${s.avgConfidence.toStringAsFixed(0)}%',
             valueColor: AppColors.successGreen,
           ),
         ),
         const SizedBox(width: 10),
-
-        // Card 3: Filler Words
         Expanded(
           child: _buildSmallStatCard(
             label: 'Filler Words',
-            value: '-34%',
-            valueColor: AppColors.accentGreen,
-            subCaption: 'vs last week',
+            value: fillerLabel,
+            valueColor: !isLoading && s.fillerReductionPct >= 0
+                ? AppColors.accentGreen
+                : AppColors.warningAmber,
+            subCaption: isLoading ? null : 'vs last week',
           ),
         ),
       ],
@@ -349,11 +381,7 @@ class _HomeScreenState extends State<HomeScreen>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider, width: 1),
         boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
+          BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 3)),
         ],
       ),
       child: Column(
@@ -397,8 +425,102 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildRecentSessionCard(BuildContext context) {
+    // Loading skeleton
+    if (_recentSessionLoading) {
+      return Container(
+        height: 76,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.divider, width: 1),
+          boxShadow: const [
+            BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 3)),
+          ],
+        ),
+        child: const Center(
+          child: SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // No sessions yet — prompt user to start
+    if (_recentSession == null) {
+      return GestureDetector(
+        onTap: () => context.push('/interview'),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider, width: 1),
+            boxShadow: const [
+              BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryPurple.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.add_rounded, color: AppColors.primaryPurple, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No sessions yet',
+                      style: AppTextStyles.headingM.copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tap to start your first practice session!',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 22),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Real most-recent session
+    final session = _recentSession!;
+    final scoreColor = session.overallScore >= 80
+        ? AppColors.successGreen
+        : session.overallScore >= 60
+            ? AppColors.warningAmber
+            : AppColors.dangerRed;
+    final modeIcon = session.mode == 'presentation'
+        ? Icons.bar_chart_rounded
+        : session.mode == 'free_talk'
+            ? Icons.mic_rounded
+            : Icons.event_seat_rounded;
+
     return GestureDetector(
-      onTap: () => context.push('/results'),
+      onTap: () => context.push('/results', extra: session.id),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -406,16 +528,11 @@ class _HomeScreenState extends State<HomeScreen>
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.divider, width: 1),
           boxShadow: const [
-            BoxShadow(
-              color: AppColors.cardShadow,
-              blurRadius: 12,
-              offset: Offset(0, 3),
-            ),
+            BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 3)),
           ],
         ),
         child: Row(
           children: [
-            // Left Icon Avatar
             Container(
               width: 44,
               height: 44,
@@ -423,21 +540,15 @@ class _HomeScreenState extends State<HomeScreen>
                 color: AppColors.primaryPurple.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.event_seat_rounded,
-                color: AppColors.primaryPurple,
-                size: 24,
-              ),
+              child: Icon(modeIcon, color: AppColors.primaryPurple, size: 24),
             ),
             const SizedBox(width: 14),
-
-            // Middle Information Stack
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Interview Practice',
+                    session.modeLabel,
                     style: AppTextStyles.headingM.copyWith(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -445,15 +556,17 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Backend Developer — Q&A',
+                    session.topicOrQuestion,
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.textSecondary,
                       fontSize: 12,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Today, 10:30 AM',
+                    '${session.dateFormatted} · ${session.durationFormatted}',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.textSecondary.withValues(alpha: 0.7),
                       fontSize: 11,
@@ -462,16 +575,11 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
             ),
-
-            // Right Small Circular Gauge Ring
-            const CircularGauge(
-              value: 82,
+            CircularGauge(
+              value: session.overallScore,
               size: 46,
               strokeWidth: 4.5,
-              gradientColors: [
-                AppColors.accentGreenLight,
-                AppColors.accentGreen,
-              ],
+              gradientColors: [scoreColor, scoreColor],
             ),
           ],
         ),
@@ -537,11 +645,7 @@ class _PracticeModeCardState extends State<_PracticeModeCard> {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  widget.icon,
-                  color: Colors.white,
-                  size: 28,
-                ),
+                child: Icon(widget.icon, color: Colors.white, size: 28),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -569,11 +673,7 @@ class _PracticeModeCardState extends State<_PracticeModeCard> {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 24),
             ],
           ),
         ),

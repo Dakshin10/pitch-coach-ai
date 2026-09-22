@@ -38,33 +38,54 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleAuthSubmitted() {
-    if (_formKey.currentState?.validate() ?? false) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final String name = _isSignUp
-          ? _nameController.text.trim()
-          : (_nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'Dakshin');
-      final String email = _emailController.text.trim();
+  Future<void> _handleAuthSubmitted() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-      userProvider.login(name: name, email: email);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    if (userProvider.isLoading) return; // prevent double-submit
 
+    final String email = _emailController.text.trim();
+    final String password = _passwordController.text.trim();
+
+    bool success;
+
+    if (_isSignUp) {
+      final String name = _nameController.text.trim();
+      success = await userProvider.signup(name: name, email: email, password: password);
+    } else {
+      success = await userProvider.login(email: email, password: password);
+    }
+
+    if (!mounted) return;
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isSignUp ? 'Account created successfully!' : 'Welcome back, $name!'),
+          content: Text(_isSignUp ? 'Account created successfully!' : 'Welcome back!'),
           backgroundColor: AppColors.primaryPurple,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
-
-      // Navigate to Profile Setup to complete profile details, or straight to Home if logging in
       if (_isSignUp) {
         context.go('/profile-setup');
       } else {
         context.go('/home');
       }
+    } else {
+      // Show error from provider
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userProvider.error ?? 'Authentication failed. Please try again.'),
+          backgroundColor: AppColors.dangerRed,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      userProvider.clearError();
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -288,11 +309,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 28),
 
                 // Submit Button
-                GradientButton(
-                  text: _isSignUp ? 'Create Account' : 'Sign In',
-                  variant: GradientButtonVariant.primary,
-                  height: 54,
-                  onPressed: _handleAuthSubmitted,
+                Consumer<UserProvider>(
+                  builder: (context, provider, _) => GradientButton(
+                    text: provider.isLoading
+                        ? 'Please wait...'
+                        : (_isSignUp ? 'Create Account' : 'Sign In'),
+                    variant: GradientButtonVariant.primary,
+                    height: 54,
+                    onPressed: provider.isLoading ? null : _handleAuthSubmitted,
+                  ),
                 ),
 
                 const SizedBox(height: 24),
