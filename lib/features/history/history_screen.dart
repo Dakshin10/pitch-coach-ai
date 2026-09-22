@@ -1,31 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/models/session_result.dart';
+import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
-
-class SessionItemData {
-  final String title;
-  final String mode;
-  final String time;
-  final String duration;
-  final int score;
-  final IconData icon;
-  final Color iconBgColor;
-  final String dateGroup;
-
-  const SessionItemData({
-    required this.title,
-    required this.mode,
-    required this.time,
-    required this.duration,
-    required this.score,
-    required this.icon,
-    required this.iconBgColor,
-    required this.dateGroup,
-  });
-}
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -39,85 +19,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedFilter = 'All';
   String _searchQuery = '';
 
-  final List<String> _filterChips = [
-    'All',
-    'Interview',
-    'Presentation',
-    'Free Talk',
-  ];
+  // Real data from API
+  List<SessionSummary> _sessions = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  static const List<SessionItemData> _allSessions = [
-    SessionItemData(
-      title: 'Backend Developer – Q&A',
-      mode: 'Interview Practice',
-      time: '10:30 AM',
-      duration: '3 min',
-      score: 82,
-      icon: Icons.event_seat_rounded,
-      iconBgColor: AppColors.primaryPurple,
-      dateGroup: 'Today',
-    ),
-    SessionItemData(
-      title: 'System Design Mock',
-      mode: 'Interview Practice',
-      time: '04:15 PM',
-      duration: '5 min',
-      score: 76,
-      icon: Icons.event_seat_rounded,
-      iconBgColor: AppColors.primaryPurple,
-      dateGroup: 'Today',
-    ),
-    SessionItemData(
-      title: 'Startup Pitch Deck',
-      mode: 'Presentation Practice',
-      time: '02:00 PM',
-      duration: '8 min',
-      score: 91,
-      icon: Icons.bar_chart_rounded,
-      iconBgColor: AppColors.accentBlue,
-      dateGroup: 'Yesterday',
-    ),
-    SessionItemData(
-      title: 'Impromptu Tech Trends',
-      mode: 'Free Talk',
-      time: '11:45 AM',
-      duration: '4 min',
-      score: 64,
-      icon: Icons.mic_rounded,
-      iconBgColor: AppColors.accentGreen,
-      dateGroup: 'Yesterday',
-    ),
-    SessionItemData(
-      title: 'HR Cultural Fit Interview',
-      mode: 'Interview Practice',
-      time: '05:30 PM',
-      duration: '6 min',
-      score: 88,
-      icon: Icons.event_seat_rounded,
-      iconBgColor: AppColors.primaryPurple,
-      dateGroup: 'This Week',
-    ),
-    SessionItemData(
-      title: 'Keynote Demo Speech',
-      mode: 'Presentation Practice',
-      time: '09:15 AM',
-      duration: '10 min',
-      score: 85,
-      icon: Icons.bar_chart_rounded,
-      iconBgColor: AppColors.accentBlue,
-      dateGroup: 'This Week',
-    ),
-  ];
+  final List<String> _filterChips = ['All', 'Interview', 'Presentation', 'Free Talk'];
 
-  List<SessionItemData> get _filteredSessions {
-    return _allSessions.where((session) {
-      final matchesFilter = _selectedFilter == 'All' ||
-          session.mode.toLowerCase().contains(_selectedFilter.toLowerCase());
-      final matchesSearch = _searchQuery.isEmpty ||
-          session.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          session.mode.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesFilter && matchesSearch;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    _loadSessions();
   }
 
   @override
@@ -126,16 +38,66 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
+  Future<void> _loadSessions() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      // Map filter chip → API mode value
+      final modeParam = _selectedFilter == 'All'
+          ? null
+          : _selectedFilter == 'Interview'
+              ? 'interview'
+              : _selectedFilter == 'Presentation'
+                  ? 'presentation'
+                  : 'free_talk';
+
+      final sessions = await SessionRepository.instance.listSessions(
+        mode: modeParam,
+        search: _searchQuery.isNotEmpty ? _searchQuery : null,
+        limit: 50,
+      );
+
+      if (mounted) setState(() => _sessions = sessions);
+    } catch (e) {
+      if (mounted) setState(() => _errorMessage = 'Could not load sessions. Pull to retry.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Group sessions by relative date label ("Today", "Yesterday", "This Week", older date strings).
+  Map<String, List<SessionSummary>> get _groupedSessions {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final weekAgo = today.subtract(const Duration(days: 7));
+
+    final Map<String, List<SessionSummary>> groups = {};
+
+    for (final s in _sessions) {
+      final d = s.createdAt.toLocal();
+      final sessionDay = DateTime(d.year, d.month, d.day);
+
+      String label;
+      if (sessionDay == today) {
+        label = 'Today';
+      } else if (sessionDay == yesterday) {
+        label = 'Yesterday';
+      } else if (sessionDay.isAfter(weekAgo)) {
+        label = 'This Week';
+      } else {
+        label = s.dateFormatted; // e.g. "Mon, Sep 15"
+      }
+
+      groups.putIfAbsent(label, () => []).add(s);
+    }
+    return groups;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final filteredList = _filteredSessions;
-
-    // Group filtered items by dateGroup
-    final Map<String, List<SessionItemData>> groupedSessions = {};
-    for (var session in filteredList) {
-      groupedSessions.putIfAbsent(session.dateGroup, () => []).add(session);
-    }
-
     return Scaffold(
       backgroundColor: AppColors.surfaceLight,
       body: SafeArea(
@@ -191,10 +153,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: TextField(
                   controller: _searchController,
                   onChanged: (val) {
-                    setState(() {
-                      _searchQuery = val;
-                    });
+                    setState(() => _searchQuery = val);
+                    // Debounce-style reload: reload on submit / clear only
                   },
+                  onSubmitted: (_) => _loadSessions(),
                   style: AppTextStyles.bodyM.copyWith(color: AppColors.textPrimaryDark),
                   decoration: InputDecoration(
                     hintText: 'Search sessions...',
@@ -211,9 +173,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             icon: const Icon(Icons.clear_rounded, size: 18),
                             onPressed: () {
                               _searchController.clear();
-                              setState(() {
-                                _searchQuery = '';
-                              });
+                              setState(() => _searchQuery = '');
+                              _loadSessions();
                             },
                           )
                         : null,
@@ -250,9 +211,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                         onSelected: (selected) {
                           if (selected) {
-                            setState(() {
-                              _selectedFilter = chip;
-                            });
+                            setState(() => _selectedFilter = chip);
+                            _loadSessions();
                           }
                         },
                       ),
@@ -263,47 +223,61 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
               const SizedBox(height: 16),
 
-              // 4. Session List or Empty State
+              // 4. Session List / Loading / Error / Empty State
               Expanded(
-                child: filteredList.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: groupedSessions.keys.length,
-                        itemBuilder: (context, index) {
-                          final groupKey = groupedSessions.keys.elementAt(index);
-                          final sessionsInGroup = groupedSessions[groupKey]!;
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                child: Text(
-                                  groupKey,
-                                  style: AppTextStyles.headingM.copyWith(
-                                    fontSize: 15,
-                                    color: AppColors.textSecondary,
-                                  ),
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                        ),
+                      )
+                    : _errorMessage != null
+                        ? _buildErrorState()
+                        : _sessions.isEmpty
+                            ? _buildEmptyState()
+                            : RefreshIndicator(
+                                onRefresh: _loadSessions,
+                                color: AppColors.primaryPurple,
+                                child: ListView.builder(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  itemCount: _groupedSessions.keys.length,
+                                  itemBuilder: (context, index) {
+                                    final groupKey =
+                                        _groupedSessions.keys.elementAt(index);
+                                    final sessionsInGroup =
+                                        _groupedSessions[groupKey]!;
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8.0),
+                                          child: Text(
+                                            groupKey,
+                                            style: AppTextStyles.headingM.copyWith(
+                                              fontSize: 15,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                        ...sessionsInGroup.map(
+                                          (s) => Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 12.0),
+                                            child: _buildSessionCard(context, s),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
                               ),
-                              ...sessionsInGroup.map(
-                                (session) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 12.0),
-                                  child: _buildSessionCard(context, session),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
               ),
             ],
           ),
         ),
       ),
 
-      // Bottom Navigation Bar
       bottomNavigationBar: BottomNavBar(
         currentIndex: 1, // History active
         onTap: (index) => _handleNavigation(context, index),
@@ -312,18 +286,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildSessionCard(BuildContext context, SessionItemData session) {
-    Color scoreColor;
-    if (session.score >= 80) {
-      scoreColor = AppColors.successGreen;
-    } else if (session.score >= 60) {
-      scoreColor = AppColors.warningAmber;
-    } else {
-      scoreColor = AppColors.dangerRed;
-    }
+  Widget _buildSessionCard(BuildContext context, SessionSummary session) {
+    final score = session.overallScore;
+    final scoreColor = score >= 80
+        ? AppColors.successGreen
+        : score >= 60
+            ? AppColors.warningAmber
+            : AppColors.dangerRed;
+
+    final icon = session.mode == 'presentation'
+        ? Icons.bar_chart_rounded
+        : session.mode == 'free_talk'
+            ? Icons.mic_rounded
+            : Icons.event_seat_rounded;
+    final iconBg = session.mode == 'presentation'
+        ? AppColors.accentBlue
+        : session.mode == 'free_talk'
+            ? AppColors.accentGreen
+            : AppColors.primaryPurple;
 
     return GestureDetector(
-      onTap: () => context.push('/results'),
+      onTap: () => context.push('/results', extra: session.id),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -340,29 +323,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         child: Row(
           children: [
-            // Mode Icon Container
+            // Mode Icon
             Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: session.iconBgColor.withValues(alpha: 0.12),
+                color: iconBg.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                session.icon,
-                color: session.iconBgColor,
-                size: 24,
-              ),
+              child: Icon(icon, color: iconBg, size: 24),
             ),
             const SizedBox(width: 14),
 
-            // Session Info Stack
+            // Session Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    session.title,
+                    session.topicOrQuestion,
                     style: AppTextStyles.headingM.copyWith(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -372,14 +351,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    session.mode,
+                    session.modeLabel,
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${session.time} · ${session.duration}',
+                    '${session.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
+                    '${session.createdAt.toLocal().minute.toString().padLeft(2, '0')}'
+                    ' · ${session.durationFormatted}',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.textSecondary.withValues(alpha: 0.7),
                       fontSize: 11,
@@ -389,12 +370,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
 
-            // Score Circular Gauge Ring
+            // Score Gauge
             CircularGauge(
-              value: session.score.toDouble(),
+              value: score,
               size: 46,
               strokeWidth: 4.5,
-              centerBigText: '${session.score}%',
+              centerBigText: '${score.round()}%',
               gradientColors: [scoreColor, scoreColor],
             ),
           ],
@@ -421,13 +402,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'No sessions found',
-            style: AppTextStyles.headingL,
-          ),
+          Text('No sessions found', style: AppTextStyles.headingL),
           const SizedBox(height: 8),
           Text(
-            'Try clearing your search query or practice a new session.',
+            _searchQuery.isNotEmpty
+                ? 'No results for "$_searchQuery". Try a different search.'
+                : 'Start practicing to build your session history.',
             style: AppTextStyles.bodyM,
             textAlign: TextAlign.center,
           ),
@@ -450,14 +430,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          Text(_errorMessage ?? 'Something went wrong.', style: AppTextStyles.bodyM, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadSessions,
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple, foregroundColor: Colors.white),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _handleNavigation(BuildContext context, int index) {
     switch (index) {
       case 0:
         context.go('/home');
         break;
       case 1:
-        // Already on History
-        break;
+        break; // Already on History
       case 2:
         context.push('/interview');
         break;

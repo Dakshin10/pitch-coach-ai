@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
@@ -46,15 +47,43 @@ class InterviewSessionController extends ChangeNotifier {
     return '$minutes:$seconds';
   }
 
-  void startSession() {
+  // ── Recording state ──────────────────────────────────────────────────────
+  String? _sessionId;
+  final _sessionRepo = SessionRepository.instance;
+
+  String? get sessionId => _sessionId;
+
+  Future<void> startSession() async {
     _timer?.cancel();
     _mockDataTimer?.cancel();
+    _elapsedSeconds = 0;
 
+    // Request mic permission and start real recording
+    final hasPermission = await _sessionRepo.requestMicPermission();
+    if (!hasPermission) {
+      _liveMessage = 'Microphone permission denied.';
+      notifyListeners();
+      return;
+    }
+
+    try {
+      _sessionId = await _sessionRepo.startSession(
+        mode: 'interview',
+        topicOrQuestion: 'Tell me about yourself.',
+      );
+    } catch (e) {
+      // If backend is unreachable fall back to local-only mode
+      _liveMessage = 'Offline mode — results won\'t be saved.';
+      notifyListeners();
+    }
+
+    // Start elapsed-time timer
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _elapsedSeconds++;
       notifyListeners();
     });
 
+    // Live gauge stays animated (v1 approximate display)
     _mockDataTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       _nudgeMockData();
     });
@@ -72,15 +101,31 @@ class InterviewSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> stopSession(VoidCallback onComplete) async {
+  Future<void> stopSession(void Function(String? sessionId) onComplete) async {
     if (_isProcessing) return;
     _isProcessing = true;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 400));
     _timer?.cancel();
     _mockDataTimer?.cancel();
-    onComplete();
+
+    String? resolvedSessionId = _sessionId;
+    try {
+      if (_sessionId != null) {
+        // Upload audio — pipeline runs in background on server
+        final result = await _sessionRepo.finishSession(
+          _elapsedSeconds.toDouble(),
+        );
+        resolvedSessionId = result?.id ?? _sessionId;
+      }
+    } catch (e) {
+      // Upload failed — proceed to results with what we have
+    } finally {
+      _isProcessing = false;
+      notifyListeners();
+    }
+
+    onComplete(resolvedSessionId);
   }
 
   @override
@@ -97,7 +142,12 @@ class InterviewPracticeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => InterviewSessionController()..startSession(),
+      create: (_) {
+        final ctrl = InterviewSessionController();
+        // Start async — must not await in create callback
+        ctrl.startSession();
+        return ctrl;
+      },
       child: const _InterviewPracticeContent(),
     );
   }
@@ -542,8 +592,8 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
         // Large Circular Stop Button (72px)
         GestureDetector(
           onTap: () {
-            controller.stopSession(() {
-              context.push('/results');
+            controller.stopSession((sessionId) {
+              context.push('/results', extra: sessionId);
             });
           },
           child: Container(

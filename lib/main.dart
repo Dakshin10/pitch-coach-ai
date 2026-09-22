@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/providers/session_results_provider.dart';
+import 'core/providers/stats_provider.dart';
 import 'core/providers/user_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => StatsProvider()),
+        // SessionResultsProvider is created per-results-screen via ChangeNotifierProvider.value
+        // but we expose one top-level instance for convenience
+        ChangeNotifierProvider(create: (_) => SessionResultsProvider()),
       ],
       child: const PitchCoachApp(),
     ),

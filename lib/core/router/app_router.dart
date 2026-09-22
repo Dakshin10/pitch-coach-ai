@@ -109,11 +109,15 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: results,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
-          context: context,
-          state: state,
-          child: const ResultsScreen(),
-        ),
+        pageBuilder: (context, state) {
+          // Extra is the session_id string set by InterviewPracticeScreen on stop
+          final sessionId = state.extra as String?;
+          return _buildSlideFadeTransition(
+            context: context,
+            state: state,
+            child: ResultsScreen(sessionId: sessionId),
+          );
+        },
       ),
       GoRoute(
         path: progress,

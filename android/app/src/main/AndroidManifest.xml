@@ -1,8 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Microphone access — required by the `record` package for audio recording -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Internet access — required for API calls to the FastAPI backend -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Allow clear-text HTTP to 10.0.2.2 (emulator) and local LAN during dev -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <application
         android:label="pitch_coach"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
