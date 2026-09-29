@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "46701857974",
+    "project_id": "pitchcoach-f4653",
+    "storage_bucket": "pitchcoach-f4653.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:46701857974:android:6ec0dbe3c8b1393292aa17",
+        "android_client_info": {
+          "package_name": "com.pitchcoach.pitch_coach"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "46701857974-196b22feeka6u7dt90p8b89erh2in25k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pitchcoach.pitch_coach",
+            "certificate_hash": "fc5ac8eac7291f3121e8847e22e39b56dce71b4e"
+          }
+        },
+        {
+          "client_id": "46701857974-mjd2bbnnuesb9nh2cmi334pc85dtje6m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLym37REO8PMepEuEOKH27vNmPYLJLYVM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "46701857974-mjd2bbnnuesb9nh2cmi334pc85dtje6m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

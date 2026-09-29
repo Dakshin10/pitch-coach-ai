@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/firebase_auth_repository.dart';
 
 enum AuthState { loading, unauthenticated, guest, authenticated, error }
 
@@ -63,10 +64,11 @@ class UserProfile {
       );
 }
 
-/// UserProvider — wires all auth operations to the real API.
+/// UserProvider — wires all auth operations to the real API **and** Firebase.
 /// Public interface (getters/method signatures) is unchanged so screens recompile.
 class UserProvider extends ChangeNotifier {
   final _auth = AuthRepository.instance;
+  final _firebaseAuth = FirebaseAuthRepository.instance;
 
   UserProfile _user = UserProfile(
     name: 'Guest',
@@ -98,7 +100,21 @@ class UserProvider extends ChangeNotifier {
 
   // ── App startup: try to restore session ──────────────────────────────────
 
+  /// Restores an existing Firebase session (persisted by the Firebase SDK).
+  /// Call this from main() so the app skips onboarding on restart.
+  Future<bool> tryRestoreFirebaseSession() async {
+    final userData = _firebaseAuth.currentUserMap;
+    if (userData == null) return false;
+    _user = UserProfile.fromJson(userData);
+    _isLoggedIn = true;
+    notifyListeners();
+    return true;
+  }
+
   Future<bool> tryRestoreSession() async {
+    // First try Firebase (preferred flow going forward)
+    if (await tryRestoreFirebaseSession()) return true;
+    // Fallback: legacy JWT token from the REST API
     if (!await _auth.hasStoredTokens) return false;
     // Try to fetch /me — if it fails the token is expired
     final userData = await _auth.getMe();
@@ -157,6 +173,104 @@ class UserProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
+
+  // ── Firebase auth methods ─────────────────────────────────────────────────
+
+  /// Sign up via Firebase email/password.
+  Future<bool> firebaseSignUp({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    _setLoading(true);
+    try {
+      final userData = await _firebaseAuth.signUpWithEmail(
+        email: email,
+        password: password,
+        displayName: name,
+      );
+      _user = UserProfile.fromJson(userData);
+      _isLoggedIn = true;
+      _error = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Sign in via Firebase email/password.
+  Future<bool> firebaseLogin({
+    required String email,
+    required String password,
+  }) async {
+    _setLoading(true);
+    try {
+      final userData = await _firebaseAuth.signInWithEmail(
+        email: email,
+        password: password,
+      );
+      _user = UserProfile.fromJson(userData);
+      _isLoggedIn = true;
+      _error = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Sign in via Google using Firebase.
+  /// Returns true on success, false if the user cancelled, throws on error.
+  Future<bool> firebaseSignInWithGoogle() async {
+    _setLoading(true);
+    try {
+      final userData = await _firebaseAuth.signInWithGoogle();
+      if (userData == null) {
+        // User cancelled the Google flow
+        return false;
+      }
+      _user = UserProfile.fromJson(userData);
+      _isLoggedIn = true;
+      _error = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Signs out from Firebase (and Google if used). Also clears legacy tokens.
+  Future<void> firebaseLogout() async {
+    await _firebaseAuth.signOut();
+    await _auth.logout(); // also clear any legacy JWT tokens
+    _isLoggedIn = false;
+    _user = UserProfile(
+      name: 'Guest',
+      email: '',
+      role: '',
+      targetGoal: '',
+      experienceLevel: 'Beginner',
+      targetIndustry: '',
+      feedbackTone: 'Encouraging & Constructive',
+    );
+    _error = null;
+    notifyListeners();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   Future<bool> loginAsGuest() async {
     // Guest is a local demo identity. It has no token and never calls protected APIs.

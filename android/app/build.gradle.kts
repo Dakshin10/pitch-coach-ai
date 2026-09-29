@@ -3,6 +3,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Apply Google Services plugin to process google-services.json for Firebase
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -25,6 +27,7 @@ android {
         applicationId = "com.pitchcoach.pitch_coach"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // firebase_auth requires minSdk >= 23
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
