@@ -18,11 +18,11 @@ class InterviewSessionController extends ChangeNotifier {
   InterviewSessionController({required this.isGuest});
 
   int _elapsedSeconds = 0;
-  double _confidenceScore = 0;
-  int _fillerWordsCount = 0;
-  int _speakingSpeedWpm = 0;
-  int _pausesCount = 0;
-  int _clarityPercentage = 0;
+  final double _confidenceScore = 0;
+  final int _fillerWordsCount = 0;
+  final int _speakingSpeedWpm = 0;
+  final int _pausesCount = 0;
+  final int _clarityPercentage = 0;
   String _liveMessage = 'Preparing your recording...';
   String? _errorMessage;
   double _audioLevel = 0;

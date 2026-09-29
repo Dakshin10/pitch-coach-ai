@@ -38,6 +38,8 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // ── Firebase Email Auth ────────────────────────────────────────────────────
+
   Future<void> _handleAuthSubmitted() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -51,9 +53,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (_isSignUp) {
       final String name = _nameController.text.trim();
-      success = await userProvider.signup(name: name, email: email, password: password);
+      success = await userProvider.firebaseSignUp(
+        name: name,
+        email: email,
+        password: password,
+      );
     } else {
-      success = await userProvider.login(email: email, password: password);
+      success = await userProvider.firebaseLogin(
+        email: email,
+        password: password,
+      );
     }
 
     if (!mounted) return;
@@ -86,6 +95,42 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // ── Google Sign-In ─────────────────────────────────────────────────────────
+
+  Future<void> _handleGoogleSignIn() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    if (userProvider.isLoading) return;
+
+    final success = await userProvider.firebaseSignInWithGoogle();
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Signed in with Google!'),
+          backgroundColor: AppColors.primaryPurple,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      context.go('/home');
+    } else if (userProvider.error != null) {
+      // Only show error if it's a real failure (not a user cancellation)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userProvider.error!),
+          backgroundColor: AppColors.dangerRed,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      userProvider.clearError();
+    }
+    // If success==false and error==null the user simply cancelled — do nothing.
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -308,7 +353,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 28),
 
-                // Submit Button
+                // Submit Button (Email / Password)
                 Consumer<UserProvider>(
                   builder: (context, provider, _) => GradientButton(
                     text: provider.isLoading
@@ -320,9 +365,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
-                // Divider
+                // OR divider
                 Row(
                   children: [
                     Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.15))),
@@ -337,7 +382,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+
+                // Google Sign-In Button
+                Consumer<UserProvider>(
+                  builder: (context, provider, _) => _GoogleSignInButton(
+                    onPressed: provider.isLoading ? null : _handleGoogleSignIn,
+                    isLoading: provider.isLoading,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
 
                 // Continue as Guest Option
                 GradientButton(
@@ -352,6 +407,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     context.go('/home');
                   },
                 ),
+
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -402,4 +459,145 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
+
+// ── Google Sign-In Button ────────────────────────────────────────────────────
+
+class _GoogleSignInButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final bool isLoading;
+
+  const _GoogleSignInButton({
+    required this.onPressed,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white.withValues(alpha: 0.05),
+          side: BorderSide(
+            color: onPressed == null
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.white.withValues(alpha: 0.22),
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Google 'G' logo rendered with coloured segments
+                  _GoogleLogo(),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Continue with Google',
+                    style: AppTextStyles.button.copyWith(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// Draws the Google "G" multicolour logo using a CustomPainter.
+class _GoogleLogo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double r = size.width / 2;
+    final Offset c = Offset(r, r);
+
+    // Draw outer circle filled white to simulate a "chip"
+    canvas.drawCircle(c, r, Paint()..color = Colors.white);
+
+    const double padding = 0.15;
+    final double ir = r * (1 - padding * 2); // inner radius
+
+    final Paint paint = Paint()..style = PaintingStyle.stroke;
+
+    // Blue arc  (top-right, 290°→70°)
+    paint
+      ..color = const Color(0xFF4285F4)
+      ..strokeWidth = ir * 0.36;
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: ir * 0.72),
+      _deg(-70),
+      _deg(140),
+      false,
+      paint,
+    );
+
+    // Red arc  (top-left, 220°→290°)
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: ir * 0.72),
+      _deg(-140),
+      _deg(-70),
+      false,
+      paint,
+    );
+
+    // Yellow arc  (bottom-left, 140°→220°)
+    paint.color = const Color(0xFFFBBC04);
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: ir * 0.72),
+      _deg(140),
+      _deg(80),
+      false,
+      paint,
+    );
+
+    // Green arc  (bottom-right, 70°→140°)
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: ir * 0.72),
+      _deg(70),
+      _deg(70),
+      false,
+      paint,
+    );
+
+    // Horizontal bar (right side of the G cutout)
+    final double barY = c.dy;
+    final double barLeft = c.dx + ir * 0.0;
+    final double barRight = c.dx + ir * 0.72 + ir * 0.36 / 2;
+    paint
+      ..color = const Color(0xFF4285F4)
+      ..strokeWidth = ir * 0.36;
+    canvas.drawLine(Offset(barLeft, barY), Offset(barRight, barY), paint);
+  }
+
+  double _deg(double degrees) => degrees * 3.14159265 / 180;
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

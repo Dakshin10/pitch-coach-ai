@@ -49,10 +49,12 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _loadData() async {
     if (context.read<UserProvider>().isGuest) {
       context.read<StatsProvider>().loadDemo();
-      if (mounted) setState(() {
-        _recentSession = DemoRepository.instance.sessions.first;
-        _recentSessionLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _recentSession = DemoRepository.instance.sessions.first;
+          _recentSessionLoading = false;
+        });
+      }
       return;
     }
     // Load summary stats (feeds the 3 stat cards)
