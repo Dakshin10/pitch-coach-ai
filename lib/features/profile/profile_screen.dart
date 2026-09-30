@@ -5,8 +5,10 @@ import '../../core/providers/user_provider.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/app_atmosphere.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/gradient_button.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,41 +27,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
+      body: AppAtmosphere(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Header Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Profile',
-                    style: AppTextStyles.headingXL.copyWith(
-                      color: AppColors.textPrimaryDark,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => context.push('/profile-setup'),
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-          color: Theme.of(context).cardTheme.color,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.divider),
-                      ),
-                      child: const Icon(
-                        Icons.settings_outlined,
-                        size: 20,
-                        color: AppColors.textPrimaryDark,
+              // 1. Header Row — centered title
+              SizedBox(
+                height: 44,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Text(
+                      'Profile',
+                      style: AppTextStyles.headingXL.copyWith(
+                        color: AppColors.textPrimaryOf(context),
                       ),
                     ),
-                  ),
-                ],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        const ThemeToggleButton(size: 40, compact: true),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => context.push('/profile-setup'),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.glassOf(context),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.borderOf(context)),
+                            ),
+                            child: Icon(
+                              Icons.settings_outlined,
+                              size: 20,
+                              color: AppColors.textPrimaryOf(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -140,9 +152,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.dark_mode_outlined, color: AppColors.primaryPurple, size: 22),
+                          Icon(
+                            Icons.dark_mode_outlined,
+                            color: AppColors.primaryPurpleLight,
+                            size: 22,
+                          ),
                           const SizedBox(width: 14),
-                          Text('Dark Mode', style: AppTextStyles.bodyM.copyWith(fontWeight: FontWeight.w600)),
+                          Text(
+                            'Dark Mode',
+                            style: AppTextStyles.bodyM.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimaryOf(context),
+                            ),
+                          ),
                         ],
                       ),
                       Switch(
@@ -236,81 +258,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeaderCard(UserProfile user) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Dynamic Avatar with Initials
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppColors.primaryGradient,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryPurple.withValues(alpha: 0.35),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
+    return GlassSurface(
+      elevated: true,
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
+      borderRadius: BorderRadius.circular(24),
+      gradient: AppColors.isDark(context)
+          ? LinearGradient(
+              colors: [
+                AppColors.primaryPurple.withValues(alpha: 0.22),
+                AppColors.cardDarkElevated,
+                AppColors.cardDark,
               ],
-            ),
-            child: Center(
-              child: Text(
-                user.initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
+          : null,
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppColors.auroraGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.4),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  user.initials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            user.name,
-            style: AppTextStyles.headingL,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            user.role,
-            style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: 140,
-            height: 38,
-            child: OutlinedButton(
-              onPressed: () => context.push('/profile-setup'),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.primaryPurple.withValues(alpha: 0.5)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            const SizedBox(height: 16),
+            Text(
+              user.name,
+              style: AppTextStyles.headingL.copyWith(
+                color: AppColors.textPrimaryOf(context),
               ),
-              child: Text(
-                'Edit Profile',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primaryPurple,
-                  fontWeight: FontWeight.w700,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              user.role.isEmpty ? 'Pitch Coach member' : user.role,
+              style: AppTextStyles.bodyM.copyWith(
+                color: AppColors.textSecondaryOf(context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            Center(
+              child: SizedBox(
+                width: 150,
+                height: 40,
+                child: OutlinedButton(
+                  onPressed: () => context.push('/profile-setup'),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.55),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: Text(
+                    'Edit Profile',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.primaryPurpleLight,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -328,20 +363,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileStatTile(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
-      ),
+    return GlassSurface(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      borderRadius: BorderRadius.circular(16),
       child: Column(
         children: [
           Text(
             value,
             style: AppTextStyles.headingM.copyWith(
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
           const SizedBox(height: 2),
@@ -349,7 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label,
             style: AppTextStyles.caption.copyWith(
               fontSize: 10.5,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
             ),
             textAlign: TextAlign.center,
           ),
@@ -361,24 +393,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: AppTextStyles.headingM.copyWith(fontSize: 16),
+      style: AppTextStyles.headingM.copyWith(
+        fontSize: 16,
+        color: AppColors.textPrimaryOf(context),
+      ),
     );
   }
 
   Widget _buildSettingsCard(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
+    return GlassSurface(
+      borderRadius: BorderRadius.circular(18),
       child: Column(children: children),
     );
   }
@@ -397,16 +421,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.primaryPurple, size: 22),
-            const SizedBox(width: 14),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.primaryPurple.withValues(
+                  alpha: AppColors.isDark(context) ? 0.2 : 0.1,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.primaryPurpleLight, size: 20),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Row(
                 children: [
-                  Text(
-                    label,
-                    style: AppTextStyles.bodyM.copyWith(
-                      color: AppColors.textPrimaryDark,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: AppTextStyles.bodyM.copyWith(
+                        color: AppColors.textPrimaryOf(context),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   if (badge != null) ...[
@@ -433,13 +469,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (trailingText != null) ...[
               Text(
                 trailingText,
-                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
               ),
               const SizedBox(width: 4),
             ],
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
               size: 20,
             ),
           ],
