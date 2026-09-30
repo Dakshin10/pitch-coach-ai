@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import '../models/session_result.dart';
 import '../services/api_client.dart';
+import '../utils/local_file.dart';
 
 /// Encapsulates recording and the session API lifecycle.
 /// Used by InterviewSessionController.
@@ -56,8 +57,7 @@ class SessionRepository {
     final path = await _recorder.stop() ?? _currentAudioPath;
     _currentAudioPath = null;
     if (path == null) throw StateError('Recording did not produce an audio file.');
-    final file = File(path);
-    if (!await file.exists() || await file.length() == 0) {
+    if (!await localFileExistsAndNonEmpty(path)) {
       throw StateError('The recording is missing or empty. Please try again.');
     }
     return path;
@@ -109,16 +109,26 @@ class SessionRepository {
       throw StateError('Recording did not produce an audio file.');
     }
 
-    final file = File(audioPath);
-    if (!await file.exists() || await file.length() == 0) {
+    if (!await localFileExistsAndNonEmpty(audioPath)) {
       throw StateError('The recording is missing or empty. Please try again.');
     }
 
-    final formData = FormData.fromMap({
-      'audio_file': await MultipartFile.fromFile(
+    // MultipartFile.fromFile is unavailable on web; bytes path works everywhere.
+    final MultipartFile audioPart;
+    if (kIsWeb) {
+      throw StateError(
+        'Audio upload from Chrome is not supported yet. '
+        'Use the Android/iOS app or Windows desktop build for live sessions.',
+      );
+    } else {
+      audioPart = await MultipartFile.fromFile(
         audioPath,
         filename: 'recording.m4a',
-      ),
+      );
+    }
+
+    final formData = FormData.fromMap({
+      'audio_file': audioPart,
       'duration_seconds': durationSeconds.toString(),
     });
 
