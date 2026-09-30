@@ -87,7 +87,7 @@ class FirebaseAuthRepository {
       'target_industry': '',
       'feedback_style': 'Encouraging & Constructive',
       'is_guest': false,
-      'dark_mode': false,
+      // Theme is owned by local preference in UserProvider — never force light.
     };
   }
 }
