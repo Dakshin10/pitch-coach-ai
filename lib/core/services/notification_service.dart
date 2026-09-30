@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -25,6 +25,11 @@ class NotificationService {
 
   Future<void> initialize() async {
     if (_initialized) return;
+    // Local notifications are not supported on Flutter web.
+    if (kIsWeb) {
+      _initialized = true;
+      return;
+    }
 
     tz.initializeTimeZones();
     // Use UTC as fallback — avoids requiring flutter_timezone package
@@ -52,7 +57,7 @@ class NotificationService {
     );
 
     // Create Android notification channel
-    if (Platform.isAndroid) {
+    if (defaultTargetPlatform == TargetPlatform.android) {
       const channel = AndroidNotificationChannel(
         _channelId,
         _channelName,
@@ -83,6 +88,7 @@ class NotificationService {
 
   /// Schedule a daily notification at [time].
   Future<void> scheduleDailyReminder(TimeOfDay time) async {
+    if (kIsWeb) return;
     await initialize();
 
     // Cancel any existing reminder first
@@ -136,11 +142,13 @@ class NotificationService {
 
   /// Cancel any previously scheduled daily reminder.
   Future<void> cancelDailyReminder() async {
+    if (kIsWeb) return;
     await _plugin.cancel(_dailyReminderId);
   }
 
   /// Show a one-shot instant notification (e.g., confirmation after setup).
   Future<void> showInstantNotification(String title, String body) async {
+    if (kIsWeb) return;
     await initialize();
 
     const androidDetails = AndroidNotificationDetails(
