@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/firebase_auth_repository.dart';
 
@@ -69,6 +70,8 @@ class UserProfile {
 class UserProvider extends ChangeNotifier {
   final _auth = AuthRepository.instance;
   final _firebaseAuth = FirebaseAuthRepository.instance;
+  static const _storage = FlutterSecureStorage();
+  static const _darkModeKey = 'pitch_coach_dark_mode';
 
   UserProfile _user = UserProfile(
     name: 'Guest',
@@ -83,6 +86,7 @@ class UserProvider extends ChangeNotifier {
   bool _isLoggedIn = false;
   bool _isLoading = false;
   String? _error;
+  bool _localThemeLoaded = false;
 
   UserProfile get user => _user;
   bool get isLoggedIn => _isLoggedIn;
@@ -98,6 +102,37 @@ class UserProvider extends ChangeNotifier {
   String? get error => _error;
   ThemeMode get themeMode => _user.darkMode ? ThemeMode.dark : ThemeMode.light;
 
+  /// Apply API/Firebase profile without clobbering the locally chosen theme.
+  void _adoptUser(Map<String, dynamic> data) {
+    final keptDark = _user.darkMode;
+    _user = UserProfile.fromJson(data);
+    _user.darkMode = keptDark;
+    _isLoggedIn = true;
+  }
+
+  Future<void> _loadLocalTheme() async {
+    if (_localThemeLoaded) return;
+    try {
+      final raw = await _storage.read(key: _darkModeKey);
+      if (raw != null) {
+        _user.darkMode = raw == 'true';
+        notifyListeners();
+      }
+    } catch (_) {
+      // Storage unavailable — keep in-memory default.
+    } finally {
+      _localThemeLoaded = true;
+    }
+  }
+
+  Future<void> _persistLocalTheme(bool enabled) async {
+    try {
+      await _storage.write(key: _darkModeKey, value: enabled.toString());
+    } catch (_) {
+      // Non-fatal — theme still works for this session.
+    }
+  }
+
   // ── App startup: try to restore session ──────────────────────────────────
 
   /// Restores an existing Firebase session (persisted by the Firebase SDK).
@@ -105,13 +140,13 @@ class UserProvider extends ChangeNotifier {
   Future<bool> tryRestoreFirebaseSession() async {
     final userData = _firebaseAuth.currentUserMap;
     if (userData == null) return false;
-    _user = UserProfile.fromJson(userData);
-    _isLoggedIn = true;
+    _adoptUser(userData);
     notifyListeners();
     return true;
   }
 
   Future<bool> tryRestoreSession() async {
+    await _loadLocalTheme();
     // First try Firebase (preferred flow going forward)
     if (await tryRestoreFirebaseSession()) return true;
     // Fallback: legacy JWT token from the REST API
@@ -122,8 +157,7 @@ class UserProvider extends ChangeNotifier {
       await _auth.logout();
       return false;
     }
-    _user = UserProfile.fromJson(userData);
-    _isLoggedIn = true;
+    _adoptUser(userData);
     notifyListeners();
     return true;
   }
@@ -142,8 +176,7 @@ class UserProvider extends ChangeNotifier {
         password: password,
         fullName: name,
       );
-      _user = UserProfile.fromJson(userData);
-      _isLoggedIn = true;
+      _adoptUser(userData);
       _error = null;
       notifyListeners();
       return true;
@@ -160,8 +193,7 @@ class UserProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       final userData = await _auth.login(email: email, password: password);
-      _user = UserProfile.fromJson(userData);
-      _isLoggedIn = true;
+      _adoptUser(userData);
       _error = null;
       notifyListeners();
       return true;
@@ -189,8 +221,7 @@ class UserProvider extends ChangeNotifier {
         password: password,
         displayName: name,
       );
-      _user = UserProfile.fromJson(userData);
-      _isLoggedIn = true;
+      _adoptUser(userData);
       _error = null;
       notifyListeners();
       return true;
@@ -214,8 +245,7 @@ class UserProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
-      _user = UserProfile.fromJson(userData);
-      _isLoggedIn = true;
+      _adoptUser(userData);
       _error = null;
       notifyListeners();
       return true;
@@ -238,8 +268,7 @@ class UserProvider extends ChangeNotifier {
         // User cancelled the Google flow
         return false;
       }
-      _user = UserProfile.fromJson(userData);
-      _isLoggedIn = true;
+      _adoptUser(userData);
       _error = null;
       notifyListeners();
       return true;
@@ -256,6 +285,7 @@ class UserProvider extends ChangeNotifier {
   Future<void> firebaseLogout() async {
     await _firebaseAuth.signOut();
     await _auth.logout(); // also clear any legacy JWT tokens
+    final keptDark = _user.darkMode;
     _isLoggedIn = false;
     _user = UserProfile(
       name: 'Guest',
@@ -265,6 +295,7 @@ class UserProvider extends ChangeNotifier {
       experienceLevel: 'Beginner',
       targetIndustry: '',
       feedbackTone: 'Encouraging & Constructive',
+      darkMode: keptDark,
     );
     _error = null;
     notifyListeners();
@@ -275,11 +306,13 @@ class UserProvider extends ChangeNotifier {
   Future<bool> loginAsGuest() async {
     // Guest is a local demo identity. It has no token and never calls protected APIs.
     await _auth.logout();
+    final keptDark = _user.darkMode;
     _user = UserProfile(
       id: 'demo-guest', name: 'Guest', email: '', role: 'Student',
       targetGoal: 'Build confidence', experienceLevel: 'Beginner',
       targetIndustry: '', feedbackTone: 'Encouraging & Constructive',
       isGuest: true, sessionsCompleted: 5, avgScore: 82,
+      darkMode: keptDark,
     );
     _isLoggedIn = true;
     _error = null;
@@ -325,11 +358,12 @@ class UserProvider extends ChangeNotifier {
     }
 
     notifyListeners(); // optimistic UI update
-    if (_user.isGuest) return;
+    if (_user.isGuest || !_isLoggedIn) return;
+    if (!await _auth.hasStoredTokens) return;
     if (fields.isNotEmpty) {
       try {
         final updated = await _auth.updateMe(fields);
-        _user = UserProfile.fromJson(updated);
+        _adoptUser(updated);
         notifyListeners();
       } catch (_) {
         // If API fails, local values remain — not critical
@@ -338,18 +372,18 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> setDarkMode(bool enabled) async {
-    final previous = _user.darkMode;
     _user.darkMode = enabled;
     notifyListeners();
-    if (_user.isGuest) return;
+    await _persistLocalTheme(enabled);
+
+    // Best-effort backend sync only for authenticated REST users.
+    // Never revert local theme if sync fails (onboarding / Firebase / offline).
+    if (!_isLoggedIn || _user.isGuest) return;
+    if (!await _auth.hasStoredTokens) return;
     try {
-      final updated = await _auth.updateMe({'dark_mode': enabled});
-      _user = UserProfile.fromJson(updated);
-      notifyListeners();
+      await _auth.updateMe({'dark_mode': enabled});
     } catch (_) {
-      _user.darkMode = previous;
-      _error = 'Unable to save theme preference. Please try again.';
-      notifyListeners();
+      // Keep the local preference — backend sync is optional.
     }
   }
 
@@ -357,6 +391,7 @@ class UserProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await _auth.logout();
+    final keptDark = _user.darkMode;
     _isLoggedIn = false;
     _user = UserProfile(
       name: 'Guest',
@@ -366,6 +401,7 @@ class UserProvider extends ChangeNotifier {
       experienceLevel: 'Beginner',
       targetIndustry: '',
       feedbackTone: 'Encouraging & Constructive',
+      darkMode: keptDark,
     );
     _error = null;
     notifyListeners();
