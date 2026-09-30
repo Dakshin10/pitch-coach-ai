@@ -121,7 +121,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   Text(
                     'History',
                     style: AppTextStyles.headingXL.copyWith(
-                      color: AppColors.textPrimaryDark,
+                      color: AppColors.textPrimaryOf(context),
                     ),
                   ),
                   // DatePicker filter button (Unit 2)
@@ -154,16 +154,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           decoration: BoxDecoration(
                             color: _selectedDate != null
                                 ? AppColors.primaryPurple
-                                : Colors.white,
+                                : AppColors.cardOf(context),
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.divider),
+                            border: Border.all(color: AppColors.borderOf(context)),
                           ),
                           child: Icon(
                             Icons.calendar_month_rounded,
                             size: 20,
                             color: _selectedDate != null
                                 ? Colors.white
-                                : AppColors.textPrimaryDark,
+                                : AppColors.textPrimaryOf(context),
                           ),
                         ),
                       ),
@@ -178,16 +178,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Container(
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.cardOf(context),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.divider),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: AppColors.cardShadow,
-                      blurRadius: 10,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  border: Border.all(color: AppColors.borderOf(context)),
+                  boxShadow: AppColors.softShadowOf(context),
                 ),
                 child: TextField(
                   controller: _searchController,
@@ -196,7 +190,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     // Debounce-style reload: reload on submit / clear only
                   },
                   onSubmitted: (_) => _loadSessions(),
-                  style: AppTextStyles.bodyM.copyWith(color: AppColors.textPrimaryDark),
+                  style: AppTextStyles.bodyM.copyWith(color: AppColors.textPrimaryOf(context)),
                   decoration: InputDecoration(
                     hintText: 'Search sessions...',
                     hintStyle: AppTextStyles.bodyM.copyWith(
@@ -349,16 +343,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.cardOf(context),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider),
-          boxShadow: const [
-            BoxShadow(
-              color: AppColors.cardShadow,
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ],
+          border: Border.all(color: AppColors.borderOf(context)),
+          boxShadow: AppColors.softShadowOf(context),
         ),
           // Use ListTile for session cards (Unit 1)
           child: ListTile(
