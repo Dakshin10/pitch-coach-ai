@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/app_atmosphere.dart';
 import '../../core/widgets/gradient_button.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,8 +17,11 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _waveController;
+  late final AnimationController _enterController;
+  late final Animation<double> _fadeIn;
+  late final Animation<Offset> _slideUp;
   bool _restoredRouteHandled = false;
 
   @override
@@ -24,57 +29,69 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.initState();
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
+
+    _enterController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeIn = CurvedAnimation(parent: _enterController, curve: Curves.easeOut);
+    _slideUp = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _enterController, curve: Curves.easeOutCubic));
+    _enterController.forward();
   }
 
   @override
   void dispose() {
     _waveController.dispose();
+    _enterController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // A secure-token restore is only allowed to enter the real account flow.
-    // Local guest mode is never persisted as an authenticated backend session.
     if (!_restoredRouteHandled && context.watch<UserProvider>().isLoggedIn) {
       _restoredRouteHandled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/home');
       });
     }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
+      backgroundColor: AppColors.scaffoldOf(context),
+      body: AppAtmosphere(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                children: [
-                  const Spacer(flex: 1),
-
-                  // 1. Center Hero Area (Mic + Sound Waves + Glow)
-                  _buildHeroSection(constraints),
-
-                  const Spacer(flex: 1),
-
-                  // 2. Page Indicator Dots
-                  _buildPageIndicator(),
-
-                  const SizedBox(height: 24),
-
-                  // 3. Headline & Subheadline
-                  _buildTypographySection(),
-
-                  const Spacer(flex: 2),
-
-                  // 4. Bottom Button Stack
-                  _buildButtonStack(context),
-
-                  const SizedBox(height: 32),
-                ],
+              child: FadeTransition(
+                opacity: _fadeIn,
+                child: SlideTransition(
+                  position: _slideUp,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: const ThemeToggleButton(),
+                      ),
+                      const Spacer(flex: 1),
+                      _buildHeroSection(isDark),
+                      const Spacer(flex: 1),
+                      _buildPageIndicator(isDark),
+                      const SizedBox(height: 24),
+                      _buildTypographySection(isDark),
+                      const Spacer(flex: 2),
+                      _buildButtonStack(context, isDark),
+                      const SizedBox(height: 28),
+                    ],
+                  ),
+                ),
               ),
             );
           },
@@ -83,64 +100,60 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildHeroSection(BoxConstraints constraints) {
+  Widget _buildHeroSection(bool isDark) {
     return SizedBox(
       height: 240,
       width: double.infinity,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Background Soft Radial Glow
           ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+            imageFilter: ImageFilter.blur(sigmaX: 42, sigmaY: 42),
             child: Container(
-              width: 180,
-              height: 180,
+              width: 190,
+              height: 190,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primaryPurple.withValues(alpha: 0.35),
+                    AppColors.primaryPurple.withValues(alpha: isDark ? 0.42 : 0.28),
                     Colors.transparent,
                   ],
-                  stops: const [0.25, 1.0],
+                  stops: const [0.2, 1.0],
                 ),
               ),
             ),
           ),
-
-          // Row with Left Waves, Center Mic Circle, Right Waves
           AnimatedBuilder(
             animation: _waveController,
             builder: (context, child) {
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Left 7 Sound Wave Bars (outer to inner)
                   _buildWaveGroup(
                     baseHeights: [22, 32, 45, 38, 58, 72, 88],
                     opacities: [0.3, 0.4, 0.55, 0.7, 0.8, 0.9, 1.0],
                     isLeft: true,
                   ),
-
-                  const SizedBox(width: 12),
-
-                  // Center Mic Circle Icon
+                  const SizedBox(width: 14),
                   Container(
-                    width: 110,
-                    height: 110,
+                    width: 114,
+                    height: 114,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryPurpleLight,
                       shape: BoxShape.circle,
+                      gradient: AppColors.primaryGradient,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryPurple.withValues(alpha: 0.45),
-                          blurRadius: 28,
+                          color: AppColors.primaryPurple.withValues(alpha: 0.4),
+                          blurRadius: 30,
                           spreadRadius: 2,
-                          offset: const Offset(0, 8),
+                          offset: const Offset(0, 10),
                         ),
                       ],
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        width: 1.5,
+                      ),
                     ),
                     child: const Icon(
                       Icons.mic_rounded,
@@ -148,10 +161,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       size: 48,
                     ),
                   ),
-
-                  const SizedBox(width: 12),
-
-                  // Right 7 Sound Wave Bars (inner to outer)
+                  const SizedBox(width: 14),
                   _buildWaveGroup(
                     baseHeights: [88, 72, 58, 38, 45, 32, 22],
                     opacities: [1.0, 0.9, 0.8, 0.7, 0.55, 0.4, 0.3],
@@ -173,21 +183,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: List.generate(baseHeights.length, (index) {
-        final double baseH = baseHeights[index];
-        final double opacity = opacities[index];
-
-        // Staggered interval calculation per bar index
+        final baseH = baseHeights[index];
+        final opacity = opacities[index];
         final barIndex = isLeft ? index : (index + 7);
         final start = ((barIndex * 0.08) % 0.6);
         final end = (start + 0.4).clamp(0.0, 1.0);
-
         final barAnimation = CurvedAnimation(
           parent: _waveController,
           curve: Interval(start, end, curve: Curves.easeInOutCubic),
         );
-
         final animatedHeight = baseH * (0.55 + 0.5 * barAnimation.value);
 
         return Padding(
@@ -196,7 +201,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             width: 3.5,
             height: animatedHeight,
             decoration: BoxDecoration(
-              color: AppColors.primaryPurple.withValues(alpha: opacity),
+              color: AppColors.primaryPurpleLight.withValues(alpha: opacity),
               borderRadius: BorderRadius.circular(2.0),
             ),
           ),
@@ -205,67 +210,63 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildPageIndicator() {
+  Widget _buildPageIndicator(bool isDark) {
+    final inactive = isDark
+        ? Colors.white.withValues(alpha: 0.22)
+        : AppColors.textSecondary.withValues(alpha: 0.35);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Active dot
         Container(
-          width: 24,
+          width: 26,
           height: 8,
           decoration: BoxDecoration(
-            color: AppColors.primaryPurpleLight,
+            gradient: AppColors.primaryGradient,
             borderRadius: BorderRadius.circular(4),
           ),
         ),
         const SizedBox(width: 8),
-        // Inactive dot 1
         Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.3),
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: inactive, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        // Inactive dot 2
         Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.3),
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: inactive, shape: BoxShape.circle),
         ),
       ],
     );
   }
 
-  Widget _buildTypographySection() {
+  Widget _buildTypographySection(bool isDark) {
     return Column(
       children: [
-        RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: 'Pitch ',
-                style: AppTextStyles.headingXL.copyWith(
-                  color: AppColors.textOnDark,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              TextSpan(
-                text: 'Coach',
-                style: AppTextStyles.headingXL.copyWith(
-                  color: AppColors.primaryPurpleLight,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+        ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: isDark
+                ? const [
+                    Color(0xFFF8F7FF),
+                    Color(0xFFB4A9FF),
+                    Color(0xFF22D3EE),
+                  ]
+                : const [
+                    Color(0xFF15132A),
+                    Color(0xFF8B7CFF),
+                  ],
+          ).createShader(bounds),
+          child: Text(
+            'Pitch Coach',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.headingXL.copyWith(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.0,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -273,19 +274,23 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Speak with confidence.\nPresent with clarity.',
           textAlign: TextAlign.center,
           style: AppTextStyles.bodyM.copyWith(
-            color: const Color(0xFFB8B6CE),
+            color: AppColors.textSecondaryOf(context),
             fontSize: 16,
-            height: 1.45,
+            height: 1.5,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildButtonStack(BuildContext context) {
+  Widget _buildButtonStack(BuildContext context, bool isDark) {
+    final outline = isDark
+        ? Colors.white.withValues(alpha: 0.14)
+        : AppColors.cardLightBorder;
+    final text = AppColors.textPrimaryOf(context);
+
     return Column(
       children: [
-        // 1. Login - Primary purple gradient
         GradientButton(
           text: 'Login',
           variant: GradientButtonVariant.primary,
@@ -293,25 +298,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           onPressed: () => context.push('/login', extra: false),
         ),
         const SizedBox(height: 12),
-
-        // 2. Sign Up - Secondary dark card with 10% white border
         GradientButton(
           text: 'Sign Up',
           variant: GradientButtonVariant.secondary,
           height: 56,
-          borderColor: Colors.white.withValues(alpha: 0.1),
-          textColor: Colors.white,
+          borderColor: outline,
+          textColor: text,
           onPressed: () => context.push('/login', extra: true),
         ),
         const SizedBox(height: 12),
-
-        // 3. Continue as Guest - Tertiary transparent with 20% white border
         GradientButton(
           text: 'Continue as Guest',
           variant: GradientButtonVariant.tertiary,
           height: 56,
-          borderColor: Colors.white.withValues(alpha: 0.2),
-          textColor: Colors.white,
+          borderColor: outline,
+          textColor: text,
           onPressed: () async {
             await Provider.of<UserProvider>(context, listen: false).loginAsGuest();
             if (!context.mounted) return;
