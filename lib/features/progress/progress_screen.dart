@@ -63,7 +63,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     Text(
                       'Progress',
                       style: AppTextStyles.headingXL.copyWith(
-                        color: AppColors.textPrimaryDark,
+                        color: AppColors.textPrimaryOf(context),
                       ),
                     ),
                     Row(
@@ -183,12 +183,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 10, offset: Offset(0, 3)),
-        ],
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,9 +267,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: AppColors.borderOf(context)),
         boxShadow: const [
           BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 4)),
         ],
@@ -451,9 +449,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: AppColors.borderOf(context)),
         boxShadow: const [
           BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 4)),
         ],
@@ -530,9 +528,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.cardOf(context),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.divider),
+              border: Border.all(color: AppColors.borderOf(context)),
             ),
             child: Text(
               'Complete sessions to unlock achievements! 🏆',
@@ -551,15 +549,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     padding: const EdgeInsets.all(14),
                     width: 110,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.cardOf(context),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.divider),
-                      boxShadow: const [
-                        BoxShadow(
-                            color: AppColors.cardShadow,
-                            blurRadius: 10,
-                            offset: Offset(0, 3)),
-                      ],
+                      border: Border.all(color: AppColors.borderOf(context)),
+                      boxShadow: AppColors.softShadowOf(context),
                     ),
                     child: Column(
                       children: [
@@ -591,7 +584,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: badge.isUnlocked
-                                ? AppColors.textPrimaryDark
+                                ? AppColors.textPrimaryOf(context)
                                 : AppColors.textSecondary,
                           ),
                           maxLines: 2,
@@ -654,12 +647,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 10, offset: Offset(0, 3)),
-        ],
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
