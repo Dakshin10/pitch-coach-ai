@@ -76,16 +76,29 @@ class _GradientButtonState extends State<GradientButton> {
         break;
 
       case GradientButtonVariant.secondary:
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         decoration = BoxDecoration(
-          color: AppColors.cardDark,
+          color: isDark ? AppColors.cardDark : Colors.white,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: widget.borderColor ?? AppColors.primaryPurple.withValues(alpha: 0.4),
-            width: 1,
+            color: widget.borderColor ??
+                (isDark
+                    ? Colors.white.withValues(alpha: 0.14)
+                    : AppColors.cardLightBorder),
+            width: 1.2,
           ),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         );
         textStyle = AppTextStyles.headingM.copyWith(
-          color: widget.textColor ?? AppColors.textOnDark,
+          color: widget.textColor ?? AppColors.textPrimaryOf(context),
         );
         break;
 
@@ -94,12 +107,13 @@ class _GradientButtonState extends State<GradientButton> {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: widget.borderColor ?? AppColors.textSecondary.withValues(alpha: 0.4),
-            width: 1,
+            color: widget.borderColor ??
+                AppColors.textSecondary.withValues(alpha: 0.35),
+            width: 1.2,
           ),
         );
         textStyle = AppTextStyles.headingM.copyWith(
-          color: widget.textColor ?? AppColors.textOnDark,
+          color: widget.textColor ?? AppColors.textPrimaryOf(context),
         );
         break;
     }
