@@ -8,8 +8,10 @@ import '../../core/repositories/session_repository.dart';
 import '../../core/repositories/demo_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/app_atmosphere.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -93,11 +95,11 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
+      body: AppAtmosphere(
         child: RefreshIndicator(
           onRefresh: _handleRefresh,
           color: AppColors.primaryPurple,
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.cardOf(context),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
@@ -110,7 +112,12 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(height: 24),
 
                 // 2. "Choose Your Practice Mode" Header
-                Text('Choose Your Practice Mode', style: AppTextStyles.headingL),
+                Text(
+                  'Choose Your Practice Mode',
+                  style: AppTextStyles.headingL.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
 
                 const SizedBox(height: 16),
 
@@ -171,15 +178,15 @@ class _HomeScreenState extends State<HomeScreen>
                       Text(
                         'This Week',
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
+                          color: AppColors.textSecondaryOf(context),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(
+                      Icon(
                         Icons.keyboard_arrow_down_rounded,
                         size: 18,
-                        color: AppColors.textSecondary,
+                        color: AppColors.textSecondaryOf(context),
                       ),
                     ],
                   ),
@@ -323,63 +330,76 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildHeaderRow(BuildContext context, UserProfile user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final firstName = user.name.split(' ').first;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'Hello, ${user.name.split(' ').first}',
-                  style: AppTextStyles.headingXL.copyWith(
-                    color: AppColors.textPrimaryDark,
-                  ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hello, $firstName',
+                style: AppTextStyles.headingXL.copyWith(
+                  color: AppColors.textPrimaryOf(context),
+                  letterSpacing: -0.5,
                 ),
-                const SizedBox(width: 6),
-                const Text('👋', style: TextStyle(fontSize: 22)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Ready to practice today?',
-              style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
-            ),
-          ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Ready to practice today?',
+                style: AppTextStyles.bodyM.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
+              ),
+            ],
+          ),
         ),
         Row(
           children: [
+            const ThemeToggleButton(size: 40, compact: true),
+            const SizedBox(width: 8),
             Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEBEBF5),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.white.withValues(alpha: 0.9),
                 shape: BoxShape.circle,
+                border: Border.all(color: AppColors.borderOf(context)),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.notifications_none_rounded,
                 size: 20,
-                color: AppColors.textPrimaryDark,
+                color: AppColors.textPrimaryOf(context),
               ),
             ),
-            const SizedBox(width: 10),
-      // Avatar with Image.network + initials fallback (Unit 1)
+            const SizedBox(width: 8),
             GestureDetector(
               onTap: () => context.go('/profile'),
               child: Container(
-                width: 38,
-                height: 38,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryPurple,
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  gradient: AppColors.primaryGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: ClipOval(
                   child: Image.network(
-                    'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.name)}&background=6C5CE7&color=fff&size=128',
-                    width: 38,
-                    height: 38,
+                    'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.name)}&background=7C6CF0&color=fff&size=128',
+                    width: 40,
+                    height: 40,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => Center(
                       child: Text(
@@ -418,26 +438,48 @@ class _HomeScreenState extends State<HomeScreen>
     required String label,
     required Color color,
   }) {
+    final isDark = AppColors.isDark(context);
     return Expanded(
       child: InkWell(
         onTap: () => context.push('/lessons'),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withValues(alpha: 0.2)),
+            gradient: isDark
+                ? LinearGradient(
+                    colors: [
+                      color.withValues(alpha: 0.22),
+                      color.withValues(alpha: 0.08),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: isDark ? null : color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: color.withValues(alpha: isDark ? 0.35 : 0.2),
+            ),
+            boxShadow: isDark
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.12),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 4),
+              Icon(icon, color: isDark ? color.withValues(alpha: 0.95) : color, size: 22),
+              const SizedBox(height: 6),
               Text(
                 label,
                 style: AppTextStyles.caption.copyWith(
-                  color: color,
+                  color: isDark ? AppColors.textOnDark : color,
                   fontWeight: FontWeight.w700,
                   fontSize: 11,
                 ),
@@ -458,7 +500,12 @@ class _HomeScreenState extends State<HomeScreen>
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(title, style: AppTextStyles.headingL),
+        Text(
+          title,
+          style: AppTextStyles.headingL.copyWith(
+            color: AppColors.textPrimaryOf(context),
+          ),
+        ),
         trailing,
       ],
     );
@@ -486,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: _buildSmallStatCard(
             label: 'Sessions',
             value: isLoading ? '...' : '${s.totalSessions}',
-            valueColor: AppColors.textPrimaryDark,
+            valueColor: AppColors.textPrimaryOf(context),
           ),
         ),
         const SizedBox(width: 10),
@@ -518,16 +565,9 @@ class _HomeScreenState extends State<HomeScreen>
     required Color valueColor,
     String? subCaption,
   }) {
-    return Container(
+    return GlassSurface(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider, width: 1),
-        boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 3)),
-        ],
-      ),
+      borderRadius: BorderRadius.circular(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -535,7 +575,7 @@ class _HomeScreenState extends State<HomeScreen>
           Text(
             label,
             style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryOf(context),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -548,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen>
             style: AppTextStyles.headingXL.copyWith(
               fontSize: 22,
               color: valueColor,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
           if (subCaption != null) ...[
@@ -557,7 +597,7 @@ class _HomeScreenState extends State<HomeScreen>
               subCaption,
               style: AppTextStyles.caption.copyWith(
                 fontSize: 10,
-                color: AppColors.textSecondary,
+                color: AppColors.textSecondaryOf(context),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -571,24 +611,19 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildRecentSessionCard(BuildContext context) {
     // Loading skeleton
     if (_recentSessionLoading) {
-      return Container(
-        height: 76,
+      return GlassSurface(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider, width: 1),
-          boxShadow: const [
-            BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 3)),
-          ],
-        ),
-        child: const Center(
-          child: SizedBox(
-            height: 20,
-            width: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+        borderRadius: BorderRadius.circular(18),
+        child: const SizedBox(
+          height: 44,
+          child: Center(
+            child: SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+              ),
             ),
           ),
         ),
@@ -597,55 +632,59 @@ class _HomeScreenState extends State<HomeScreen>
 
     // No sessions yet — prompt user to start
     if (_recentSession == null) {
-      return GestureDetector(
+      return GlassSurface(
         onTap: () => context.push('/interview'),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.divider, width: 1),
-            boxShadow: const [
-              BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 3)),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryPurple.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.add_rounded, color: AppColors.primaryPurple, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'No sessions yet',
-                      style: AppTextStyles.headingM.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Tap to start your first practice session!',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
+        padding: const EdgeInsets.all(18),
+        borderRadius: BorderRadius.circular(18),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primaryPurple.withValues(alpha: 0.28),
+                    AppColors.auroraCyan.withValues(alpha: 0.12),
                   ],
                 ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.primaryPurple.withValues(alpha: 0.25),
+                ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 22),
-            ],
-          ),
+              child: const Icon(Icons.add_rounded, color: AppColors.primaryPurpleLight, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No sessions yet',
+                    style: AppTextStyles.headingM.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimaryOf(context),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap to start your first practice session!',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondaryOf(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondaryOf(context),
+              size: 22,
+            ),
+          ],
         ),
       );
     }
@@ -663,70 +702,67 @@ class _HomeScreenState extends State<HomeScreen>
             ? Icons.mic_rounded
             : Icons.event_seat_rounded;
 
-    return GestureDetector(
+    return GlassSurface(
       onTap: () => context.push('/results', extra: session.id),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider, width: 1),
-          boxShadow: const [
-            BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 3)),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.primaryPurple.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(modeIcon, color: AppColors.primaryPurple, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    session.modeLabel,
-                    style: AppTextStyles.headingM.copyWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    session.topicOrQuestion,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${session.dateFormatted} · ${session.durationFormatted}',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary.withValues(alpha: 0.7),
-                      fontSize: 11,
-                    ),
-                  ),
+      padding: const EdgeInsets.all(16),
+      borderRadius: BorderRadius.circular(18),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primaryPurple.withValues(alpha: 0.3),
+                  AppColors.gradientPurpleEnd.withValues(alpha: 0.12),
                 ],
               ),
+              borderRadius: BorderRadius.circular(12),
             ),
-            CircularGauge(
-              value: session.overallScore,
-              size: 46,
-              strokeWidth: 4.5,
-              gradientColors: [scoreColor, scoreColor],
+            child: Icon(modeIcon, color: AppColors.primaryPurpleLight, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.modeLabel,
+                  style: AppTextStyles.headingM.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  session.topicOrQuestion,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${session.dateFormatted} · ${session.durationFormatted}',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondaryOf(context).withValues(alpha: 0.75),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          CircularGauge(
+            value: session.overallScore,
+            size: 46,
+            strokeWidth: 4.5,
+            gradientColors: [scoreColor, scoreColor],
+          ),
+        ],
       ),
     );
   }
@@ -767,16 +803,16 @@ class _PracticeModeCardState extends State<_PracticeModeCard> {
         onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.onTap,
         child: Container(
-          height: 84,
+          height: 92,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             gradient: widget.gradient,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: widget.gradient.colors.first.withValues(alpha: 0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: widget.gradient.colors.first.withValues(alpha: 0.32),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -787,7 +823,10 @@ class _PracticeModeCardState extends State<_PracticeModeCard> {
                 height: 56,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
                 ),
                 child: Icon(widget.icon, color: Colors.white, size: 28),
               ),
@@ -836,64 +875,76 @@ class _PracticeModeSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        gradient: isDark
+            ? const LinearGradient(
+                colors: [Color(0xFF161428), Color(0xFF0E0D18)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              )
+            : null,
+        color: isDark ? null : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: isDark
+            ? Border.all(color: Colors.white.withValues(alpha: 0.08))
+            : null,
       ),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
           Container(
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.divider,
+              color: isDark ? AppColors.cardDarkBorder : AppColors.divider,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 20),
-
-          // Logo + Title
           Row(
             children: [
-              Image.asset(
-                'assets/images/pitch_coach_logo.png',
-                width: 36,
-                height: 36,
-                errorBuilder: (_, _, _) => const Icon(
-                  Icons.mic_rounded,
-                  color: AppColors.primaryPurple,
-                  size: 28,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.primaryGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
+                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Start Practice',
                     style: AppTextStyles.headingL.copyWith(
-                      color: AppColors.textPrimaryDark,
+                      color: AppColors.textPrimaryOf(context),
                     ),
                   ),
                   Text(
                     'Choose a practice mode',
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+                      color: AppColors.textSecondaryOf(context),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-
           const SizedBox(height: 20),
-
-          // Mode options
           _buildModeOption(
+            context,
             icon: Icons.event_seat_rounded,
             color: AppColors.primaryPurple,
             title: 'Interview Practice',
@@ -902,6 +953,7 @@ class _PracticeModeSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _buildModeOption(
+            context,
             icon: Icons.bar_chart_rounded,
             color: AppColors.accentBlue,
             title: 'Presentation Practice',
@@ -910,6 +962,7 @@ class _PracticeModeSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _buildModeOption(
+            context,
             icon: Icons.mic_rounded,
             color: AppColors.accentGreen,
             title: 'Free Talk',
@@ -921,22 +974,24 @@ class _PracticeModeSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildModeOption({
+  Widget _buildModeOption(
+    BuildContext context, {
     required IconData icon,
     required Color color,
     required String title,
     required String subtitle,
     required String route,
   }) {
+    final isDark = AppColors.isDark(context);
     return InkWell(
       onTap: () => onModeTap(route),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
+          color: color.withValues(alpha: isDark ? 0.14 : 0.06),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          border: Border.all(color: color.withValues(alpha: isDark ? 0.35 : 0.2)),
         ),
         child: Row(
           children: [
@@ -944,7 +999,7 @@ class _PracticeModeSheet extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: color.withValues(alpha: isDark ? 0.22 : 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 24),
@@ -959,13 +1014,13 @@ class _PracticeModeSheet extends StatelessWidget {
                     style: AppTextStyles.headingM.copyWith(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimaryDark,
+                      color: AppColors.textPrimaryOf(context),
                     ),
                   ),
                   Text(
                     subtitle,
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+                      color: AppColors.textSecondaryOf(context),
                     ),
                   ),
                 ],
