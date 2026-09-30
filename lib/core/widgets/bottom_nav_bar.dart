@@ -44,17 +44,28 @@ class BottomNavBar extends StatelessWidget {
         Container(
           height: 76,
           decoration: BoxDecoration(
-            color: isDark ? AppColors.cardDark : Colors.white,
+            color: isDark
+                ? AppColors.cardDark.withValues(alpha: 0.98)
+                : Colors.white.withValues(alpha: 0.96),
+            border: Border(
+              top: BorderSide(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : AppColors.cardLightBorder,
+              ),
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-                blurRadius: 20,
-                offset: const Offset(0, -4),
+                color: isDark
+                    ? AppColors.primaryPurple.withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.06),
+                blurRadius: 28,
+                offset: const Offset(0, -8),
               ),
             ],
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
             ),
           ),
           child: Row(
