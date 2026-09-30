@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/providers/session_results_provider.dart';
@@ -11,12 +12,24 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize Firebase — must happen before any Firebase call.
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  // Initialize notification service (handles permissions gracefully)
-  await NotificationService.instance.initialize();
+
+  // Firebase / notifications must never block first paint (white/blank web screen).
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e, st) {
+    debugPrint('Firebase init failed: $e\n$st');
+  }
+
+  if (!kIsWeb) {
+    try {
+      await NotificationService.instance.initialize();
+    } catch (e, st) {
+      debugPrint('Notification init failed: $e\n$st');
+    }
+  }
+
   runApp(
     MultiProvider(
       providers: [
