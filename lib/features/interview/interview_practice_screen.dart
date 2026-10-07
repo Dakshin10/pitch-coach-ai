@@ -188,38 +188,48 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<InterviewSessionController>();
+    // Only read fields that don't change every second/frame here.
+    // Frequently-changing fields (audioLevel, formattedTime, isProcessing)
+    // are consumed by isolated child widgets using context.select.
+    final isGuest = context.select<InterviewSessionController, bool>((c) => c.isGuest);
+    final liveMessage = context.select<InterviewSessionController, String>((c) => c.liveMessage);
+    final confidenceScore = context.select<InterviewSessionController, double>((c) => c.confidenceScore);
+    final errorMessage = context.select<InterviewSessionController, String?>((c) => c.errorMessage);
 
     return Scaffold(
-      backgroundColor: AppColors.background, // Dark Navy Background matching reference image
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
           child: Column(
             children: [
-              // 1. Top App Bar (Dark Theme)
-              _buildTopAppBar(context, controller),
+              // 1. Top App Bar — timer pill is isolated inside
+              _buildTopAppBar(context),
 
               const SizedBox(height: 16),
 
-              // 2. Question Prompt Area (White text on dark)
+              // 2. Question Prompt Area (static — never rebuilds)
               _buildQuestionPromptArea(),
 
               const SizedBox(height: 16),
 
-              // 3. Live Feedback Card & Stat Grid (Dark Cards)
+              // 3. Live Feedback Card & Stat Grid
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      _buildLiveFeedbackCard(controller),
+                      _buildLiveFeedbackCard(
+                        isGuest: isGuest,
+                        liveMessage: liveMessage,
+                        confidenceScore: confidenceScore,
+                      ),
 
                       const SizedBox(height: 16),
 
-                      // 4. 2x2 Grid of Stat Cards with Dark Background & Green Sparklines
-                      controller.isGuest
-                          ? _buildStatCardGrid(controller)
+                      // 4. Stat grid (guest) or notice (authenticated)
+                      isGuest
+                          ? _buildStatCardGrid(context)
                           : _buildPostRecordingNotice(),
                     ],
                   ),
@@ -228,8 +238,8 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
 
               const SizedBox(height: 12),
 
-              // 5. Bottom Recording Control & Waveform
-              _buildBottomRecordingControl(context, controller),
+              // 5. Bottom Recording Control & Waveform — both isolated
+              _buildBottomRecordingControl(context, errorMessage),
             ],
           ),
         ),
@@ -237,14 +247,12 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     );
   }
 
-  Widget _buildTopAppBar(
-    BuildContext context,
-    InterviewSessionController controller,
-  ) {
+  /// Top bar with a back button, title, and an isolated timer pill.
+  Widget _buildTopAppBar(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Back Chevron Button
+        // Back Chevron Button (static)
         GestureDetector(
           onTap: () => context.pop(),
           child: Container(
@@ -262,7 +270,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           ),
         ),
 
-        // Title in White Text
+        // Title (static)
         Text(
           'Interview Practice',
           style: AppTextStyles.headingM.copyWith(
@@ -271,22 +279,8 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           ),
         ),
 
-        // Timer Badge Pill
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppColors.primaryPurple.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            controller.formattedTime,
-            style: AppTextStyles.bodySmallBold.copyWith(
-              color: AppColors.primaryPurpleLight,
-              fontWeight: FontWeight.w700,
-              fontFeatures: [const FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
+        // Timer pill — isolated Selector rebuilds only this widget each second
+        _TimerPill(),
       ],
     );
   }
@@ -306,7 +300,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
         const SizedBox(height: 10),
         Row(
           children: List.generate(7, (index) {
-            final isCurrent = index == 1; // 2nd dot active per prompt specification
+            final isCurrent = index == 1;
             return Container(
               margin: const EdgeInsets.only(right: 6),
               width: isCurrent ? 18 : 6,
@@ -324,8 +318,12 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     );
   }
 
-  Widget _buildLiveFeedbackCard(InterviewSessionController controller) {
-    if (!controller.isGuest) {
+  Widget _buildLiveFeedbackCard({
+    required bool isGuest,
+    required String liveMessage,
+    required double confidenceScore,
+  }) {
+    if (!isGuest) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -342,7 +340,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             Text('Recording your practice',
                 style: AppTextStyles.headingM.copyWith(color: AppColors.textOnDark)),
             const SizedBox(height: 8),
-            Text(controller.liveMessage,
+            Text(liveMessage,
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary)),
           ],
@@ -408,11 +406,11 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
 
           const SizedBox(height: 20),
 
-          // Animated Big Circular Gauge Ring (Dark background track)
+          // Animated Circular Gauge
           TweenAnimationBuilder<double>(
             tween: Tween<double>(
               begin: 60.0,
-              end: controller.confidenceScore,
+              end: confidenceScore,
             ),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOutCubic,
@@ -434,7 +432,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
 
           const SizedBox(height: 18),
 
-          // Status Line with AnimatedSwitcher Fade Transition
+          // Status line
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             transitionBuilder: (child, animation) => FadeTransition(
@@ -442,8 +440,8 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               child: child,
             ),
             child: Text(
-              controller.liveMessage,
-              key: ValueKey(controller.liveMessage),
+              liveMessage,
+              key: ValueKey(liveMessage),
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyM.copyWith(
                 color: AppColors.primaryPurpleLight,
@@ -456,7 +454,8 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     );
   }
 
-  Widget _buildStatCardGrid(InterviewSessionController controller) {
+  Widget _buildStatCardGrid(BuildContext context) {
+    final ctrl = context.read<InterviewSessionController>();
     return Row(
       children: [
         Expanded(
@@ -464,7 +463,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             children: [
               _buildDarkSparklineStatCard(
                 label: 'Filler Words',
-                value: '${controller.fillerWordsCount}',
+                value: '${ctrl.fillerWordsCount}',
                 status: 'Good',
                 statusColor: AppColors.successGreen,
                 sparklineData: const [0.6, 0.4, 0.5, 0.3, 0.2, 0.3, 0.2],
@@ -472,7 +471,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               const SizedBox(height: 12),
               _buildDarkSparklineStatCard(
                 label: 'Pauses',
-                value: '${controller.pausesCount}',
+                value: '${ctrl.pausesCount}',
                 status: 'Good',
                 statusColor: AppColors.successGreen,
                 sparklineData: const [0.3, 0.5, 0.4, 0.6, 0.3, 0.4, 0.3],
@@ -486,7 +485,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             children: [
               _buildDarkSparklineStatCard(
                 label: 'Speaking Speed',
-                value: '${controller.speakingSpeedWpm}',
+                value: '${ctrl.speakingSpeedWpm}',
                 unit: 'WPM',
                 status: 'Optimal',
                 statusColor: AppColors.successGreen,
@@ -495,7 +494,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               const SizedBox(height: 12),
               _buildDarkSparklineStatCard(
                 label: 'Clarity',
-                value: '${controller.clarityPercentage}%',
+                value: '${ctrl.clarityPercentage}%',
                 status: 'Good',
                 statusColor: AppColors.successGreen,
                 sparklineData: const [0.7, 0.75, 0.8, 0.78, 0.82, 0.85, 0.88],
@@ -621,69 +620,37 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     );
   }
 
+  /// Bottom area: waveform (isolated) + stop button (isolated).
   Widget _buildBottomRecordingControl(
     BuildContext context,
-    InterviewSessionController controller,
+    String? errorMessage,
   ) {
     return Column(
       children: [
-        // Horizontal Waveform Strip
-        _AudioWaveformStrip(level: controller.audioLevel),
+        // Waveform — isolated widget; only rebuilds on audioLevel changes
+        const _AudioWaveformStrip(),
 
         const SizedBox(height: 12),
 
-        // Large Circular Stop Button (72px)
-        GestureDetector(
-          onTap: () async {
-            await controller.stopSession((sessionId) {
+        // Stop button — isolated widget; only rebuilds on isProcessing changes
+        _StopButton(
+          onPressed: () async {
+            final ctrl = context.read<InterviewSessionController>();
+            await ctrl.stopSession((sessionId) {
               context.push('/results', extra: sessionId);
             });
-            if (context.mounted && controller.errorMessage != null) {
+            if (context.mounted && ctrl.errorMessage != null) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(controller.errorMessage!),
+                content: Text(ctrl.errorMessage!),
                 backgroundColor: AppColors.dangerRed,
               ));
             }
           },
-          child: Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: AppColors.primaryPurple,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryPurple.withValues(alpha: 0.5),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Center(
-              child: controller.isProcessing
-                  ? const SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-            ),
-          ),
         ),
 
         const SizedBox(height: 14),
 
-        // Home indicator handle pill (iOS style bar)
+        // Home indicator handle
         Container(
           width: 120,
           height: 4,
@@ -697,11 +664,122 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
   }
 }
 
+// ── Isolated widgets ─────────────────────────────────────────────────────────
+
+/// Timer pill — uses Selector so only this widget rebuilds every second.
+class _TimerPill extends StatelessWidget {
+  const _TimerPill();
+
+  @override
+  Widget build(BuildContext context) {
+    final time = context.select<InterviewSessionController, String>(
+      (c) => c.formattedTime,
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primaryPurple.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        time,
+        style: AppTextStyles.bodySmallBold.copyWith(
+          color: AppColors.primaryPurpleLight,
+          fontWeight: FontWeight.w700,
+          fontFeatures: [const FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
+}
+
+/// Waveform — uses Selector so only this widget rebuilds on amplitude changes.
+class _AudioWaveformStrip extends StatelessWidget {
+  const _AudioWaveformStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final level = context.select<InterviewSessionController, double>(
+      (c) => c.audioLevel,
+    );
+    return SizedBox(
+      height: 36,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: List.generate(24, (index) {
+          final distance = (index - 11.5).abs() / 11.5;
+          final barLevel = (level * (1 - distance * .55)).clamp(0.0, 1.0);
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 80),
+            width: 3,
+            height: 5 + 29 * barLevel,
+            decoration: BoxDecoration(
+              color: AppColors.primaryPurpleLight.withValues(alpha: .35 + .65 * barLevel),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+/// Stop button — uses Selector so only this widget rebuilds on isProcessing.
+class _StopButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _StopButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final isProcessing = context.select<InterviewSessionController, bool>(
+      (c) => c.isProcessing,
+    );
+    return GestureDetector(
+      onTap: isProcessing ? null : onPressed,
+      child: Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          color: AppColors.primaryPurple,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryPurple.withValues(alpha: 0.5),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Center(
+          child: isProcessing
+              ? const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SparklinePainter extends CustomPainter {
   final List<double> values;
   final Color color;
 
-  _SparklinePainter({required this.values, required this.color});
+  const _SparklinePainter({required this.values, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -731,34 +809,6 @@ class _SparklinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SparklinePainter oldDelegate) => true;
-}
-
-class _AudioWaveformStrip extends StatelessWidget {
-  const _AudioWaveformStrip({required this.level});
-  final double level;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: List.generate(24, (index) {
-          final distance = (index - 11.5).abs() / 11.5;
-          final barLevel = (level * (1 - distance * .55)).clamp(0.0, 1.0);
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            width: 3,
-            height: 5 + 29 * barLevel,
-            decoration: BoxDecoration(
-              color: AppColors.primaryPurpleLight.withValues(alpha: .35 + .65 * barLevel),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          );
-        }),
-      ),
-    );
-  }
+  bool shouldRepaint(covariant _SparklinePainter oldDelegate) =>
+      oldDelegate.values != values || oldDelegate.color != color;
 }

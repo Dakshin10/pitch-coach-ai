@@ -91,7 +91,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<UserProvider>(context).user;
+    // Select only the fields we actually use so that unrelated state changes
+    // (e.g. dark mode toggle in ThemeToggleButton) do not rebuild this Scaffold.
+    final user = context.select<UserProvider, UserProfile>((p) => p.user);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -396,10 +398,12 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
                 child: ClipOval(
-                  child: Image.network(
+                   child: Image.network(
                     'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.name)}&background=7C6CF0&color=fff&size=128',
                     width: 40,
                     height: 40,
+                    cacheWidth: 80,  // 2x for HiDPI — avoids re-decode on rebuild
+                    cacheHeight: 80,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => Center(
                       child: Text(

@@ -272,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   _buildInputField(
                     controller: _nameController,
-                    hint: 'e.g. Dakshin',
+                    hint: 'e.g. Vijay',
                     icon: Icons.person_outline_rounded,
                     validator: (val) {
                       if (_isSignUp && (val == null || val.trim().isEmpty)) {
@@ -291,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 _buildInputField(
                   controller: _emailController,
-                  hint: 'name@example.com',
+                  hint: 'vanakamnanba@gmail.com',
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   validator: (val) {

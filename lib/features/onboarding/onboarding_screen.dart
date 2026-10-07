@@ -7,7 +7,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_atmosphere.dart';
 import '../../core/widgets/gradient_button.dart';
-import '../../core/widgets/theme_toggle_button.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -22,7 +21,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late final AnimationController _enterController;
   late final Animation<double> _fadeIn;
   late final Animation<Offset> _slideUp;
+  // Pre-computed per-bar animations — created once, never re-allocated per frame
+  late final List<Animation<double>> _barAnimations;
   bool _restoredRouteHandled = false;
+
+  static const List<double> _leftBaseHeights = [22, 32, 45, 38, 58, 72, 88];
+  static const List<double> _rightBaseHeights = [88, 72, 58, 38, 45, 32, 22];
+  static const List<double> _leftOpacities = [0.3, 0.4, 0.55, 0.7, 0.8, 0.9, 1.0];
+  static const List<double> _rightOpacities = [1.0, 0.9, 0.8, 0.7, 0.55, 0.4, 0.3];
 
   @override
   void initState() {
@@ -32,9 +38,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
 
+    // Pre-compute all 14 bar animations once — no allocation inside build()
+    _barAnimations = List.generate(14, (barIndex) {
+      final start = ((barIndex * 0.08) % 0.6);
+      final end = (start + 0.4).clamp(0.0, 1.0);
+      return CurvedAnimation(
+        parent: _waveController,
+        curve: Interval(start, end, curve: Curves.easeInOutCubic),
+      );
+    });
+
     _enterController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 800),
     );
     _fadeIn = CurvedAnimation(parent: _enterController, curve: Curves.easeOut);
     _slideUp = Tween<Offset>(
@@ -75,11 +91,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   position: _slideUp,
                   child: Column(
                     children: [
+                      // No theme toggle on the launch screen — accessible in Profile
                       const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: const ThemeToggleButton(),
-                      ),
                       const Spacer(flex: 1),
                       _buildHeroSection(isDark),
                       const Spacer(flex: 1),
@@ -126,46 +139,48 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
           AnimatedBuilder(
             animation: _waveController,
+            // Mic circle is static — pass as child so it is NOT rebuilt each frame
+            child: Container(
+              width: 114,
+              height: 114,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppColors.primaryGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.4),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  width: 1.5,
+                ),
+              ),
+              child: const Icon(
+                Icons.mic_rounded,
+                color: Colors.white,
+                size: 48,
+              ),
+            ),
             builder: (context, child) {
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _buildWaveGroup(
-                    baseHeights: [22, 32, 45, 38, 58, 72, 88],
-                    opacities: [0.3, 0.4, 0.55, 0.7, 0.8, 0.9, 1.0],
-                    isLeft: true,
+                    baseHeights: _leftBaseHeights,
+                    opacities: _leftOpacities,
+                    startBarIndex: 0,
                   ),
                   const SizedBox(width: 14),
-                  Container(
-                    width: 114,
-                    height: 114,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: AppColors.primaryGradient,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryPurple.withValues(alpha: 0.4),
-                          blurRadius: 30,
-                          spreadRadius: 2,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.mic_rounded,
-                      color: Colors.white,
-                      size: 48,
-                    ),
-                  ),
+                  child!,
                   const SizedBox(width: 14),
                   _buildWaveGroup(
-                    baseHeights: [88, 72, 58, 38, 45, 32, 22],
-                    opacities: [1.0, 0.9, 0.8, 0.7, 0.55, 0.4, 0.3],
-                    isLeft: false,
+                    baseHeights: _rightBaseHeights,
+                    opacities: _rightOpacities,
+                    startBarIndex: 7,
                   ),
                 ],
               );
@@ -179,21 +194,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildWaveGroup({
     required List<double> baseHeights,
     required List<double> opacities,
-    required bool isLeft,
+    required int startBarIndex,
   }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(baseHeights.length, (index) {
         final baseH = baseHeights[index];
         final opacity = opacities[index];
-        final barIndex = isLeft ? index : (index + 7);
-        final start = ((barIndex * 0.08) % 0.6);
-        final end = (start + 0.4).clamp(0.0, 1.0);
-        final barAnimation = CurvedAnimation(
-          parent: _waveController,
-          curve: Interval(start, end, curve: Curves.easeInOutCubic),
-        );
-        final animatedHeight = baseH * (0.55 + 0.5 * barAnimation.value);
+        // Uses pre-computed animation — zero allocation per frame
+        final animatedHeight = baseH * (0.55 + 0.5 * _barAnimations[startBarIndex + index].value);
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2.0),
