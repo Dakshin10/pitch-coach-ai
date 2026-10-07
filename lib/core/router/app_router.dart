@@ -5,6 +5,7 @@ import '../../features/auth/login_screen.dart';
 import '../../features/demo/design_system_demo_page.dart';
 import '../../features/history/history_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../core/models/practice_mode.dart';
 import '../../features/interview/interview_practice_screen.dart';
 import '../../features/learn/lesson_detail_screen.dart';
 import '../../features/learn/lessons_screen.dart';
@@ -106,11 +107,22 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: interview,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
-          context: context,
-          state: state,
-          child: const InterviewPracticeScreen(),
-        ),
+        pageBuilder: (context, state) {
+          PracticeSessionConfig? config;
+          if (state.extra is PracticeSessionConfig) {
+            config = state.extra as PracticeSessionConfig;
+          } else if (state.extra is String) {
+            config = PracticeSessionConfig.defaultFor(state.extra as String);
+          } else if (state.extra is Map<String, dynamic>) {
+            final map = state.extra as Map<String, dynamic>;
+            config = PracticeSessionConfig.defaultFor(map['mode'] as String?);
+          }
+          return _buildSlideFadeTransition(
+            context: context,
+            state: state,
+            child: InterviewPracticeScreen(initialConfig: config),
+          );
+        },
       ),
       GoRoute(
         path: results,

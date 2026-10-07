@@ -47,6 +47,8 @@ class SessionResult {
   final List<FeedbackItem> aiFeedback;
   final DateTime createdAt;
   final bool isAnalyzed;
+  /// True when the server-side AI analysis failed (scores are placeholders).
+  final bool analysisFailed;
   /// Local path to the recorded audio file, populated by SessionRepository after upload.
   final String? audioPath;
 
@@ -67,6 +69,7 @@ class SessionResult {
     required this.aiFeedback,
     required this.createdAt,
     required this.isAnalyzed,
+    this.analysisFailed = false,
     this.audioPath,
   });
 
@@ -90,6 +93,7 @@ class SessionResult {
             .toList(),
         createdAt: DateTime.parse(j['created_at'] as String),
         isAnalyzed: j['is_analyzed'] as bool? ?? false,
+        analysisFailed: j['analysis_failed'] as bool? ?? false,
       );
 
   SessionResult copyWith({
@@ -109,6 +113,7 @@ class SessionResult {
     List<FeedbackItem>? aiFeedback,
     DateTime? createdAt,
     bool? isAnalyzed,
+    bool? analysisFailed,
     String? audioPath,
   }) {
     return SessionResult(
@@ -128,6 +133,7 @@ class SessionResult {
       aiFeedback: aiFeedback ?? this.aiFeedback,
       createdAt: createdAt ?? this.createdAt,
       isAnalyzed: isAnalyzed ?? this.isAnalyzed,
+      analysisFailed: analysisFailed ?? this.analysisFailed,
       audioPath: audioPath ?? this.audioPath,
     );
   }
@@ -154,6 +160,7 @@ class SessionSummary {
   final double confidenceScore;
   final DateTime createdAt;
   final bool isAnalyzed;
+  final bool analysisFailed;
 
   const SessionSummary({
     required this.id,
@@ -164,6 +171,7 @@ class SessionSummary {
     required this.confidenceScore,
     required this.createdAt,
     required this.isAnalyzed,
+    this.analysisFailed = false,
   });
 
   factory SessionSummary.fromJson(Map<String, dynamic> j) => SessionSummary(
@@ -175,6 +183,7 @@ class SessionSummary {
         confidenceScore: (j['confidence_score'] as num?)?.toDouble() ?? 0,
         createdAt: DateTime.parse(j['created_at'] as String),
         isAnalyzed: j['is_analyzed'] as bool? ?? false,
+        analysisFailed: j['analysis_failed'] as bool? ?? false,
       );
 
   String get durationFormatted {

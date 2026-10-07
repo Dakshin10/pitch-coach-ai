@@ -41,6 +41,15 @@ class AuthRepository {
     return data['user'] as Map<String, dynamic>;
   }
 
+  // ── Firebase → backend token exchange ─────────────────────────────────────
+
+  /// Trades a Firebase ID token for backend JWTs so protected endpoints work.
+  Future<Map<String, dynamic>> loginWithFirebaseToken(String idToken) async {
+    final data = await _api.post('/auth/firebase', data: {'id_token': idToken});
+    await _persistAuth(data);
+    return data['user'] as Map<String, dynamic>;
+  }
+
   // ── Guest login ───────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> loginAsGuest() async {

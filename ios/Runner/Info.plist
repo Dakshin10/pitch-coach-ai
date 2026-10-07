@@ -47,5 +47,16 @@
 	<string>Pitch Coach records your practice so it can analyze your speech.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.543963977112-q3rst49jnv9q2je41ot06vpbajqbjlnr</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

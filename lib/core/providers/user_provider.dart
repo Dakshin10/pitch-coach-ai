@@ -142,7 +142,22 @@ class UserProvider extends ChangeNotifier {
     if (userData == null) return false;
     _adoptUser(userData);
     notifyListeners();
+    if (!await _auth.hasStoredTokens) await _syncBackend();
     return true;
+  }
+
+  /// Exchanges the Firebase ID token for backend JWTs and adopts the stored
+  /// profile. Best effort: if the backend is unreachable the Firebase profile
+  /// is kept and protected API calls will retry on the next launch/login.
+  Future<void> _syncBackend() async {
+    try {
+      final idToken = await _firebaseAuth.getIdToken();
+      if (idToken == null) return;
+      _adoptUser(await _auth.loginWithFirebaseToken(idToken));
+      notifyListeners();
+    } catch (_) {
+      // Backend offline — keep the Firebase-derived profile.
+    }
   }
 
   Future<bool> tryRestoreSession() async {
@@ -222,6 +237,7 @@ class UserProvider extends ChangeNotifier {
         displayName: name,
       );
       _adoptUser(userData);
+      await _syncBackend();
       _error = null;
       notifyListeners();
       return true;
@@ -246,6 +262,7 @@ class UserProvider extends ChangeNotifier {
         password: password,
       );
       _adoptUser(userData);
+      await _syncBackend();
       _error = null;
       notifyListeners();
       return true;
@@ -269,6 +286,7 @@ class UserProvider extends ChangeNotifier {
         return false;
       }
       _adoptUser(userData);
+      await _syncBackend();
       _error = null;
       notifyListeners();
       return true;
@@ -390,6 +408,11 @@ class UserProvider extends ChangeNotifier {
   // ── Logout ────────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
+    try {
+      await _firebaseAuth.signOut();
+    } catch (_) {
+      // Not signed in via Firebase (or SDK unavailable) — nothing to do.
+    }
     await _auth.logout();
     final keptDark = _user.darkMode;
     _isLoggedIn = false;

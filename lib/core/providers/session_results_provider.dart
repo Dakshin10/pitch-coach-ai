@@ -4,7 +4,7 @@ import '../config/app_config.dart';
 import '../models/session_result.dart';
 import '../repositories/session_repository.dart';
 
-enum ResultsLoadState { loading, analyzing, ready, error }
+enum ResultsLoadState { loading, analyzing, ready, failed, error }
 
 /// Holds the current session results and drives the polling loop.
 /// Used by ResultsScreen to show real AI-analyzed numbers.
@@ -29,6 +29,22 @@ class SessionResultsProvider extends ChangeNotifier {
     _startPolling(sessionId);
   }
 
+  /// Re-runs server-side analysis for a failed session, then resumes polling.
+  /// A timed-out poll (state == error) just resumes polling instead.
+  Future<void> retry(String sessionId) async {
+    if (_state == ResultsLoadState.failed) {
+      try {
+        await _repo.retryAnalysis(sessionId);
+      } catch (_) {
+        _errorMessage = 'Could not restart the analysis. Please try again.';
+        notifyListeners();
+        return;
+      }
+    }
+    _errorMessage = null;
+    loadSession(sessionId);
+  }
+
   void _startPolling(String sessionId) {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(AppConfig.resultsPollInterval, (_) async {
@@ -47,7 +63,9 @@ class SessionResultsProvider extends ChangeNotifier {
 
         if (session.isAnalyzed) {
           _pollTimer?.cancel();
-          _state = ResultsLoadState.ready;
+          _state = session.analysisFailed
+              ? ResultsLoadState.failed
+              : ResultsLoadState.ready;
         } else {
           _state = ResultsLoadState.analyzing;
         }

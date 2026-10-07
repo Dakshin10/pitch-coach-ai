@@ -8,6 +8,12 @@ import '../models/session_result.dart';
 import '../services/api_client.dart';
 import '../utils/local_file.dart';
 
+enum MicPermissionState {
+  granted,
+  denied,
+  permanentlyDenied,
+}
+
 /// Encapsulates recording and the session API lifecycle.
 /// Used by InterviewSessionController.
 class SessionRepository {
@@ -22,6 +28,7 @@ class SessionRepository {
   static final Map<String, String> _audioPathCache = {};
 
   String? get currentSessionId => _currentSessionId;
+  String? get currentAudioPath => _currentAudioPath;
 
   // ── Permissions ───────────────────────────────────────────────────────────
 
@@ -30,8 +37,25 @@ class SessionRepository {
     return status.isGranted;
   }
 
+  Future<MicPermissionState> requestMicPermissionStatus() async {
+    final current = await Permission.microphone.status;
+    if (current.isGranted) return MicPermissionState.granted;
+    if (current.isPermanentlyDenied) return MicPermissionState.permanentlyDenied;
+
+    final result = await Permission.microphone.request();
+    if (result.isGranted) return MicPermissionState.granted;
+    if (result.isPermanentlyDenied) return MicPermissionState.permanentlyDenied;
+    return MicPermissionState.denied;
+  }
+
+  Future<bool> openSettings() async {
+    return await openAppSettings();
+  }
+
   Stream<Amplitude> get amplitudeStream =>
       _recorder.onAmplitudeChanged(const Duration(milliseconds: 120));
+
+  Future<bool> isRecording() async => await _recorder.isRecording();
 
   /// Guest Mode records locally for a genuine microphone experience, but never
   /// creates a backend session or uploads the resulting file.
@@ -55,12 +79,13 @@ class SessionRepository {
 
   Future<String> finishDemoRecording() async {
     final path = await _recorder.stop() ?? _currentAudioPath;
+    final recordedPath = path;
     _currentAudioPath = null;
-    if (path == null) throw StateError('Recording did not produce an audio file.');
-    if (!await localFileExistsAndNonEmpty(path)) {
+    if (recordedPath == null) throw StateError('Recording did not produce an audio file.');
+    if (!await localFileExistsAndNonEmpty(recordedPath)) {
       throw StateError('The recording is missing or empty. Please try again.');
     }
-    return path;
+    return recordedPath;
   }
 
   // ── Session lifecycle ─────────────────────────────────────────────────────
@@ -96,6 +121,12 @@ class SessionRepository {
     );
 
     return _currentSessionId;
+  }
+
+  /// Stops recorder without uploading. Returns the local audio file path.
+  Future<String?> stopAudioRecorder() async {
+    final path = await _recorder.stop();
+    return path ?? _currentAudioPath;
   }
 
   /// Step 2: stop recording and upload audio → triggers AI pipeline on server.
@@ -138,9 +169,13 @@ class SessionRepository {
       formData,
     ) as Map<String, dynamic>;
 
-    _audioPathCache[sessionId] = audioPath;
+    // Delete local audio after a successful upload to save device disk space
+    await deleteLocalFile(audioPath);
+    _audioPathCache.remove(sessionId);
     _currentAudioPath = null;
-    return SessionResult.fromJson(raw).copyWith(audioPath: audioPath);
+    _currentSessionId = null;
+
+    return SessionResult.fromJson(raw);
   }
 
   /// Step 3 (polling): fetch session until is_analyzed = true.
@@ -152,6 +187,11 @@ class SessionRepository {
       return result.copyWith(audioPath: cachedPath);
     }
     return result;
+  }
+
+  /// Asks the server to re-run analysis on an already-uploaded recording.
+  Future<void> retryAnalysis(String sessionId) async {
+    await _api.post('/sessions/$sessionId/retry');
   }
 
   /// History list — used by HistoryScreen.
@@ -176,7 +216,15 @@ class SessionRepository {
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
   Future<void> cancelSession() async {
-    if (await _recorder.isRecording()) await _recorder.stop();
+    try {
+      if (await _recorder.isRecording()) {
+        await _recorder.stop();
+      }
+    } catch (_) {}
+
+    if (_currentAudioPath != null) {
+      await deleteLocalFile(_currentAudioPath);
+    }
     _currentSessionId = null;
     _currentAudioPath = null;
   }

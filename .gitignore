@@ -40,6 +40,14 @@ migrate_working_dir/
 *.keystore
 google-services.json
 GoogleService-Info.plist
+firebase_service_account.json
+*_service_account.json
+!android/key.properties.example
+pending_uploads.json
+*.m4a
+*.mp3
+*.wav
+*.aac
 
 # ─── Python / Backend ─────────────────────────────────────────────────────────
 __pycache__/

@@ -2,20 +2,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import Base, engine
+from firestore import get_db  # noqa: F401 — initialises Firebase on first import
 from auth.router import router as auth_router
 from users.router import router as users_router
 from sessions.router import router as sessions_router
 from stats.router import router as stats_router
 from achievements.router import router as achievements_router
 
-# Create all tables on startup (SQLite: creates the .db file if missing)
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title="Pitch Coach API",
-    version="1.0.0",
-    description="Backend API for the Pitch Coach Flutter app.",
+    version="2.0.0",
+    description="Backend API for the Pitch Coach Flutter app — powered by Firebase Firestore.",
 )
 
 # Allow Flutter app on emulator (10.0.2.2) and physical device (LAN IP)
@@ -36,4 +33,4 @@ app.include_router(achievements_router)
 
 @app.get("/health", tags=["health"])
 def health_check():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "2.0.0", "db": "firestore"}

@@ -27,6 +27,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class FirebaseLoginRequest(BaseModel):
+    id_token: str
+
+
 class UpgradeGuestRequest(BaseModel):
     email: str
     password: str
@@ -106,6 +110,7 @@ class SessionResult(BaseModel):
     ai_feedback: List[FeedbackItem]
     created_at: datetime
     is_analyzed: bool
+    analysis_failed: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -119,6 +124,7 @@ class SessionSummary(BaseModel):
     confidence_score: float
     created_at: datetime
     is_analyzed: bool
+    analysis_failed: bool = False
 
     model_config = {"from_attributes": True}
 
