@@ -9,7 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from google.cloud import firestore as fs
 
 from auth.dependencies import get_current_user
-from config import get_settings
+from config import get_groq_key, get_settings
 from firestore import get_bucket, get_db
 from models import PracticeSession, User, SESSIONS_COL
 from schemas import (
@@ -26,6 +26,11 @@ settings = get_settings()
 
 _ALLOWED_AUDIO_EXTS = {".m4a", ".mp3", ".wav", ".webm", ".ogg", ".aac"}
 
+
+import logging
+from datetime import datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -59,6 +64,7 @@ def _to_result(s: PracticeSession) -> SessionResult:
         created_at=s.created_at,
         is_analyzed=s.is_analyzed,
         analysis_failed=s.analysis_failed,
+        failure_reason=s.failure_reason,
     )
 
 
@@ -73,6 +79,7 @@ def _to_summary(s: PracticeSession) -> SessionSummary:
         created_at=s.created_at,
         is_analyzed=s.is_analyzed,
         analysis_failed=s.analysis_failed,
+        failure_reason=s.failure_reason,
     )
 
 
@@ -128,7 +135,7 @@ def _run_pipeline_bg(
             audio_path=local_path,
             duration_seconds=duration,
             user_profile=user_profile,
-            groq_api_key=settings.GROQ_AUDIO_API_KEY or settings.GROQ_API_KEY,
+            groq_api_key=get_groq_key("audio"),
             whisper_model=settings.GROQ_WHISPER_MODEL,
             llm_model=settings.GROQ_LLM_MODEL,
         )
@@ -155,15 +162,17 @@ def _run_pipeline_bg(
             ],
             "is_analyzed": True,
         })
-        print(f"[pipeline] Session {session_id} analyzed OK. Score={analysis.overall_score:.1f}")
+        logger.info("[pipeline] Session %s analyzed OK. Score=%.1f", session_id, analysis.overall_score)
 
     except Exception as exc:
-        print(f"[pipeline] ERROR for session {session_id}: {exc}")
+        logger.error("[pipeline] ERROR for session %s: %s", session_id, exc)
         # Stop the app polling, but flag the failure so stats ignore the zero scores
         try:
-            db.collection(SESSIONS_COL).document(session_id).update(
-                {"is_analyzed": True, "analysis_failed": True}
-            )
+            db.collection(SESSIONS_COL).document(session_id).update({
+                "is_analyzed": True,
+                "analysis_failed": True,
+                "failure_reason": str(exc),
+            })
         except Exception:
             pass
     finally:
@@ -175,6 +184,8 @@ def _run_pipeline_bg(
 # Routes
 # ─────────────────────────────────────────────────────────────────────────────
 
+from quota import check_and_increment_daily_quota
+
 @router.post("/start", response_model=StartSessionResponse)
 def start_session(
     req: StartSessionRequest,
@@ -182,6 +193,8 @@ def start_session(
     db: fs.Client = Depends(get_db),
 ):
     """Creates a session document in Firestore and returns its ID."""
+    check_and_increment_daily_quota(current_user.id, "sessions", settings.MAX_SESSIONS_PER_DAY)
+
     session = PracticeSession(
         id=str(uuid.uuid4()),
         user_id=current_user.id,
@@ -236,7 +249,7 @@ async def finish_session(
             )
         )
     except Exception as exc:
-        print(f"[storage] upload failed for session {session_id}: {exc}")
+        logger.error("[storage] upload failed for session %s: %s", session_id, exc)
         raise HTTPException(status_code=503, detail="Could not store the recording. Please try again.")
 
     doc_ref.update({
@@ -292,6 +305,33 @@ def retry_analysis(
     return _to_result(PracticeSession.from_dict(doc_ref.get().to_dict()))
 
 
+def sweep_stuck_sessions(cutoff_seconds: int = 600) -> int:
+    """Finds all sessions stuck in processing exceeding cutoff_seconds and marks them failed."""
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=cutoff_seconds)
+    db = get_db()
+    count = 0
+    if db is not None:
+        try:
+            docs = (
+                db.collection(SESSIONS_COL)
+                .where("is_analyzed", "==", False)
+                .stream()
+            )
+            for doc in docs:
+                data = doc.to_dict()
+                created = data.get("created_at")
+                if isinstance(created, datetime) and created < cutoff:
+                    db.collection(SESSIONS_COL).document(doc.id).update({
+                        "is_analyzed": True,
+                        "analysis_failed": True,
+                        "failure_reason": "Processing timed out (sweeper)",
+                    })
+                    count += 1
+        except Exception as exc:
+            logger.warning("Error sweeping stuck sessions from Firestore: %s", exc)
+    return count
+
+
 @router.get("/{session_id}", response_model=SessionResult)
 def get_session(
     session_id: str,
@@ -305,7 +345,27 @@ def get_session(
     data = doc.to_dict()
     if data.get("user_id") != current_user.id:
         raise HTTPException(status_code=404, detail="Session not found")
-    return _to_result(PracticeSession.from_dict(data))
+
+    session = PracticeSession.from_dict(data)
+
+    # Check if processing has been stuck for >10 minutes
+    if not session.is_analyzed and not session.analysis_failed:
+        delta = (datetime.now(timezone.utc) - session.created_at).total_seconds()
+        if delta > 600:
+            logger.warning("Session %s stuck for %.1fs. Marking as failed.", session_id, delta)
+            session.is_analyzed = True
+            session.analysis_failed = True
+            session.failure_reason = "Processing timed out"
+            try:
+                db.collection(SESSIONS_COL).document(session_id).update({
+                    "is_analyzed": True,
+                    "analysis_failed": True,
+                    "failure_reason": "Processing timed out",
+                })
+            except Exception:
+                pass
+
+    return _to_result(session)
 
 
 @router.get("", response_model=List[SessionSummary])
@@ -318,17 +378,23 @@ def list_sessions(
     db: fs.Client = Depends(get_db),
 ):
     """Returns paginated session history for history_screen and home recent card."""
-    query = (
-        db.collection(SESSIONS_COL)
-        .where("user_id", "==", current_user.id)
-        .order_by("created_at", direction=fs.Query.DESCENDING)
-    )
-    if mode:
-        query = query.where("mode", "==", mode)
-
-    # Firestore doesn't support ILIKE; fetch and filter in Python for search
-    all_docs = query.get()
-    sessions = [PracticeSession.from_dict(d.to_dict()) for d in all_docs]
+    try:
+        query = (
+            db.collection(SESSIONS_COL)
+            .where("user_id", "==", current_user.id)
+        )
+        if mode:
+            query = query.where("mode", "==", mode)
+        all_docs = query.order_by("created_at", direction=fs.Query.DESCENDING).get()
+        sessions = [PracticeSession.from_dict(d.to_dict()) for d in all_docs]
+    except Exception:
+        # Fallback if composite index is not yet deployed in Firestore console
+        query = db.collection(SESSIONS_COL).where("user_id", "==", current_user.id)
+        if mode:
+            query = query.where("mode", "==", mode)
+        all_docs = query.get()
+        sessions = [PracticeSession.from_dict(d.to_dict()) for d in all_docs]
+        sessions.sort(key=lambda s: s.created_at, reverse=True)
 
     if search:
         search_lower = search.lower()

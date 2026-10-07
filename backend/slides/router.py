@@ -15,6 +15,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     Response,
     UploadFile,
     status,
@@ -23,7 +24,7 @@ from fastapi.responses import FileResponse
 from groq import Groq
 
 from auth.dependencies import get_current_user
-from config import get_settings
+from config import get_groq_key, get_settings
 from models import SlideDeck, User
 from slides.pipeline import (
     evaluate_qa_answer,
@@ -48,6 +49,9 @@ from slides.schemas import (
 )
 from slides.store import deck_store
 
+from quota import check_and_increment_daily_quota
+import pymupdf
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/slides", tags=["slide_coach"])
 settings = get_settings()
@@ -70,7 +74,7 @@ def _run_deck_pipeline(
     if not deck:
         return
 
-    client = Groq(api_key=settings.GROQ_API_KEY or settings.GROQ_AUDIO_API_KEY)
+    client = Groq(api_key=get_groq_key())
     slides_dir = deck_store.get_slides_dir(deck_id)
 
     try:
@@ -86,6 +90,9 @@ def _run_deck_pipeline(
         deck.page_count = page_count
         deck.progress = 30
         deck_store.save(deck)
+
+        # Upload slide images to Firebase Storage if configured
+        deck_store.upload_slide_images_to_storage(deck_id, image_paths)
 
         # ── Stage B: Vision Extraction ──
         deck.stage = "reading_slides"
@@ -118,7 +125,7 @@ def _run_deck_pipeline(
         slides_data = []
         for s in coaching_result.slides:
             s_dict = s.model_dump()
-            s_dict["image_url"] = f"/api/slides/{deck_id}/slides/{s.slide_number}/image"
+            s_dict["image_url"] = f"/slides/{deck_id}/slides/{s.slide_number}/image"
             slides_data.append(s_dict)
 
         deck.deck_summary = coaching_result.deck_summary.model_dump()
@@ -126,6 +133,7 @@ def _run_deck_pipeline(
         deck.status = "done"
         deck.progress = 100
         deck.error = None
+        deck.failure_reason = None
         deck_store.save(deck)
         logger.info("Deck %s successfully analyzed with %d slides", deck_id, len(slides_data))
 
@@ -133,6 +141,7 @@ def _run_deck_pipeline(
         logger.exception("Pipeline failed for deck %s: %s", deck_id, e)
         deck.status = "failed"
         deck.error = str(e)
+        deck.failure_reason = str(e)
         deck_store.save(deck)
 
 
@@ -148,11 +157,14 @@ def _run_deck_pipeline(
 async def upload_deck(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    audience: str = Form("investors"),
-    time_limit_seconds: int = Form(180),
-    goal: str = Form(""),
+    audience: str = Form("investors", max_length=100),
+    time_limit_seconds: int = Form(180, ge=30, le=1800),
+    goal: str = Form("", max_length=500),
     current_user: User = Depends(get_current_user),
 ):
+    # Enforce daily quota
+    check_and_increment_daily_quota(current_user.id, "decks", settings.MAX_DECKS_PER_DAY)
+
     # 1. Reject PPTX with clear 415 error
     filename = file.filename or "deck.pdf"
     ext = os.path.splitext(filename)[1].lower()
@@ -167,12 +179,18 @@ async def upload_deck(
             detail="Only PDF files are supported. Please upload a .pdf file.",
         )
 
-    # 2. Read bytes and validate size (max 25MB)
-    pdf_bytes = await file.read()
-    if len(pdf_bytes) > 25 * 1024 * 1024:
+    # 2. Streaming read and validate size (max 25MB)
+    max_bytes = 25 * 1024 * 1024
+    pdf_bytes = await file.read(max_bytes + 1)
+    if len(pdf_bytes) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File size exceeds the 25 MB limit.",
+        )
+    if not pdf_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
         )
 
     # 3. Validate magic bytes
@@ -182,7 +200,20 @@ async def upload_deck(
             detail="Invalid file format. The file is not a valid PDF.",
         )
 
-    # 4. Check SHA-256 cache
+    # 4. Validate page count (1 to 60 pages)
+    try:
+        doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+        page_count = len(doc)
+        doc.close()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid PDF file: {e}")
+
+    if page_count < 1:
+        raise HTTPException(status_code=400, detail="The PDF document is empty (0 pages).")
+    if page_count > 60:
+        raise HTTPException(status_code=400, detail=f"PDF exceeds maximum allowed pages (found {page_count}, limit is 60).")
+
+    # 5. Check SHA-256 cache
     content_hash = hashlib.sha256(
         pdf_bytes + f"{audience}:{time_limit_seconds}:{goal}".encode("utf-8")
     ).hexdigest()
@@ -195,7 +226,7 @@ async def upload_deck(
             "cached": True,
         }
 
-    # 5. Create new job
+    # 6. Create new job
     new_deck = SlideDeck(
         user_id=current_user.id,
         content_hash=content_hash,
@@ -214,7 +245,7 @@ async def upload_deck(
     with open(os.path.join(deck_dir, "deck.pdf"), "wb") as f:
         f.write(pdf_bytes)
 
-    # 6. Dispatch background worker
+    # 7. Dispatch background worker
     background_tasks.add_task(
         _run_deck_pipeline,
         deck_id=new_deck.id,
@@ -388,11 +419,17 @@ async def rehearse_deck(
     fd, tmp_audio_path = tempfile.mkstemp(suffix=ext)
     os.close(fd)
     try:
-        content = await file.read()
+        max_bytes = settings.MAX_AUDIO_UPLOAD_MB * 1024 * 1024
+        content = await file.read(max_bytes + 1)
+        if len(content) > max_bytes:
+            raise HTTPException(status_code=413, detail="Audio file exceeds size limit")
+        if not content:
+            raise HTTPException(status_code=400, detail="Audio file is empty")
+
         with open(tmp_audio_path, "wb") as f:
             f.write(content)
 
-        client = Groq(api_key=settings.GROQ_API_KEY or settings.GROQ_AUDIO_API_KEY)
+        client = Groq(api_key=get_groq_key("audio"))
         whisper_model = settings.GROQ_WHISPER_MODEL
         text_model = settings.GROQ_TEXT_MODEL
 
@@ -453,7 +490,7 @@ def generate_questions(
     if not deck or deck.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Deck not found")
 
-    client = Groq(api_key=settings.GROQ_API_KEY or settings.GROQ_AUDIO_API_KEY)
+    client = Groq(api_key=get_groq_key())
     text_model = settings.GROQ_TEXT_MODEL
 
     questions_raw = generate_qa_questions(
@@ -507,11 +544,17 @@ async def evaluate_answer(
     fd, tmp_audio_path = tempfile.mkstemp(suffix=ext)
     os.close(fd)
     try:
-        content = await file.read()
+        max_bytes = settings.MAX_AUDIO_UPLOAD_MB * 1024 * 1024
+        content = await file.read(max_bytes + 1)
+        if len(content) > max_bytes:
+            raise HTTPException(status_code=413, detail="Audio file exceeds size limit")
+        if not content:
+            raise HTTPException(status_code=400, detail="Audio file is empty")
+
         with open(tmp_audio_path, "wb") as f:
             f.write(content)
 
-        client = Groq(api_key=settings.GROQ_API_KEY or settings.GROQ_AUDIO_API_KEY)
+        client = Groq(api_key=get_groq_key("audio"))
         whisper_model = settings.GROQ_WHISPER_MODEL
         text_model = settings.GROQ_TEXT_MODEL
 
@@ -548,11 +591,18 @@ async def evaluate_answer(
 
 @router.post(
     "/cleanup",
-    summary="Cleanup decks and rendered files older than TTL (default 7 days)",
+    summary="Cleanup decks and rendered files older than TTL (default 7 days) (Admin only)",
 )
 def cleanup_old_decks(
-    ttl_days: Optional[int] = None,
+    ttl_days: Optional[int] = Query(None, ge=1, le=365),
     current_user: User = Depends(get_current_user),
 ):
+    settings = get_settings()
+    admin_ids = settings.admin_user_id_list
+    if not admin_ids or current_user.id not in admin_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required to trigger deck maintenance cleanup",
+        )
     deleted_count = deck_store.cleanup_expired(ttl_days)
     return {"deleted_count": deleted_count}

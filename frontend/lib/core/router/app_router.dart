@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/models/lesson_model.dart';
@@ -168,14 +169,15 @@ abstract class AppRouter {
           child: const ProfileScreen(),
         ),
       ),
-      GoRoute(
-        path: demo,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const DesignSystemDemoPage(),
+      if (kDebugMode)
+        GoRoute(
+          path: demo,
+          pageBuilder: (context, state) => _buildPage(
+            context: context,
+            state: state,
+            child: const DesignSystemDemoPage(),
+          ),
         ),
-      ),
       GoRoute(
         path: lessons,
         pageBuilder: (context, state) => _buildPage(

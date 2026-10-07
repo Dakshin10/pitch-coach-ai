@@ -1,7 +1,7 @@
-"""Stats endpoints: summary, trend chart, skill breakdown."""
+"""Stats endpoints: summary, trend chart, skill breakdown with query bounds and running aggregates."""
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from google.cloud import firestore as fs
@@ -18,15 +18,43 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _get_analyzed_sessions(db: fs.Client, user_id: str) -> List[PracticeSession]:
-    docs = (
-        db.collection(SESSIONS_COL)
-        .where("user_id", "==", user_id)
-        .where("is_analyzed", "==", True)
-        .get()
-    )
-    sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
-    return [s for s in sessions if not s.analysis_failed]
+def _get_analyzed_sessions(
+    db: fs.Client,
+    user_id: str,
+    days: Optional[int] = None,
+    limit: Optional[int] = None,
+) -> List[PracticeSession]:
+    """Fetch analyzed sessions filtered by user_id, optional days cutoff, and limit."""
+    if db is None:
+        return []
+
+    try:
+        query = (
+            db.collection(SESSIONS_COL)
+            .where("user_id", "==", user_id)
+            .where("is_analyzed", "==", True)
+        )
+        if days is not None and days > 0:
+            since = datetime.now(timezone.utc) - timedelta(days=days)
+            query = query.where("created_at", ">=", since)
+        if limit is not None and limit > 0:
+            query = query.limit(limit)
+
+        docs = query.get()
+        sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
+        return [s for s in sessions if not s.analysis_failed]
+    except Exception:
+        # Fallback if composite index is not yet built in Firestore
+        fallback_query = db.collection(SESSIONS_COL).where("user_id", "==", user_id)
+        if limit:
+            fallback_query = fallback_query.limit(limit)
+        docs = fallback_query.get()
+        sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
+        sessions = [s for s in sessions if s.is_analyzed and not s.analysis_failed]
+        if days is not None and days > 0:
+            since = datetime.now(timezone.utc) - timedelta(days=days)
+            sessions = [s for s in sessions if s.created_at >= since]
+        return sessions
 
 
 def _streak(sessions: List[PracticeSession]) -> int:
@@ -67,10 +95,12 @@ def _filler_reduction(sessions: List[PracticeSession]) -> float:
 
 @router.get("/summary", response_model=StatsSummary)
 def get_summary(
+    days: Optional[int] = Query(None, ge=1, le=365),
+    limit: int = Query(50, ge=1, le=500),
     current_user: User = Depends(get_current_user),
     db: fs.Client = Depends(get_db),
 ):
-    sessions = _get_analyzed_sessions(db, current_user.id)
+    sessions = _get_analyzed_sessions(db, current_user.id, days=days, limit=limit)
     n = len(sessions)
     avg_conf = sum(s.confidence_score or 0 for s in sessions) / max(n, 1)
     return StatsSummary(
@@ -102,7 +132,7 @@ def get_trend(
         sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
     except Exception:
         # Fallback if composite index is not yet built in Firestore
-        all_sessions = _get_analyzed_sessions(db, current_user.id)
+        all_sessions = _get_analyzed_sessions(db, current_user.id, days=days, limit=100)
         sessions = [s for s in all_sessions if s.created_at >= since]
         sessions.sort(key=lambda s: s.created_at)
 
@@ -125,25 +155,26 @@ def get_trend(
 
 @router.get("/skills", response_model=SkillBreakdown)
 def get_skills(
+    limit: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: fs.Client = Depends(get_db),
 ):
-    # Fetch last 20 analyzed sessions
+    # Fetch bounded analyzed sessions
     try:
         docs = (
             db.collection(SESSIONS_COL)
             .where("user_id", "==", current_user.id)
             .where("is_analyzed", "==", True)
             .order_by("created_at", direction=fs.Query.DESCENDING)
-            .limit(20)
+            .limit(limit)
             .get()
         )
         sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
     except Exception:
         # Fallback if composite index is not yet built in Firestore
-        all_sessions = _get_analyzed_sessions(db, current_user.id)
+        all_sessions = _get_analyzed_sessions(db, current_user.id, limit=limit)
         all_sessions.sort(key=lambda s: s.created_at, reverse=True)
-        sessions = all_sessions[:20]
+        sessions = all_sessions[:limit]
 
     sessions = [s for s in sessions if not s.analysis_failed]
 

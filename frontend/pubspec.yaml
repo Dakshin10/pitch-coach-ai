@@ -40,6 +40,9 @@ dependencies:
   go_router: ^17.3.0
   provider: ^6.1.5+1
 
+  # ── File Picking ──────────────────────────────────────────────────────────
+  file_picker: ^8.1.7              # PDF document picking for Slide Coach
+
   # ── Backend / Networking ──────────────────────────────────────────────────
   dio: ^5.7.0                      # HTTP client with interceptors for JWT auth
   flutter_secure_storage: ^9.2.4   # Secure token storage (Keystore / Keychain)

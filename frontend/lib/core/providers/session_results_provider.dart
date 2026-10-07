@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../models/session_result.dart';
@@ -6,7 +7,7 @@ import '../repositories/session_repository.dart';
 
 enum ResultsLoadState { loading, analyzing, ready, failed, error }
 
-/// Holds the current session results and drives the polling loop.
+/// Holds the current session results and drives the exponential backoff polling loop.
 /// Used by ResultsScreen to show real AI-analyzed numbers.
 class SessionResultsProvider extends ChangeNotifier {
   final _repo = SessionRepository.instance;
@@ -15,7 +16,9 @@ class SessionResultsProvider extends ChangeNotifier {
   ResultsLoadState _state = ResultsLoadState.loading;
   String? _errorMessage;
   Timer? _pollTimer;
-  int _pollAttempts = 0;
+  DateTime? _pollStartTime;
+  Duration _currentInterval = AppConfig.resultsPollInitialInterval;
+  bool _disposed = false;
 
   SessionResult? get result => _result;
   ResultsLoadState get state => _state;
@@ -24,7 +27,9 @@ class SessionResultsProvider extends ChangeNotifier {
   /// Called by ResultsScreen when it receives a session_id.
   void loadSession(String sessionId) {
     _state = ResultsLoadState.loading;
-    _pollAttempts = 0;
+    _errorMessage = null;
+    _pollStartTime = DateTime.now();
+    _currentInterval = AppConfig.resultsPollInitialInterval;
     notifyListeners();
     _startPolling(sessionId);
   }
@@ -47,37 +52,56 @@ class SessionResultsProvider extends ChangeNotifier {
 
   void _startPolling(String sessionId) {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(AppConfig.resultsPollInterval, (_) async {
-      _pollAttempts++;
-      if (_pollAttempts > AppConfig.resultsPollMaxAttempts) {
-        _pollTimer?.cancel();
-        _state = ResultsLoadState.error;
-        _errorMessage = 'Analysis timed out. Please try again later.';
-        notifyListeners();
-        return;
-      }
+
+    // Check timeout
+    if (_pollStartTime != null &&
+        DateTime.now().difference(_pollStartTime!) > AppConfig.resultsPollTimeout) {
+      _state = ResultsLoadState.error;
+      _errorMessage = 'Analysis timed out. Tap retry to check again.';
+      notifyListeners();
+      return;
+    }
+
+    _pollTimer = Timer(_currentInterval, () async {
+      if (_disposed) return;
 
       try {
         final session = await _repo.getSession(sessionId);
         _result = session;
 
         if (session.isAnalyzed) {
-          _pollTimer?.cancel();
-          _state = session.analysisFailed
-              ? ResultsLoadState.failed
-              : ResultsLoadState.ready;
+          if (session.analysisFailed) {
+            _state = ResultsLoadState.failed;
+            _errorMessage = session.failureReason ?? 'Analysis could not be completed.';
+          } else {
+            _state = ResultsLoadState.ready;
+          }
+          notifyListeners();
+          return;
         } else {
           _state = ResultsLoadState.analyzing;
+          notifyListeners();
         }
-        notifyListeners();
-      } catch (e) {
-        // Don't bail on transient errors — keep polling
+      } catch (_) {
+        // Transient network error: continue backoff polling without breaking
       }
+
+      if (_disposed) return;
+
+      // Exponential backoff: multiply interval by 1.5 up to max interval
+      final nextMs = min(
+        AppConfig.resultsPollMaxInterval.inMilliseconds,
+        (_currentInterval.inMilliseconds * 1.5).round(),
+      );
+      _currentInterval = Duration(milliseconds: nextMs);
+
+      _startPolling(sessionId);
     });
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _pollTimer?.cancel();
     super.dispose();
   }

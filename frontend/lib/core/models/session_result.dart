@@ -49,6 +49,7 @@ class SessionResult {
   final bool isAnalyzed;
   /// True when the server-side AI analysis failed (scores are placeholders).
   final bool analysisFailed;
+  final String? failureReason;
   /// Local path to the recorded audio file, populated by SessionRepository after upload.
   final String? audioPath;
 
@@ -70,6 +71,7 @@ class SessionResult {
     required this.createdAt,
     required this.isAnalyzed,
     this.analysisFailed = false,
+    this.failureReason,
     this.audioPath,
   });
 
@@ -94,6 +96,7 @@ class SessionResult {
         createdAt: DateTime.parse(j['created_at'] as String),
         isAnalyzed: j['is_analyzed'] as bool? ?? false,
         analysisFailed: j['analysis_failed'] as bool? ?? false,
+        failureReason: j['failure_reason'] as String?,
       );
 
   SessionResult copyWith({
@@ -114,6 +117,7 @@ class SessionResult {
     DateTime? createdAt,
     bool? isAnalyzed,
     bool? analysisFailed,
+    String? failureReason,
     String? audioPath,
   }) {
     return SessionResult(
@@ -134,6 +138,7 @@ class SessionResult {
       createdAt: createdAt ?? this.createdAt,
       isAnalyzed: isAnalyzed ?? this.isAnalyzed,
       analysisFailed: analysisFailed ?? this.analysisFailed,
+      failureReason: failureReason ?? this.failureReason,
       audioPath: audioPath ?? this.audioPath,
     );
   }
@@ -161,6 +166,7 @@ class SessionSummary {
   final DateTime createdAt;
   final bool isAnalyzed;
   final bool analysisFailed;
+  final String? failureReason;
 
   const SessionSummary({
     required this.id,
@@ -172,6 +178,7 @@ class SessionSummary {
     required this.createdAt,
     required this.isAnalyzed,
     this.analysisFailed = false,
+    this.failureReason,
   });
 
   factory SessionSummary.fromJson(Map<String, dynamic> j) => SessionSummary(
@@ -184,6 +191,7 @@ class SessionSummary {
         createdAt: DateTime.parse(j['created_at'] as String),
         isAnalyzed: j['is_analyzed'] as bool? ?? false,
         analysisFailed: j['analysis_failed'] as bool? ?? false,
+        failureReason: j['failure_reason'] as String?,
       );
 
   String get durationFormatted {

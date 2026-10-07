@@ -63,6 +63,7 @@ class SlideDeckStatusResponse(BaseModel):
     stage: str           # "rendering" | "reading_slides" | "writing_coaching"
     progress: int        # 0 to 100
     error: Optional[str] = None
+    failure_reason: Optional[str] = None
 
 
 class SlideDeckResponse(BaseModel):
@@ -74,6 +75,8 @@ class SlideDeckResponse(BaseModel):
     status: str
     stage: str
     progress: int
+    error: Optional[str] = None
+    failure_reason: Optional[str] = None
     page_count: int
     deck_summary: Optional[DeckSummary] = None
     slides: List[SlideCoaching] = Field(default_factory=list)

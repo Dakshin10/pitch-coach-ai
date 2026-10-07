@@ -57,7 +57,7 @@ class TestSlideCoachPipeline(unittest.TestCase):
             self.assertTrue(p.endswith(".jpg"))
 
     def test_pdf_page_limit_enforced(self):
-        pdf_bytes = _create_dummy_pdf(num_pages=31)
+        pdf_bytes = _create_dummy_pdf(num_pages=61)
         with self.assertRaises(ValueError) as ctx:
             validate_and_render_pdf(pdf_bytes, self.temp_dir)
         self.assertIn("exceeds maximum page limit", str(ctx.exception))

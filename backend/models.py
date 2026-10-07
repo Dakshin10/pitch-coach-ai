@@ -24,6 +24,7 @@ def _now_utc() -> datetime:
 USERS_COL = "users"
 SESSIONS_COL = "sessions"
 ACHIEVEMENTS_COL = "achievements"
+SLIDE_DECKS_COL = "slide_decks"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -108,6 +109,7 @@ class PracticeSession:
     created_at: datetime = field(default_factory=_now_utc)
     is_analyzed: bool = False
     analysis_failed: bool = False
+    failure_reason: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -130,6 +132,7 @@ class PracticeSession:
             "created_at": self.created_at,
             "is_analyzed": self.is_analyzed,
             "analysis_failed": self.analysis_failed,
+            "failure_reason": self.failure_reason,
         }
 
     @staticmethod
@@ -154,6 +157,7 @@ class PracticeSession:
             created_at=d.get("created_at") or _now_utc(),
             is_analyzed=d.get("is_analyzed", False),
             analysis_failed=d.get("analysis_failed", False),
+            failure_reason=d.get("failure_reason"),
         )
 
 
@@ -182,4 +186,76 @@ class Achievement:
             key=d.get("key", ""),
             unlocked_at=d.get("unlocked_at"),
             criteria_met=d.get("criteria_met", {}),
+        )
+
+
+@dataclass
+class SlideDeck:
+    id: str = field(default_factory=_gen_uuid)
+    user_id: str = ""
+    content_hash: str = ""
+    filename: str = "deck.pdf"
+    audience: str = "investors"
+    time_limit_seconds: int = 180
+    goal: str = ""
+    status: str = "processing"          # processing | done | failed
+    stage: str = "rendering"            # rendering | reading_slides | writing_coaching
+    progress: int = 0
+    error: Optional[str] = None
+    failure_reason: Optional[str] = None
+    page_count: int = 0
+    deck_summary: Optional[Dict[str, Any]] = None
+    slides: List[Dict[str, Any]] = field(default_factory=list)
+    qa_questions: List[Dict[str, Any]] = field(default_factory=list)
+    rehearsals: List[Dict[str, Any]] = field(default_factory=list)
+    created_at: datetime = field(default_factory=_now_utc)
+    updated_at: datetime = field(default_factory=_now_utc)
+
+    def to_dict(self) -> Dict[str, Any]:
+        err = self.failure_reason or self.error
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "content_hash": self.content_hash,
+            "filename": self.filename,
+            "audience": self.audience,
+            "time_limit_seconds": self.time_limit_seconds,
+            "goal": self.goal,
+            "status": self.status,
+            "stage": self.stage,
+            "progress": self.progress,
+            "error": err,
+            "failure_reason": err,
+            "page_count": self.page_count,
+            "deck_summary": self.deck_summary,
+            "slides": self.slides,
+            "qa_questions": self.qa_questions,
+            "rehearsals": self.rehearsals,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "SlideDeck":
+        err = d.get("failure_reason") or d.get("error")
+        return SlideDeck(
+            id=d.get("id", ""),
+            user_id=d.get("user_id", ""),
+            content_hash=d.get("content_hash", ""),
+            filename=d.get("filename", "deck.pdf"),
+            audience=d.get("audience", "investors"),
+            time_limit_seconds=d.get("time_limit_seconds", 180),
+            goal=d.get("goal", ""),
+            status=d.get("status", "processing"),
+            stage=d.get("stage", "rendering"),
+            progress=d.get("progress", 0),
+            error=err,
+            failure_reason=err,
+            page_count=d.get("page_count", 0),
+            deck_summary=d.get("deck_summary"),
+            slides=d.get("slides", []),
+            qa_questions=d.get("qa_questions", []),
+            rehearsals=d.get("rehearsals", []),
+            created_at=d.get("created_at") or _now_utc(),
+            updated_at=d.get("updated_at") or _now_utc(),
         )

@@ -11,7 +11,7 @@ class SlideCoachRepository {
   final _api = ApiClient.instance;
 
   String getSlideImageUrl(String deckId, int slideNumber) {
-    return '${AppConfig.apiBaseUrl}/api/slides/$deckId/slides/$slideNumber/image';
+    return '${AppConfig.apiBaseUrl}/slides/$deckId/slides/$slideNumber/image';
   }
 
   /// Uploads a presentation deck PDF to the backend.
@@ -31,7 +31,7 @@ class SlideCoachRepository {
     });
 
     final resp = await _api.postMultipart(
-      '/api/slides/upload',
+      '/slides/upload',
       formData,
       onSendProgress: onProgress,
     );
@@ -40,13 +40,13 @@ class SlideCoachRepository {
 
   /// Polls the processing status of a deck.
   Future<SlideDeckStatusModel> getStatus(String deckId) async {
-    final resp = await _api.get('/api/slides/$deckId/status');
+    final resp = await _api.get('/slides/$deckId/status');
     return SlideDeckStatusModel.fromJson(Map<String, dynamic>.from(resp as Map));
   }
 
   /// Fetches the full structured coaching output for a deck.
   Future<SlideDeckModel> getDeck(String deckId) async {
-    final resp = await _api.get('/api/slides/$deckId');
+    final resp = await _api.get('/slides/$deckId');
     return SlideDeckModel.fromJson(Map<String, dynamic>.from(resp as Map));
   }
 
@@ -67,12 +67,12 @@ class SlideCoachRepository {
       body['target_duration_seconds'] = targetDurationSeconds;
     }
 
-    await _api.patch('/api/slides/$deckId/slides/$slideNumber', data: body);
+    await _api.patch('/slides/$deckId/slides/$slideNumber', data: body);
   }
 
   /// Deletes a slide deck and its generated assets.
   Future<void> deleteDeck(String deckId) async {
-    await _api.dio.delete('/api/slides/$deckId');
+    await _api.dio.delete('/slides/$deckId');
   }
 
   /// Submits rehearsal audio and slide transition timestamps.
@@ -87,7 +87,7 @@ class SlideCoachRepository {
     });
 
     final resp = await _api.postMultipart(
-      '/api/slides/$deckId/rehearse',
+      '/slides/$deckId/rehearse',
       formData,
     );
     return DeckRehearsalResponseModel.fromJson(
@@ -96,7 +96,7 @@ class SlideCoachRepository {
 
   /// Generates audience-targeted Q&A questions for the deck.
   Future<List<QaQuestionModel>> getQaQuestions(String deckId) async {
-    final resp = await _api.post('/api/slides/$deckId/qa/questions');
+    final resp = await _api.post('/slides/$deckId/qa/questions');
     final data = Map<String, dynamic>.from(resp as Map);
     final list = data['questions'] as List<dynamic>? ?? [];
     return list
@@ -116,7 +116,7 @@ class SlideCoachRepository {
     });
 
     final resp = await _api.postMultipart(
-      '/api/slides/$deckId/qa/answer',
+      '/slides/$deckId/qa/answer',
       formData,
     );
     return QaEvaluationModel.fromJson(Map<String, dynamic>.from(resp as Map));

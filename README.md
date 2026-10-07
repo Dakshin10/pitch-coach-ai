@@ -1,6 +1,6 @@
 # 🎯 Pitch Coach
 
-A modern Flutter app for practicing public speaking, pitch presentations, and interview skills — with real-time feedback, analytics, and a polished light/dark design system.
+A modern Flutter app for practicing public speaking, pitch presentations, and interview skills — featuring comprehensive speech metrics, automated AI coaching upon recording completion, multimodal pitch deck analysis, and a polished light/dark design system.
 
 ---
 
@@ -284,35 +284,57 @@ copy .env.example .env
 ### Slide Coach Environment Variables (`backend/.env`)
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
+| `SECRET_KEY` | *(Required)* | Strong cryptographic key for HS256 JWT tokens |
+| `ALLOWED_ORIGINS` | `""` | Comma-separated list of allowed origins (e.g. `http://localhost:3000`) |
+| `ADMIN_USER_IDS` | `""` | Comma-separated list of user IDs allowed to call maintenance cleanup |
+| `GROQ_API_KEY` | *(Required)* | Primary API key for Groq LLM & Vision completions |
+| `GROQ_AUDIO_API_KEY` | `""` | Dedicated API key for Whisper audio pipeline (falls back to GROQ_API_KEY) |
 | `GROQ_VISION_MODEL` | `qwen/qwen3.8-27b` | Multimodal model for slide diagram and visual analysis |
-| `GROQ_TEXT_MODEL` | `openai/gpt-oss-120b` | Flagship text LLM with JSON mode for speech coaching |
+| `GROQ_TEXT_MODEL` | `openai/gpt-oss-120b` | Flagship text LLM with JSON mode for speech & slide coaching |
 | `GROQ_WHISPER_MODEL` | `whisper-large-v3-turbo` | Speech-to-text model with word-level timestamps |
 | `SLIDE_DECK_DIR` | `./slide_decks` | Local disk folder for rendered slide JPEGs |
-| `SLIDE_DECK_TTL_DAYS` | `7` | Retention window before confidential deck files are cleaned |
+| `SLIDE_DECK_TTL_DAYS` | `7` | Retention window (1-365 days) before deck files are purged |
+| `MAX_DECKS_PER_DAY` | `10` | Daily upload limit per user to prevent quota abuse |
+| `MAX_SESSIONS_PER_DAY` | `50` | Daily session practice limit per user |
 
 ### Slide Coach API Endpoints
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/slides/upload` | Multipart upload (PDF + audience + time_limit + goal) with SHA-256 deduplication |
-| `GET` | `/api/slides/{deck_id}/status` | Polls pipeline stage (`rendering`, `reading_slides`, `writing_coaching`) and progress |
-| `GET` | `/api/slides/{deck_id}` | Returns full structured coaching result (story arc, score, slides, talking points) |
-| `GET` | `/api/slides/{deck_id}/slides/{n}/image` | Serves rendered JPEG image for slide $n$ |
-| `PATCH`| `/api/slides/{deck_id}/slides/{n}` | Saves user edits to talking points or script (debounced) |
-| `POST` | `/api/slides/{deck_id}/rehearse` | Submits audio + slide swipe timestamps for per-slide rehearsal metrics |
-| `POST` | `/api/slides/{deck_id}/qa/questions` | Generates 5–8 audience-specific presentation questions |
-| `POST` | `/api/slides/{deck_id}/qa/answer` | Grades recorded answer with Whisper + Coach scoring |
-| `POST` | `/api/slides/cleanup` | Cleans up decks older than configured TTL |
-| `DELETE`| `/api/slides/{deck_id}` | Deletes deck, Firestore document, and rendered assets |
+| `POST` | `/slides/upload` | Multipart upload (PDF + audience + time_limit + goal) with SHA-256 deduplication and 60-page limit |
+| `GET` | `/slides/{deck_id}/status` | Polls pipeline stage (`rendering`, `reading_slides`, `writing_coaching`) and progress |
+| `GET` | `/slides/{deck_id}` | Returns full structured coaching result (story arc, score, slides, talking points) |
+| `GET` | `/slides/{deck_id}/slides/{n}/image` | Serves rendered JPEG image for slide $n$ |
+| `PATCH`| `/slides/{deck_id}/slides/{n}` | Saves user edits to talking points or script (debounced) |
+| `POST` | `/slides/{deck_id}/rehearse` | Submits audio + slide swipe timestamps for per-slide rehearsal metrics |
+| `POST` | `/slides/{deck_id}/qa/questions` | Generates 5–8 audience-specific presentation questions |
+| `POST` | `/slides/{deck_id}/qa/answer` | Grades recorded answer with Whisper + Coach scoring |
+| `POST` | `/slides/cleanup` | Cleans up decks older than configured TTL (Admin only) |
+| `DELETE`| `/slides/{deck_id}` | Deletes deck, Firestore document, and rendered assets |
 
-### Testing
+### Testing & Verification
+
+#### Backend Unit Tests
 ```powershell
-# Run Backend Unit Tests (10/10 tests)
 cd backend
-.\venv\Scripts\python.exe -m unittest tests/test_slides_pipeline.py
+# Runs full test suite (30 unit tests across pipeline, security, reliability, and quality)
+.\venv\Scripts\python.exe -m unittest discover tests
+```
 
-# Run Flutter Static Analysis
-cd ..
+#### Maintenance Script
+```powershell
+cd backend
+# Purges expired guest accounts, orphaned slide decks, and expired sessions
+.\venv\Scripts\python.exe scripts/cleanup.py
+```
+
+#### Frontend Tests & Static Analysis
+```powershell
+cd frontend
+# Run static analysis
 flutter analyze
+
+# Run unit and widget test suite (21 tests)
+flutter test
 ```
 
 ---
