@@ -1,14 +1,14 @@
 """Achievements: evaluate criteria, persist unlocks, return full list."""
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Callable, List
+from typing import List
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session as DbSession
+from google.cloud import firestore as fs
 
 from auth.dependencies import get_current_user
-from database import get_db
-from models import Achievement, PracticeSession, User
+from firestore import get_db
+from models import Achievement, PracticeSession, User, SESSIONS_COL, ACHIEVEMENTS_COL
 from schemas import AchievementResponse
 
 router = APIRouter(prefix="/achievements", tags=["achievements"])
@@ -76,17 +76,25 @@ ACHIEVEMENT_DEFS: List[dict] = [
 @router.get("", response_model=List[AchievementResponse])
 def get_achievements(
     current_user: User = Depends(get_current_user),
-    db: DbSession = Depends(get_db),
+    db: fs.Client = Depends(get_db),
 ):
-    sessions = (
-        db.query(PracticeSession)
-        .filter(PracticeSession.user_id == current_user.id, PracticeSession.is_analyzed == True)
-        .all()
+    # Fetch analyzed sessions
+    session_docs = (
+        db.collection(SESSIONS_COL)
+        .where("user_id", "==", current_user.id)
+        .where("is_analyzed", "==", True)
+        .get()
     )
-    existing = {
-        a.key: a
-        for a in db.query(Achievement).filter(Achievement.user_id == current_user.id).all()
-    }
+    sessions = [PracticeSession.from_dict(d.to_dict()) for d in session_docs]
+    sessions = [s for s in sessions if not s.analysis_failed]
+
+    # Fetch existing achievements
+    ach_docs = (
+        db.collection(ACHIEVEMENTS_COL)
+        .where("user_id", "==", current_user.id)
+        .get()
+    )
+    existing = {d.to_dict()["key"]: Achievement.from_dict(d.to_dict()) for d in ach_docs}
 
     result = []
     for defn in ACHIEVEMENT_DEFS:
@@ -102,8 +110,7 @@ def get_achievements(
                 unlocked_at=datetime.now(timezone.utc),
                 criteria_met={"session_count": len(sessions)},
             )
-            db.add(ach)
-            db.commit()
+            db.collection(ACHIEVEMENTS_COL).document(ach.id).set(ach.to_dict())
             existing[key] = ach
 
         unlocked_at = existing[key].unlocked_at if (key in existing and is_unlocked) else None

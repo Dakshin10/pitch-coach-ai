@@ -391,13 +391,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ],
             ),
-            trailing: CircularGauge(
-              value: score,
-              size: 46,
-              strokeWidth: 4.5,
-              centerBigText: '${score.round()}%',
-              gradientColors: [scoreColor, scoreColor],
-            ),
+            trailing: session.analysisFailed
+                ? const Tooltip(
+                    message: 'Analysis failed — tap to retry',
+                    child: Icon(Icons.error_outline_rounded,
+                        color: AppColors.warningAmber, size: 30),
+                  )
+                : CircularGauge(
+                    value: score,
+                    size: 46,
+                    strokeWidth: 4.5,
+                    centerBigText: '${score.round()}%',
+                    gradientColors: [scoreColor, scoreColor],
+                  ),
             isThreeLine: true,
           ),
         ),

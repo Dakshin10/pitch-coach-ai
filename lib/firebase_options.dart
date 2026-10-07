@@ -55,43 +55,27 @@ class DefaultFirebaseOptions {
     storageBucket: 'flutter-prep-8834f.firebasestorage.app',
   );
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCA17TE832RRKd0YsdkyO7cQjmRLFHIGpg',
-    appId: '1:46701857974:ios:ceccf1f81a11be2992aa17',
-    messagingSenderId: '46701857974',
-    projectId: 'pitchcoach-f4653',
-    storageBucket: 'pitchcoach-f4653.firebasestorage.app',
-    androidClientId: '46701857974-196b22feeka6u7dt90p8b89erh2in25k.apps.googleusercontent.com',
-    iosClientId: '46701857974-vof2m6656cjmklgj7begoi7cgd4jjot7.apps.googleusercontent.com',
-    iosBundleId: 'com.pitchcoach.pitchCoach',
+    apiKey: 'AIzaSyArN2g3BHxywi4IBjjH49m7Lr6onwCN6Lc',
+    appId: '1:543963977112:ios:8f627d2e611f3aa76647ed',
+    messagingSenderId: '543963977112',
+    projectId: 'flutter-prep-8834f',
+    storageBucket: 'flutter-prep-8834f.firebasestorage.app',
+    androidClientId: '543963977112-hvbu37naehnppimnjheqkosshb7d814h.apps.googleusercontent.com',
+    iosClientId: '543963977112-q3rst49jnv9q2je41ot06vpbajqbjlnr.apps.googleusercontent.com',
+    iosBundleId: 'com.pitchcoachai.app',
   );
+
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDafEG8toNiJ40csQCSiO4qbyn0e8kcZMY',
-    appId: '1:46701857974:web:29e399f752c425f692aa17',
-    messagingSenderId: '46701857974',
-    projectId: 'pitchcoach-f4653',
-    authDomain: 'pitchcoach-f4653.firebaseapp.com',
-    storageBucket: 'pitchcoach-f4653.firebasestorage.app',
-    measurementId: 'G-WQH0XVN65W',
+    apiKey: 'AIzaSyD4x1Mu5Q01ZSSCxdtsEeK-gY042STeq_0',
+    appId: '1:543963977112:web:977d19d3c2886bce6647ed',
+    messagingSenderId: '543963977112',
+    projectId: 'flutter-prep-8834f',
+    authDomain: 'flutter-prep-8834f.firebaseapp.com',
+    storageBucket: 'flutter-prep-8834f.firebasestorage.app',
   );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCA17TE832RRKd0YsdkyO7cQjmRLFHIGpg',
-    appId: '1:46701857974:ios:ceccf1f81a11be2992aa17',
-    messagingSenderId: '46701857974',
-    projectId: 'pitchcoach-f4653',
-    storageBucket: 'pitchcoach-f4653.firebasestorage.app',
-    androidClientId: '46701857974-196b22feeka6u7dt90p8b89erh2in25k.apps.googleusercontent.com',
-    iosClientId: '46701857974-vof2m6656cjmklgj7begoi7cgd4jjot7.apps.googleusercontent.com',
-    iosBundleId: 'com.pitchcoach.pitchCoach',
-  );
+  // macOS shares the iOS app registration; Windows shares the web app.
+  static const FirebaseOptions macos = ios;
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDafEG8toNiJ40csQCSiO4qbyn0e8kcZMY',
-    appId: '1:46701857974:web:465243510254be7e92aa17',
-    messagingSenderId: '46701857974',
-    projectId: 'pitchcoach-f4653',
-    authDomain: 'pitchcoach-f4653.firebaseapp.com',
-    storageBucket: 'pitchcoach-f4653.firebasestorage.app',
-    measurementId: 'G-W4HPJ67PYY',
-  );
+  static const FirebaseOptions windows = web;
 }

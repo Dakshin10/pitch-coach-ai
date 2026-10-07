@@ -9,7 +9,7 @@ Pipeline steps:
   1. Transcription  — Groq Whisper API (word-level timestamps)
   2. Deterministic  — WPM, filler-word detection, pause detection
   3. Scoring        — Documented formulas, no LLM involvement
-  4. LLM feedback   — Groq llama-3.1-70b-versatile → structured JSON suggestions
+  4. LLM feedback   — agentic Groq LLaMA coach (tool calls over the session data)
   5. Return         — SessionAnalysis dataclass
 
 Usage:
@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from groq import Groq
+
+from sessions.coach_agent import run_feedback_agent
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -68,8 +70,12 @@ OVERALL_CLARITY_W: float = 0.40
 OVERALL_STRUCTURE_W: float = 0.20    # structure_bonus is a placeholder (70) in v1
 
 # ── Groq model names ─────────────────────────────────────────────────────────
-WHISPER_MODEL: str = "whisper-large-v3"          # supports word-level timestamps
-LLM_MODEL: str = "llama-3.1-70b-versatile"
+WHISPER_MODEL: str = "whisper-large-v3-turbo"    # defaults; overridden by settings via analyze_audio()
+LLM_MODEL: str = "llama-3.3-70b-versatile"
+
+# Whisper tends to drop "um"/"uh". A prompt containing fillers makes it keep them,
+# which the filler counter depends on.
+WHISPER_PROMPT: str = "Umm, let me think, like, hmm... Okay, uh, so basically, you know, I mean, kind of, sort of."
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -123,7 +129,9 @@ class SessionAnalysis:
 # Step 1 — Transcription
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _transcribe(audio_path: str, client: Groq) -> Tuple[str, List[WordTimestamp]]:
+def _transcribe(
+    audio_path: str, client: Groq, model: str = WHISPER_MODEL
+) -> Tuple[str, List[WordTimestamp]]:
     """
     Call Groq Whisper with word-level timestamps.
 
@@ -133,9 +141,12 @@ def _transcribe(audio_path: str, client: Groq) -> Tuple[str, List[WordTimestamp]
     with open(audio_path, "rb") as f:
         response = client.audio.transcriptions.create(
             file=(audio_path.split("/")[-1].split("\\")[-1], f),
-            model=WHISPER_MODEL,
+            model=model,
             response_format="verbose_json",
             timestamp_granularities=["word"],
+            prompt=WHISPER_PROMPT,
+            language="en",
+            temperature=0.0,
         )
 
     transcript: str = response.text or ""
@@ -322,6 +333,23 @@ _FALLBACK_FEEDBACK = [
 ]
 
 
+def _to_feedback_items(items) -> List[FeedbackItem]:
+    """Validates raw LLM output into FeedbackItems (max 3). Empty list if unusable."""
+    if not isinstance(items, list):
+        return []
+    result = []
+    for item in items[:3]:
+        if not isinstance(item, dict) or not str(item.get("message", "")).strip():
+            continue
+        result.append(FeedbackItem(
+            category=str(item.get("category", "clarity")),
+            message=str(item.get("message", "")),
+            severity=str(item.get("severity", "tip")),
+            example=item.get("example") or None,
+        ))
+    return result
+
+
 def _get_qualitative_feedback(
     transcript: str,
     wpm: float,
@@ -331,11 +359,41 @@ def _get_qualitative_feedback(
     confidence: float,
     feedback_style: str,
     client: Groq,
+    word_timestamps: Optional[List[WordTimestamp]] = None,
+    llm_model: str = LLM_MODEL,
 ) -> List[FeedbackItem]:
     """
-    Call Groq LLaMA to generate 3 short actionable improvement suggestions.
-    Returns _FALLBACK_FEEDBACK on any error so the app always shows something.
+    Generate 3 short actionable improvement suggestions.
+
+    1. Agentic coach (tool calls over the recording) — preferred.
+    2. Single-shot prompt — if the agent errors or returns nothing usable.
+    3. _FALLBACK_FEEDBACK — so the app always shows something.
     """
+    if word_timestamps:
+        try:
+            items = run_feedback_agent(
+                client=client,
+                model=llm_model,
+                transcript=transcript,
+                words=[(w.word, w.start, w.end) for w in word_timestamps],
+                metrics={
+                    "wpm": round(wpm), "ideal_wpm": "130-160",
+                    "filler_total": filler.total_count,
+                    "filler_per_100_words": filler.rate_per_100_words,
+                    "filler_breakdown": dict(list(filler.breakdown.items())[:6]),
+                    "pause_count": pauses.count, "avg_pause_s": pauses.avg_length,
+                    "clarity": round(clarity), "confidence": round(confidence),
+                },
+                feedback_style=feedback_style,
+                fillers_single=_FILLER_SINGLE,
+                fillers_multi=_FILLER_MULTI,
+            )
+            parsed = _to_feedback_items(items)
+            if parsed:
+                return parsed
+        except Exception as exc:
+            print(f"[pipeline] agent error, using single-shot feedback: {exc}")
+
     filler_summary = dict(list(filler.breakdown.items())[:6]) if filler.breakdown else {}
 
     prompt = f"""You are a professional speaking coach. Analyse this speech transcript and \
@@ -372,7 +430,7 @@ Example:
 
     try:
         resp = client.chat.completions.create(
-            model=LLM_MODEL,
+            model=llm_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=700,
@@ -380,21 +438,7 @@ Example:
         )
         raw = resp.choices[0].message.content or "{}"
         data = json.loads(raw)
-        items = data.get("feedback", [])
-        if not isinstance(items, list):
-            return _FALLBACK_FEEDBACK
-
-        result = []
-        for item in items[:3]:
-            if not isinstance(item, dict):
-                continue
-            result.append(FeedbackItem(
-                category=str(item.get("category", "clarity")),
-                message=str(item.get("message", "")),
-                severity=str(item.get("severity", "tip")),
-                example=item.get("example") or None,
-            ))
-        return result if result else _FALLBACK_FEEDBACK
+        return _to_feedback_items(data.get("feedback")) or _FALLBACK_FEEDBACK
 
     except Exception as exc:
         print(f"[pipeline] LLM feedback error: {exc}")
@@ -410,6 +454,8 @@ def analyze_audio(
     duration_seconds: float,
     user_profile: dict,
     groq_api_key: str,
+    whisper_model: str = WHISPER_MODEL,
+    llm_model: str = LLM_MODEL,
 ) -> SessionAnalysis:
     """
     Run the full 5-step AI pipeline on a recorded audio file.
@@ -418,16 +464,19 @@ def analyze_audio(
         audio_path:        Path to the saved audio file (.m4a / .wav / .webm)
         duration_seconds:  Actual recording duration (from the Flutter timer)
         user_profile:      Dict with at least 'feedback_style'
-        groq_api_key:      Groq API key
+        groq_api_key:      Groq API key (the dedicated audio-pipeline key)
+        whisper_model / llm_model: Groq model names (see config.py)
 
     Returns:
         SessionAnalysis — all computed metrics + LLM feedback
     """
+    if not groq_api_key:
+        raise RuntimeError("No Groq API key: set GROQ_AUDIO_API_KEY in backend/.env")
     client = Groq(api_key=groq_api_key)
     feedback_style = user_profile.get("feedback_style", "Encouraging & Constructive")
 
     # Step 1
-    transcript, word_timestamps = _transcribe(audio_path, client)
+    transcript, word_timestamps = _transcribe(audio_path, client, whisper_model)
 
     # Step 2
     filler = _compute_filler_words(word_timestamps)
@@ -441,7 +490,8 @@ def analyze_audio(
 
     # Step 4
     ai_feedback = _get_qualitative_feedback(
-        transcript, wpm, filler, pauses, clarity, confidence, feedback_style, client
+        transcript, wpm, filler, pauses, clarity, confidence, feedback_style, client,
+        word_timestamps=word_timestamps, llm_model=llm_model,
     )
 
     return SessionAnalysis(

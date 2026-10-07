@@ -73,6 +73,12 @@ class FirebaseAuthRepository {
 
   Future<void> signOut() => _service.signOut();
 
+  /// Fresh Firebase ID token for the backend exchange, or null if signed out.
+  Future<String?> getIdToken() async {
+    final user = _service.currentUser;
+    return user?.getIdToken(true);
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   Map<String, dynamic>? _userToMap(User? user) {

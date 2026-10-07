@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  onTap: () => context.push('/interview'),
+                  onTap: () => context.push('/interview', extra: 'interview'),
                 ),
                 const SizedBox(height: 12),
                 _PracticeModeCard(
@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  onTap: () => context.push('/interview'),
+                  onTap: () => context.push('/interview', extra: 'presentation'),
                 ),
                 const SizedBox(height: 12),
                 _PracticeModeCard(
@@ -166,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  onTap: () => context.push('/interview'),
+                  onTap: () => context.push('/interview', extra: 'free_talk'),
                 ),
 
                 const SizedBox(height: 28),

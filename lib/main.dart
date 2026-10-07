@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/config/app_config.dart';
 import 'core/providers/session_results_provider.dart';
 import 'core/providers/stats_provider.dart';
 import 'core/providers/user_provider.dart';
@@ -12,6 +13,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppConfig.validate();
 
   // Firebase / notifications must never block first paint (white/blank web screen).
   try {

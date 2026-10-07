@@ -199,6 +199,11 @@ class _ResultsScreenState extends State<ResultsScreen>
             const SizedBox(height: 8),
 
             // 2. Scrollable Body with Staggered Sections
+            if (widget.sessionId != null &&
+                (resultsProvider.state == ResultsLoadState.failed ||
+                    resultsProvider.state == ResultsLoadState.error))
+              Expanded(child: _buildFailureState(context, resultsProvider))
+            else
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -258,6 +263,45 @@ class _ResultsScreenState extends State<ResultsScreen>
         currentIndex: _navIndex,
         onTap: (idx) => setState(() => _navIndex = idx),
         onMicTap: () => context.push('/interview'),
+      ),
+    );
+  }
+
+  Widget _buildFailureState(BuildContext context, SessionResultsProvider provider) {
+    final timedOut = provider.state == ResultsLoadState.error;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded,
+                size: 56, color: AppColors.warningAmber),
+            const SizedBox(height: 16),
+            Text(
+              timedOut
+                  ? 'Still waiting on your results'
+                  : "We couldn't analyze this session",
+              style: AppTextStyles.headingM.copyWith(fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              provider.errorMessage ??
+                  (timedOut
+                      ? 'The analysis is taking longer than expected.'
+                      : 'Your recording is saved. Retry to run the AI analysis again.'),
+              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => provider.retry(widget.sessionId!),
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(timedOut ? 'Check again' : 'Retry analysis'),
+            ),
+          ],
+        ),
       ),
     );
   }
