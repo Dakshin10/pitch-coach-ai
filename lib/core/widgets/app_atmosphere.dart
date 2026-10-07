@@ -1,8 +1,13 @@
-import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-/// Soft atmospheric backdrop with drifting aurora orbs (stronger in dark mode).
+/// Soft atmospheric backdrop.
+///
+/// Important for mobile performance:
+/// - Never rebuilds [child] on the drift ticker
+/// - Avoids [ImageFiltered] blurs (very expensive on phones)
+/// - Disables continuous motion on phones so nav stays responsive
 class AppAtmosphere extends StatefulWidget {
   final Widget child;
   final bool safeArea;
@@ -19,86 +24,129 @@ class AppAtmosphere extends StatefulWidget {
 
 class _AppAtmosphereState extends State<AppAtmosphere>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _drift;
+  AnimationController? _drift;
+
+  bool get _shouldAnimate {
+    if (kIsWeb) return true;
+    final disableAnimations =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (disableAnimations) return false;
+    // Continuous backdrop motion competes with navigation/scroll on phones.
+    final view = View.maybeOf(context);
+    final shortest = view?.physicalSize.shortestSide;
+    final dpr = view?.devicePixelRatio ?? 1.0;
+    if (shortest != null && shortest / dpr < 600) return false;
+    return true;
+  }
 
   @override
-  void initState() {
-    super.initState();
-    _drift = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..repeat(reverse: true);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animate = _shouldAnimate;
+    if (animate && _drift == null) {
+      _drift = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 14),
+      )..repeat(reverse: true);
+    } else if (!animate && _drift != null) {
+      _drift!.dispose();
+      _drift = null;
+    }
   }
 
   @override
   void dispose() {
-    _drift.dispose();
+    _drift?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final content = widget.safeArea
+        ? SafeArea(child: widget.child)
+        : widget.child;
+
+    final backdrop = _drift == null
+        ? const _AtmosphereBackdrop(t: 0.35)
+        : AnimatedBuilder(
+            animation: _drift!,
+            builder: (context, _) {
+              final t = Curves.easeInOut.transform(_drift!.value);
+              return _AtmosphereBackdrop(t: t);
+            },
+          );
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        RepaintBoundary(child: backdrop),
+        content,
+      ],
+    );
+  }
+}
+
+class _AtmosphereBackdrop extends StatelessWidget {
+  final double t;
+
+  const _AtmosphereBackdrop({required this.t});
+
+  @override
+  Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
 
-    return AnimatedBuilder(
-      animation: _drift,
-      builder: (context, _) {
-        final t = Curves.easeInOut.transform(_drift.value);
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(gradient: AppColors.heroOf(context)),
-            ),
-            if (isDark)
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(-0.2 + t * 0.3, -0.8),
-                    radius: 1.15,
-                    colors: [
-                      AppColors.primaryPurple.withValues(alpha: 0.18),
-                      Colors.transparent,
-                    ],
+    return IgnorePointer(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.heroOf(context)),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(-0.15 + t * 0.2, -0.85),
+                radius: 1.2,
+                colors: [
+                  AppColors.primaryPurple.withValues(
+                    alpha: isDark ? 0.22 : 0.12,
                   ),
-                ),
-              ),
-            Positioned(
-              top: -90 + t * 24,
-              right: -50 + t * 18,
-              child: _GlowOrb(
-                size: isDark ? 260 : 210,
-                color: AppColors.primaryPurple.withValues(
-                  alpha: isDark ? 0.38 : 0.16,
-                ),
+                  Colors.transparent,
+                ],
               ),
             ),
-            Positioned(
-              bottom: 80 - t * 30,
-              left: -70 - t * 10,
-              child: _GlowOrb(
-                size: isDark ? 220 : 170,
-                color: AppColors.auroraCyan.withValues(
-                  alpha: isDark ? 0.22 : 0.10,
-                ),
+          ),
+          Positioned(
+            top: -100 + t * 16,
+            right: -60 + t * 10,
+            child: _GlowOrb(
+              size: isDark ? 240 : 200,
+              color: AppColors.primaryPurple.withValues(
+                alpha: isDark ? 0.34 : 0.14,
               ),
             ),
-            if (isDark)
-              Positioned(
-                top: 220 + t * 40,
-                left: 40,
-                child: _GlowOrb(
-                  size: 160,
-                  color: AppColors.auroraPink.withValues(alpha: 0.14),
-                ),
+          ),
+          Positioned(
+            bottom: 90 - t * 18,
+            left: -80,
+            child: _GlowOrb(
+              size: isDark ? 200 : 160,
+              color: AppColors.auroraCyan.withValues(
+                alpha: isDark ? 0.18 : 0.08,
               ),
-            if (widget.safeArea)
-              SafeArea(child: widget.child)
-            else
-              widget.child,
-          ],
-        );
-      },
+            ),
+          ),
+          if (isDark)
+            Positioned(
+              top: 240 + t * 20,
+              left: 30,
+              child: _GlowOrb(
+                size: 140,
+                color: AppColors.auroraPink.withValues(alpha: 0.12),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -111,12 +159,17 @@ class _GlowOrb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color,
+            color.withValues(alpha: 0),
+          ],
+        ),
       ),
     );
   }

@@ -112,19 +112,14 @@ abstract class AppColors {
     if (isDark(context)) {
       return [
         BoxShadow(
-          color: primaryPurple.withValues(alpha: 0.12),
-          blurRadius: 24,
-          offset: const Offset(0, 10),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.35),
-          blurRadius: 18,
-          offset: const Offset(0, 8),
+          color: Colors.black.withValues(alpha: 0.28),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
         ),
       ];
     }
     return const [
-      BoxShadow(color: cardShadow, blurRadius: 16, offset: Offset(0, 6)),
+      BoxShadow(color: cardShadow, blurRadius: 12, offset: Offset(0, 4)),
     ];
   }
 }

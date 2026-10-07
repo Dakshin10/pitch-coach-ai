@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -120,71 +119,70 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 42, sigmaY: 42),
-            child: Container(
-              width: 190,
-              height: 190,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.primaryPurple.withValues(alpha: isDark ? 0.42 : 0.28),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.2, 1.0],
-                ),
+          // Soft glow without ImageFiltered blur (expensive on phones).
+          Container(
+            width: 210,
+            height: 210,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.primaryPurple.withValues(alpha: isDark ? 0.40 : 0.26),
+                  AppColors.primaryPurple.withValues(alpha: 0),
+                ],
               ),
             ),
           ),
-          AnimatedBuilder(
-            animation: _waveController,
-            // Mic circle is static — pass as child so it is NOT rebuilt each frame
-            child: Container(
-              width: 114,
-              height: 114,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppColors.primaryGradient,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryPurple.withValues(alpha: 0.4),
-                    blurRadius: 30,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 10),
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _waveController,
+              // Mic circle is static — pass as child so it is NOT rebuilt each frame
+              child: Container(
+                width: 114,
+                height: 114,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.primaryGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.4),
+                      blurRadius: 30,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    width: 1.5,
                   ),
-                ],
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  width: 1.5,
+                ),
+                child: const Icon(
+                  Icons.mic_rounded,
+                  color: Colors.white,
+                  size: 48,
                 ),
               ),
-              child: const Icon(
-                Icons.mic_rounded,
-                color: Colors.white,
-                size: 48,
-              ),
+              builder: (context, child) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildWaveGroup(
+                      baseHeights: _leftBaseHeights,
+                      opacities: _leftOpacities,
+                      startBarIndex: 0,
+                    ),
+                    const SizedBox(width: 14),
+                    child!,
+                    const SizedBox(width: 14),
+                    _buildWaveGroup(
+                      baseHeights: _rightBaseHeights,
+                      opacities: _rightOpacities,
+                      startBarIndex: 7,
+                    ),
+                  ],
+                );
+              },
             ),
-            builder: (context, child) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildWaveGroup(
-                    baseHeights: _leftBaseHeights,
-                    opacities: _leftOpacities,
-                    startBarIndex: 0,
-                  ),
-                  const SizedBox(width: 14),
-                  child!,
-                  const SizedBox(width: 14),
-                  _buildWaveGroup(
-                    baseHeights: _rightBaseHeights,
-                    opacities: _rightOpacities,
-                    startBarIndex: 7,
-                  ),
-                ],
-              );
-            },
           ),
         ],
       ),

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/models/lesson_model.dart';
+import '../../core/models/practice_mode.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/demo/design_system_demo_page.dart';
 import '../../features/history/history_screen.dart';
 import '../../features/home/home_screen.dart';
-import '../../core/models/practice_mode.dart';
 import '../../features/interview/interview_practice_screen.dart';
 import '../../features/learn/lesson_detail_screen.dart';
 import '../../features/learn/lessons_screen.dart';
@@ -29,32 +29,37 @@ abstract class AppRouter {
   static const String lessons = '/lessons';
   static const String lessonDetail = '/lessons/detail';
 
-  static CustomTransitionPage<T> _buildSlideFadeTransition<T>({
+  /// Bottom-tab destinations — no transition so phone nav stays responsive.
+  static const Set<String> _tabPaths = {
+    home,
+    history,
+    progress,
+    profile,
+  };
+
+  static Page<T> _buildPage<T>({
     required BuildContext context,
     required GoRouterState state,
     required Widget child,
   }) {
+    if (_tabPaths.contains(state.matchedLocation) ||
+        _tabPaths.contains(state.uri.path)) {
+      return NoTransitionPage<T>(
+        key: state.pageKey,
+        child: child,
+      );
+    }
+
+    // Lightweight fade only — avoid undisposed CurvedAnimations and
+    // expensive slide+fade stacks on every push.
     return CustomTransitionPage<T>(
       key: state.pageKey,
       child: child,
-      transitionDuration: const Duration(milliseconds: 300),
-      reverseTransitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: const Duration(milliseconds: 180),
+      reverseTransitionDuration: const Duration(milliseconds: 160),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final curvedAnimation = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-        );
-
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0.05, 0.0),
-            end: Offset.zero,
-          ).animate(curvedAnimation),
-          child: FadeTransition(
-            opacity: curvedAnimation,
-            child: child,
-          ),
-        );
+        final fade = animation.drive(CurveTween(curve: Curves.easeOut));
+        return FadeTransition(opacity: fade, child: child);
       },
     );
   }
@@ -64,7 +69,7 @@ abstract class AppRouter {
     routes: [
       GoRoute(
         path: onboarding,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
+        pageBuilder: (context, state) => _buildPage(
           context: context,
           state: state,
           child: const OnboardingScreen(),
@@ -74,7 +79,7 @@ abstract class AppRouter {
         path: login,
         pageBuilder: (context, state) {
           final isSignUp = state.extra as bool? ?? false;
-          return _buildSlideFadeTransition(
+          return _buildPage(
             context: context,
             state: state,
             child: LoginScreen(isSignUpInitial: isSignUp),
@@ -83,7 +88,7 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: profileSetup,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
+        pageBuilder: (context, state) => _buildPage(
           context: context,
           state: state,
           child: const ProfileSetupScreen(),
@@ -91,7 +96,7 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: home,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
+        pageBuilder: (context, state) => _buildPage(
           context: context,
           state: state,
           child: const HomeScreen(),
@@ -99,7 +104,7 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: history,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
+        pageBuilder: (context, state) => _buildPage(
           context: context,
           state: state,
           child: const HistoryScreen(),
@@ -117,7 +122,7 @@ abstract class AppRouter {
             final map = state.extra as Map<String, dynamic>;
             config = PracticeSessionConfig.defaultFor(map['mode'] as String?);
           }
-          return _buildSlideFadeTransition(
+          return _buildPage(
             context: context,
             state: state,
             child: InterviewPracticeScreen(initialConfig: config),
@@ -127,9 +132,8 @@ abstract class AppRouter {
       GoRoute(
         path: results,
         pageBuilder: (context, state) {
-          // Extra is the session_id string set by InterviewPracticeScreen on stop
           final sessionId = state.extra as String?;
-          return _buildSlideFadeTransition(
+          return _buildPage(
             context: context,
             state: state,
             child: ResultsScreen(sessionId: sessionId),
@@ -138,7 +142,7 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: progress,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
+        pageBuilder: (context, state) => _buildPage(
           context: context,
           state: state,
           child: const ProgressScreen(),
@@ -146,7 +150,7 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: profile,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
+        pageBuilder: (context, state) => _buildPage(
           context: context,
           state: state,
           child: const ProfileScreen(),
@@ -154,7 +158,7 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: demo,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
+        pageBuilder: (context, state) => _buildPage(
           context: context,
           state: state,
           child: const DesignSystemDemoPage(),
@@ -162,7 +166,7 @@ abstract class AppRouter {
       ),
       GoRoute(
         path: lessons,
-        pageBuilder: (context, state) => _buildSlideFadeTransition(
+        pageBuilder: (context, state) => _buildPage(
           context: context,
           state: state,
           child: const LessonsScreen(),
@@ -172,7 +176,7 @@ abstract class AppRouter {
         path: lessonDetail,
         pageBuilder: (context, state) {
           final lesson = state.extra as Lesson;
-          return _buildSlideFadeTransition(
+          return _buildPage(
             context: context,
             state: state,
             child: LessonDetailScreen(lesson: lesson),

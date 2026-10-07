@@ -34,16 +34,17 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 280),
     );
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
       curve: Curves.easeOut,
     );
-    _fadeController.forward();
 
-    // Load stats + recent session after first frame
+    // Defer loads until after the first frame so navigation is not blocked.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _fadeController.forward();
       _loadData();
     });
   }
