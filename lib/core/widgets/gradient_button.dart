@@ -16,6 +16,7 @@ class GradientButton extends StatefulWidget {
   final bool isLoading;
   final double? width;
   final double height;
+  final Color? backgroundColor;
   final Color? borderColor;
   final Color? textColor;
   final bool enableScaleAnimation;
@@ -29,6 +30,7 @@ class GradientButton extends StatefulWidget {
     this.isLoading = false,
     this.width,
     this.height = 56,
+    this.backgroundColor,
     this.borderColor,
     this.textColor,
     this.enableScaleAnimation = true,
@@ -51,14 +53,17 @@ class _GradientButtonState extends State<GradientButton> {
     switch (widget.variant) {
       case GradientButtonVariant.primary:
         decoration = BoxDecoration(
-          gradient: isDisabled
-              ? LinearGradient(
-                  colors: [
-                    AppColors.gradientPurpleStart.withValues(alpha: 0.5),
-                    AppColors.gradientPurpleEnd.withValues(alpha: 0.5),
-                  ],
-                )
-              : AppColors.primaryGradient,
+          color: widget.backgroundColor,
+          gradient: widget.backgroundColor != null
+              ? null
+              : (isDisabled
+                  ? LinearGradient(
+                      colors: [
+                        AppColors.gradientPurpleStart.withValues(alpha: 0.5),
+                        AppColors.gradientPurpleEnd.withValues(alpha: 0.5),
+                      ],
+                    )
+                  : AppColors.primaryGradient),
           borderRadius: BorderRadius.circular(28),
           boxShadow: isDisabled
               ? []
@@ -77,8 +82,14 @@ class _GradientButtonState extends State<GradientButton> {
 
       case GradientButtonVariant.secondary:
         final isDark = Theme.of(context).brightness == Brightness.dark;
+        final Color defaultBg = isDark
+            ? AppColors.cardDark
+            : (widget.textColor == Colors.white
+                ? Colors.white.withValues(alpha: 0.08)
+                : AppColors.surfaceLightElevated);
+
         decoration = BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
+          color: widget.backgroundColor ?? defaultBg,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
             color: widget.borderColor ??
@@ -87,7 +98,7 @@ class _GradientButtonState extends State<GradientButton> {
                     : AppColors.cardLightBorder),
             width: 1.2,
           ),
-          boxShadow: isDark
+          boxShadow: (isDark || widget.backgroundColor != null || widget.textColor == Colors.white)
               ? null
               : [
                   BoxShadow(
@@ -104,7 +115,7 @@ class _GradientButtonState extends State<GradientButton> {
 
       case GradientButtonVariant.tertiary:
         decoration = BoxDecoration(
-          color: Colors.transparent,
+          color: widget.backgroundColor ?? Colors.transparent,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
             color: widget.borderColor ??

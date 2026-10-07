@@ -48,11 +48,11 @@ class DefaultFirebaseOptions {
   // ─────────────────────────────────────────────────────────────────────────
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBLym37REO8PMepEuEOKH27vNmPYLJLYVM',
-    appId: '1:46701857974:android:6ec0dbe3c8b1393292aa17',
-    messagingSenderId: '46701857974',
-    projectId: 'pitchcoach-f4653',
-    storageBucket: 'pitchcoach-f4653.firebasestorage.app',
+    apiKey: 'AIzaSyBDkrafOVce0Wt7HcAutVrt6aSLoWvPDRY',
+    appId: '1:543963977112:android:4f5bbc2e87b715e56647ed',
+    messagingSenderId: '543963977112',
+    projectId: 'flutter-prep-8834f',
+    storageBucket: 'flutter-prep-8834f.firebasestorage.app',
   );
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCA17TE832RRKd0YsdkyO7cQjmRLFHIGpg',
