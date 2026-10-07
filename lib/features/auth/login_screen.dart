@@ -360,7 +360,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? 'Please wait...'
                         : (_isSignUp ? 'Create Account' : 'Sign In'),
                     variant: GradientButtonVariant.primary,
-                    height: 54,
+                    height: 52,
+                    isLoading: provider.isLoading,
                     onPressed: provider.isLoading ? null : _handleAuthSubmitted,
                   ),
                 ),
@@ -375,14 +376,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'OR',
-                        style: AppTextStyles.caption.copyWith(color: Colors.white.withValues(alpha: 0.4)),
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.0,
+                        ),
                       ),
                     ),
                     Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.15))),
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Google Sign-In Button
                 Consumer<UserProvider>(
@@ -392,14 +397,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 // Continue as Guest Option
                 GradientButton(
                   text: 'Continue as Guest',
                   variant: GradientButtonVariant.secondary,
                   height: 52,
-                  borderColor: Colors.white.withValues(alpha: 0.12),
+                  icon: Icons.person_outline_rounded,
+                  backgroundColor: Colors.white.withValues(alpha: 0.06),
+                  borderColor: Colors.white.withValues(alpha: 0.15),
                   textColor: Colors.white,
                   onPressed: () async {
                     await Provider.of<UserProvider>(context, listen: false).loginAsGuest();

@@ -154,16 +154,104 @@ kotlin.incremental.usePreciseJavaTracking=false
 
 ---
 
-## 🧪 Development Commands
+## 🧪 Command Reference
 
-```bash
-flutter analyze
-flutter test
-flutter build apk --debug
-flutter build apk --release
-flutter build web
+### 1. Flutter Commands
+
+#### Setup & Clean
+```powershell
+# Get dependencies
+flutter pub get
+
+# Clean build artifacts & rebuild cache
+flutter clean
+flutter pub get
+
+# Check for outdated packages
+flutter pub outdated
 ```
 
+#### Devices & Emulators
+```powershell
+# List all available devices (Connected Android, Web, Windows)
+flutter devices
+
+# List available Android emulators
+flutter emulators
+
+# Launch a specific Android emulator
+flutter emulators --launch Pixel_6a
+```
+
+#### Running the App
+```powershell
+# Run on Windows Desktop
+flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8000
+
+# Run on Web (Chrome)
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
+
+# Run on Android Emulator (10.0.2.2 points to host machine localhost)
+flutter run -d android --dart-define=API_BASE_URL=http://10.0.2.2:8000
+
+# Run on Physical Device (replace with your PC's LAN IP from ipconfig)
+flutter run -d <device-id> --dart-define=API_BASE_URL=http://192.168.1.50:8000
+```
+
+#### Analysis & Testing
+```powershell
+# Analyze code for warnings and lint errors
+flutter analyze
+
+# Run unit and widget tests
+flutter test
+```
+
+#### Build Release Artifacts
+```powershell
+# Build Android APK (Debug / Release)
+flutter build apk --debug
+flutter build apk --release
+
+# Build Android App Bundle (.aab)
+flutter build appbundle
+
+# Build Web distribution
+flutter build web
+
+# Build Windows Desktop executable
+flutter build windows
+```
+
+---
+
+### 2. Backend (FastAPI) Commands
+
+#### Setup (from `backend/` directory)
+```powershell
+cd backend
+
+# Create Python virtual environment
+python -m venv venv
+
+# Activate venv (Windows PowerShell)
+.\venv\Scripts\activate
+
+# Install required dependencies
+pip install -r requirements.txt
+
+# Create environment config from template
+copy .env.example .env
+```
+
+#### Running the Server
+```powershell
+# Option 1: Using startup batch script (Windows)
+.\start.bat
+
+# Option 2: Running directly via python module (Avoids Windows script execution policy issues)
+.\venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
 ---
 
 ## 📄 License

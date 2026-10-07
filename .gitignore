@@ -1,4 +1,4 @@
-# Miscellaneous
+# ─── Miscellaneous ────────────────────────────────────────────────────────────
 *.class
 *.log
 *.pyc
@@ -19,6 +19,7 @@ Desktop.ini
 .swiftpm/
 migrate_working_dir/
 
+# ─── Editors & IDEs ───────────────────────────────────────────────────────────
 # IntelliJ / Android Studio
 *.iml
 *.ipr
@@ -28,24 +29,43 @@ migrate_working_dir/
 # VS Code
 .vscode/
 
-# Environment files
+# ─── Secrets & Environment ────────────────────────────────────────────────────
 .env
 .env.*
 !backend/.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
 
-# Python environments and backend runtime state
+# ─── Python / Backend ─────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
 .venv/
 venv/
 env/
+*.egg-info/
+dist/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Backend runtime data
 backend/audio_files/
 backend/*.db
 backend/*.db-shm
 backend/*.db-wal
 
-# Flutter / Dart / Pub
+# ─── Flutter / Dart / Pub ─────────────────────────────────────────────────────
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -57,7 +77,12 @@ backend/*.db-wal
 build/
 coverage/
 
-# Android
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# ─── Android ──────────────────────────────────────────────────────────────────
 /android/app/debug
 /android/app/profile
 /android/app/release
@@ -65,8 +90,9 @@ coverage/
 /android/.gradle
 /android/captures
 /android/local.properties
+/android/key.properties
 
-# iOS / macOS
+# ─── iOS / macOS ──────────────────────────────────────────────────────────────
 **/ios/Flutter/App.framework
 **/ios/Flutter/Flutter.framework
 **/ios/Flutter/Flutter.podspec
@@ -81,10 +107,16 @@ coverage/
 **/macos/Flutter/ephemeral/
 **/macos/Pods/
 
-# Windows / Linux desktop build outputs
+# ─── Windows / Linux Desktop ──────────────────────────────────────────────────
 **/windows/flutter/ephemeral/
 **/linux/flutter/ephemeral/
 
-# Symbolication & Obfuscation
+# ─── Firebase ─────────────────────────────────────────────────────────────────
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# ─── Symbolication & Obfuscation ──────────────────────────────────────────────
 app.*.symbols
 app.*.map.json

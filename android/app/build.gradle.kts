@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.pitchcoach.pitch_coach"
+    namespace = "com.pitchcoachai.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,8 +23,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.pitchcoach.pitch_coach"
+        // Application ID matching google-services.json
+        applicationId = "com.pitchcoachai.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // firebase_auth requires minSdk >= 23

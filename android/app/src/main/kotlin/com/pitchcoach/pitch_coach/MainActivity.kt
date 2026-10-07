@@ -1,4 +1,4 @@
-package com.pitchcoach.pitch_coach
+package com.pitchcoachai.app
 
 import io.flutter.embedding.android.FlutterActivity
 
