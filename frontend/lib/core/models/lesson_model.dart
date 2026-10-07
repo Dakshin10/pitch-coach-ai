@@ -30,7 +30,7 @@ abstract class LessonCatalog {
       description:
           'Learn how to speak clearly without relying on unnecessary filler words like "um", "uh", or "like".',
       videoUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          'https://vjs.zencdn.net/v/oceans.mp4',
       duration: '4 min',
       category: 'speaking',
       weakAreaTag: 'filler_words',
@@ -47,7 +47,7 @@ abstract class LessonCatalog {
       description:
           'Discover how to maintain a natural, confident speaking rhythm that engages your audience.',
       videoUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+          'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
       duration: '5 min',
       category: 'speaking',
       weakAreaTag: 'pacing',
@@ -64,7 +64,7 @@ abstract class LessonCatalog {
       description:
           'Master the art of strategic pausing to add impact, clarity, and confidence to your speech.',
       videoUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+          'https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4',
       duration: '3 min',
       category: 'speaking',
       weakAreaTag: 'pacing',
@@ -81,7 +81,7 @@ abstract class LessonCatalog {
       description:
           'Craft a compelling, structured 2-minute answer to the most common interview opener.',
       videoUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+          'https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4',
       duration: '6 min',
       category: 'interview',
       weakAreaTag: 'confidence',
@@ -98,7 +98,7 @@ abstract class LessonCatalog {
       description:
           'Learn how posture, eye contact, and gestures amplify your message and boost your confidence.',
       videoUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+          'https://www.w3schools.com/html/mov_bbb.mp4',
       duration: '5 min',
       category: 'presentation',
       weakAreaTag: 'confidence',

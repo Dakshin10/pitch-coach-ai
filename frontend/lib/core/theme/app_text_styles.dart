@@ -70,4 +70,25 @@ abstract class AppTextStyles {
         color: AppColors.textSecondary,
         height: 1.4,
       );
+
+  static TextStyle get sectionHeader => GoogleFonts.plusJakartaSans(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimaryDark,
+        height: 1.3,
+      );
+
+  static TextStyle get bodyBold => GoogleFonts.plusJakartaSans(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimaryDark,
+        height: 1.4,
+      );
+
+  static TextStyle get bodyText => GoogleFonts.plusJakartaSans(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: AppColors.textSecondary,
+        height: 1.45,
+      );
 }

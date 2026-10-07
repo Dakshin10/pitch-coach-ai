@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/config/app_config.dart';
 import 'core/providers/session_results_provider.dart';
+import 'core/providers/slide_coach_provider.dart';
 import 'core/providers/stats_provider.dart';
 import 'core/providers/user_provider.dart';
 import 'core/router/app_router.dart';
@@ -40,6 +41,7 @@ void main() async {
         // SessionResultsProvider is created per-results-screen via ChangeNotifierProvider.value
         // but we expose one top-level instance for convenience
         ChangeNotifierProvider(create: (_) => SessionResultsProvider()),
+        ChangeNotifierProvider(create: (_) => SlideCoachProvider()),
       ],
       child: const PitchCoachApp(),
     ),

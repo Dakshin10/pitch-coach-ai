@@ -90,15 +90,22 @@ def get_trend(
     days = 7 if range == "week" else 30
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
-    docs = (
-        db.collection(SESSIONS_COL)
-        .where("user_id", "==", current_user.id)
-        .where("is_analyzed", "==", True)
-        .where("created_at", ">=", since)
-        .order_by("created_at")
-        .get()
-    )
-    sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
+    try:
+        docs = (
+            db.collection(SESSIONS_COL)
+            .where("user_id", "==", current_user.id)
+            .where("is_analyzed", "==", True)
+            .where("created_at", ">=", since)
+            .order_by("created_at")
+            .get()
+        )
+        sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
+    except Exception:
+        # Fallback if composite index is not yet built in Firestore
+        all_sessions = _get_analyzed_sessions(db, current_user.id)
+        sessions = [s for s in all_sessions if s.created_at >= since]
+        sessions.sort(key=lambda s: s.created_at)
+
     sessions = [s for s in sessions if not s.analysis_failed]
 
     grouped: dict = defaultdict(list)
@@ -122,15 +129,22 @@ def get_skills(
     db: fs.Client = Depends(get_db),
 ):
     # Fetch last 20 analyzed sessions
-    docs = (
-        db.collection(SESSIONS_COL)
-        .where("user_id", "==", current_user.id)
-        .where("is_analyzed", "==", True)
-        .order_by("created_at", direction=fs.Query.DESCENDING)
-        .limit(20)
-        .get()
-    )
-    sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
+    try:
+        docs = (
+            db.collection(SESSIONS_COL)
+            .where("user_id", "==", current_user.id)
+            .where("is_analyzed", "==", True)
+            .order_by("created_at", direction=fs.Query.DESCENDING)
+            .limit(20)
+            .get()
+        )
+        sessions = [PracticeSession.from_dict(d.to_dict()) for d in docs]
+    except Exception:
+        # Fallback if composite index is not yet built in Firestore
+        all_sessions = _get_analyzed_sessions(db, current_user.id)
+        all_sessions.sort(key=lambda s: s.created_at, reverse=True)
+        sessions = all_sessions[:20]
+
     sessions = [s for s in sessions if not s.analysis_failed]
 
     if not sessions:

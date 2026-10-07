@@ -126,6 +126,21 @@ class _HomeScreenState extends State<HomeScreen>
 
                 // 3. Stacked Practice-Mode Cards
                 _PracticeModeCard(
+                  title: 'Slide Coach (Deck Vision)',
+                  subtitle: 'Upload PDF deck → AI speech notes & rehearsal',
+                  icon: Icons.auto_awesome_rounded,
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF7C3AED),
+                      Color(0xFFDB2777),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  onTap: () => context.push('/slide-coach'),
+                ),
+                const SizedBox(height: 12),
+                _PracticeModeCard(
                   title: 'Interview Practice',
                   subtitle: 'Simulate campus placement interviews',
                   icon: Icons.event_seat_rounded,
@@ -948,6 +963,15 @@ class _PracticeModeSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
+          _buildModeOption(
+            context,
+            icon: Icons.auto_awesome_rounded,
+            color: const Color(0xFF7C3AED),
+            title: 'Slide Coach (Deck Vision)',
+            subtitle: 'Upload PDF deck for slide-by-slide AI coaching',
+            route: '/slide-coach',
+          ),
+          const SizedBox(height: 12),
           _buildModeOption(
             context,
             icon: Icons.event_seat_rounded,

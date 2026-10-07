@@ -14,6 +14,11 @@ import '../../features/profile/profile_screen.dart';
 import '../../features/profile/profile_setup_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/results/results_screen.dart';
+import '../../features/slide_coach/screens/slide_upload_screen.dart';
+import '../../features/slide_coach/screens/slide_processing_screen.dart';
+import '../../features/slide_coach/screens/deck_review_screen.dart';
+import '../../features/slide_coach/screens/slide_rehearsal_screen.dart';
+import '../../features/slide_coach/screens/slide_qa_screen.dart';
 
 abstract class AppRouter {
   static const String onboarding = '/';
@@ -28,6 +33,13 @@ abstract class AppRouter {
   static const String demo = '/demo';
   static const String lessons = '/lessons';
   static const String lessonDetail = '/lessons/detail';
+
+  // ── Slide Coach ───────────────────────────────────────────────────────────
+  static const String slideCoachUpload = '/slide-coach';
+  static const String slideCoachProcessing = '/slide-coach/processing';
+  static const String slideCoachReview = '/slide-coach/review';
+  static const String slideCoachRehearsal = '/slide-coach/rehearsal';
+  static const String slideCoachQa = '/slide-coach/qa';
 
   /// Bottom-tab destinations — no transition so phone nav stays responsive.
   static const Set<String> _tabPaths = {
@@ -182,6 +194,46 @@ abstract class AppRouter {
             child: LessonDetailScreen(lesson: lesson),
           );
         },
+      ),
+      GoRoute(
+        path: slideCoachUpload,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const SlideUploadScreen(),
+        ),
+      ),
+      GoRoute(
+        path: slideCoachProcessing,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const SlideProcessingScreen(),
+        ),
+      ),
+      GoRoute(
+        path: slideCoachReview,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const DeckReviewScreen(),
+        ),
+      ),
+      GoRoute(
+        path: slideCoachRehearsal,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const SlideRehearsalScreen(),
+        ),
+      ),
+      GoRoute(
+        path: slideCoachQa,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const SlideQaScreen(),
+        ),
       ),
     ],
   );

@@ -28,17 +28,39 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   }
 
   Future<void> _initVideo() async {
-    try {
-      final controller = VideoPlayerController.networkUrl(
-        Uri.parse(widget.lesson.videoUrl),
-      );
-      _controller = controller;
-      await controller.initialize();
-      controller.addListener(_onVideoUpdate);
-      if (mounted) setState(() => _isInitialized = true);
-    } catch (_) {
-      if (mounted) setState(() => _hasError = true);
+    _controller?.removeListener(_onVideoUpdate);
+    _controller?.dispose();
+    _controller = null;
+
+    final candidateUrls = [
+      widget.lesson.videoUrl,
+      'https://vjs.zencdn.net/v/oceans.mp4',
+    ];
+
+    for (final url in candidateUrls) {
+      if (!mounted) return;
+      try {
+        final controller = VideoPlayerController.networkUrl(
+          Uri.parse(url),
+        );
+        await controller.initialize();
+        if (!mounted) {
+          controller.dispose();
+          return;
+        }
+        _controller = controller;
+        controller.addListener(_onVideoUpdate);
+        setState(() {
+          _isInitialized = true;
+          _hasError = false;
+        });
+        return;
+      } catch (e) {
+        debugPrint('Video init failed for $url: $e');
+      }
     }
+
+    if (mounted) setState(() => _hasError = true);
   }
 
   void _onVideoUpdate() {
@@ -252,6 +274,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
 
   Widget _buildVideoPlayer() {
     return Container(
+      width: double.infinity,
       height: 210,
       decoration: BoxDecoration(
         color: Colors.black,
@@ -267,9 +290,13 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
           // Video or placeholder
           if (_isInitialized && _controller != null)
             Positioned.fill(
-              child: AspectRatio(
-                aspectRatio: _controller!.value.aspectRatio,
-                child: VideoPlayer(_controller!),
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: _controller!.value.aspectRatio > 0
+                      ? _controller!.value.aspectRatio
+                      : (16 / 9),
+                  child: VideoPlayer(_controller!),
+                ),
               ),
             )
           else if (_hasError)
@@ -281,22 +308,24 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
 
           // Play/Pause overlay
           if (_isInitialized)
-            GestureDetector(
-              onTap: _togglePlay,
-              child: Container(
-                color: Colors.transparent,
-                child: AnimatedOpacity(
-                  opacity: _isPlaying ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      shape: BoxShape.circle,
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _togglePlay,
+                behavior: HitTestBehavior.translucent,
+                child: Center(
+                  child: AnimatedOpacity(
+                    opacity: _isPlaying ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow_rounded,
+                          color: Colors.white, size: 32),
                     ),
-                    child: const Icon(Icons.play_arrow_rounded,
-                        color: Colors.white, size: 32),
                   ),
                 ),
               ),
