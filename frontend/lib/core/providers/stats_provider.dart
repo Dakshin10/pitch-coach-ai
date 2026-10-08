@@ -16,6 +16,7 @@ class StatsProvider extends ChangeNotifier {
   List<Achievement> _achievements = [];
   StatsLoadState _state = StatsLoadState.idle;
   String? _error;
+  DateTime? _lastLoaded;
 
   StatsSummary get summary => _summary;
   List<TrendPoint> get trend => _trend;
@@ -24,10 +25,23 @@ class StatsProvider extends ChangeNotifier {
   StatsLoadState get state => _state;
   String? get error => _error;
   bool get isLoading => _state == StatsLoadState.loading;
+  bool get hasData => _state == StatsLoadState.ready;
 
-  Future<void> loadAll({String trendRange = 'week'}) async {
-    _state = StatsLoadState.loading;
-    notifyListeners();
+  Future<void> loadAll({String trendRange = 'week', bool force = false}) async {
+    // If not forced and already loaded recently (< 5 mins), keep current data without reloading
+    if (!force && _state == StatsLoadState.ready && _lastLoaded != null) {
+      final age = DateTime.now().difference(_lastLoaded!);
+      if (age < const Duration(minutes: 5)) {
+        return;
+      }
+    }
+
+    // Only set loading if we don't already have ready data
+    if (_state != StatsLoadState.ready) {
+      _state = StatsLoadState.loading;
+      notifyListeners();
+    }
+
     try {
       final results = await Future.wait([
         _repo.getSummary(),
@@ -41,16 +55,27 @@ class StatsProvider extends ChangeNotifier {
       _achievements = results[3] as List<Achievement>;
       _state = StatsLoadState.ready;
       _error = null;
+      _lastLoaded = DateTime.now();
     } catch (e) {
-      _state = StatsLoadState.error;
-      _error = e.toString();
+      // If we don't already have data, report error; otherwise retain cached data
+      if (_state != StatsLoadState.ready) {
+        _state = StatsLoadState.error;
+        _error = e.toString();
+      }
     }
     notifyListeners();
   }
 
-  Future<void> loadSummaryOnly() async {
+  Future<void> loadSummaryOnly({bool force = false}) async {
+    if (!force && _summary != StatsSummary.empty && _lastLoaded != null) {
+      final age = DateTime.now().difference(_lastLoaded!);
+      if (age < const Duration(minutes: 5)) {
+        return;
+      }
+    }
     try {
       _summary = await _repo.getSummary();
+      _lastLoaded = DateTime.now();
       notifyListeners();
     } catch (_) {}
   }
@@ -63,6 +88,7 @@ class StatsProvider extends ChangeNotifier {
     _achievements = [];
     _state = StatsLoadState.ready;
     _error = null;
+    _lastLoaded = DateTime.now();
     notifyListeners();
   }
 }

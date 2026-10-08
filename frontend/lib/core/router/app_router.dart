@@ -20,6 +20,7 @@ import '../../features/slide_coach/screens/slide_processing_screen.dart';
 import '../../features/slide_coach/screens/deck_review_screen.dart';
 import '../../features/slide_coach/screens/slide_rehearsal_screen.dart';
 import '../../features/slide_coach/screens/slide_qa_screen.dart';
+import '../widgets/main_shell_scaffold.dart';
 
 abstract class AppRouter {
   static const String onboarding = '/';
@@ -107,21 +108,52 @@ abstract class AppRouter {
           child: const ProfileSetupScreen(),
         ),
       ),
-      GoRoute(
-        path: home,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const HomeScreen(),
-        ),
-      ),
-      GoRoute(
-        path: history,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const HistoryScreen(),
-        ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return MainShellScaffold(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: home,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: HomeScreen(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: history,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: HistoryScreen(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: progress,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: ProgressScreen(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: profile,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: ProfileScreen(),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: interview,
@@ -152,22 +184,6 @@ abstract class AppRouter {
             child: ResultsScreen(sessionId: sessionId),
           );
         },
-      ),
-      GoRoute(
-        path: progress,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const ProgressScreen(),
-        ),
-      ),
-      GoRoute(
-        path: profile,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const ProfileScreen(),
-        ),
       ),
       if (kDebugMode)
         GoRoute(

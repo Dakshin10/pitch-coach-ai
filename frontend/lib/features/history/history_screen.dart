@@ -7,7 +7,6 @@ import '../../core/models/session_result.dart';
 import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -17,7 +16,8 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends State<HistoryScreen>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
   String _searchQuery = '';
@@ -31,9 +31,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final List<String> _filterChips = ['All', 'Interview', 'Presentation', 'Free Talk'];
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
-    _loadSessions();
+    final cached = SessionRepository.instance.cachedSessions;
+    if (cached != null && cached.isNotEmpty) {
+      _sessions = cached;
+      _isLoading = false;
+    }
+    _loadSessions(isInitial: cached == null || cached.isEmpty);
   }
 
   @override
@@ -42,11 +50,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
-  Future<void> _loadSessions() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadSessions({bool isInitial = false, bool force = false}) async {
+    if (isInitial && _sessions.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
     try {
       if (context.read<UserProvider>().isGuest) {
         if (mounted) setState(() => _sessions = DemoRepository.instance.sessions);
@@ -65,11 +75,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
         mode: modeParam,
         search: _searchQuery.isNotEmpty ? _searchQuery : null,
         limit: 50,
+        forceRefresh: force,
       );
 
-      if (mounted) setState(() => _sessions = sessions);
+      if (mounted) {
+        setState(() {
+          _sessions = sessions;
+          _errorMessage = null;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = 'Could not load sessions. Pull to retry.');
+      if (mounted && _sessions.isEmpty) {
+        setState(() => _errorMessage = 'Could not load sessions. Pull to retry.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -106,6 +124,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -269,7 +288,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         : _sessions.isEmpty
                             ? _buildEmptyState()
                             : RefreshIndicator(
-                                onRefresh: _loadSessions,
+                                onRefresh: () => _loadSessions(force: true),
                                 color: AppColors.primaryPurple,
                                 child: ListView.builder(
                                   physics: const AlwaysScrollableScrollPhysics(),
@@ -309,12 +328,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ],
           ),
         ),
-      ),
-
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 1, // History active
-        onTap: (index) => _handleNavigation(context, index),
-        onMicTap: () => context.push('/interview'),
       ),
     );
   }
@@ -482,24 +495,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  void _handleNavigation(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/home');
-        break;
-      case 1:
-        break; // Already on History
-      case 2:
-        context.push('/interview');
-        break;
-      case 3:
-        context.go('/progress');
-        break;
-      case 4:
-        context.go('/profile');
-        break;
-    }
-  }
 
   /// Show the DatePicker and reload sessions filtered to that date (Unit 2).
   Future<void> _pickDate() async {

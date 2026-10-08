@@ -8,6 +8,7 @@ import '../../core/models/session_result.dart';
 import '../../core/providers/session_results_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/repositories/demo_repository.dart';
+import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
@@ -145,6 +146,10 @@ class _ResultsScreenState extends State<ResultsScreen>
     _playerCompleteSub?.cancel();
     _mainController.dispose();
     _audioPlayer.dispose();
+    // Release audio file from cache (actual delete deferred to next session start)
+    if (widget.sessionId != null) {
+      SessionRepository.instance.releaseAudioFile(widget.sessionId!);
+    }
     // Remove listener if still attached
     try {
       context.read<SessionResultsProvider>().removeListener(_onResultsUpdate);
@@ -249,6 +254,64 @@ class _ResultsScreenState extends State<ResultsScreen>
                       child: _buildSuggestionsSection(result),
                     ),
 
+                    const SizedBox(height: 24),
+
+                    // Section 4: Primary Actions (Practice Again & Back to Home)
+                    _buildAnimatedSection(
+                      animation: _card3Anim,
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryPurple,
+                                foregroundColor: Colors.white,
+                                elevation: 4,
+                                shadowColor: AppColors.primaryPurple.withValues(alpha: 0.35),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              onPressed: () => context.push('/interview'),
+                              icon: const Icon(Icons.mic_rounded, size: 20),
+                              label: Text(
+                                'Practice Again',
+                                style: AppTextStyles.bodyM.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.textPrimaryDark,
+                                side: const BorderSide(color: AppColors.divider, width: 1.2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              onPressed: () => context.go('/home'),
+                              icon: const Icon(Icons.home_outlined, size: 20),
+                              label: Text(
+                                'Back to Home',
+                                style: AppTextStyles.bodyM.copyWith(
+                                  color: AppColors.textPrimaryDark,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 28),
                   ],
                 ),
@@ -261,7 +324,26 @@ class _ResultsScreenState extends State<ResultsScreen>
       // Bottom Navigation Bar
       bottomNavigationBar: BottomNavBar(
         currentIndex: _navIndex,
-        onTap: (idx) => setState(() => _navIndex = idx),
+        onTap: (index) {
+          setState(() => _navIndex = index);
+          switch (index) {
+            case 0:
+              context.go('/home');
+              break;
+            case 1:
+              context.go('/history');
+              break;
+            case 2:
+              context.push('/interview');
+              break;
+            case 3:
+              context.go('/progress');
+              break;
+            case 4:
+              context.go('/profile');
+              break;
+          }
+        },
         onMicTap: () => context.push('/interview'),
       ),
     );
@@ -314,7 +396,13 @@ class _ResultsScreenState extends State<ResultsScreen>
         children: [
           // Back Chevron Button
           GestureDetector(
-            onTap: () => context.pop(),
+            onTap: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
             child: Container(
               width: 36,
               height: 36,
@@ -346,9 +434,9 @@ class _ResultsScreenState extends State<ResultsScreen>
   }
 
   Widget _buildAudioPlaybackCard(SessionResult? result) {
-    // result.audioPath may be null if no local file is available
-    final audioPath = result?.audioPath;
-    final hasAudio = audioPath != null && audioPath.isNotEmpty;
+    // result.playableAudioUri provides either the cached local file or the server stream URL
+    final audioUri = result?.playableAudioUri;
+    final hasAudio = audioUri != null && audioUri.isNotEmpty;
 
     String fmtDuration(Duration d) {
       final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -438,10 +526,15 @@ class _ResultsScreenState extends State<ResultsScreen>
                       if (_isPlaying) {
                         await _audioPlayer.pause();
                       } else {
-                        if (_audioDuration == Duration.zero) {
-                          await _audioPlayer.play(
-                            DeviceFileSource(audioPath),
-                          );
+                        if (_audioPosition >= _audioDuration && _audioDuration > Duration.zero) {
+                          await _audioPlayer.seek(Duration.zero);
+                          await _audioPlayer.resume();
+                        } else if (_audioDuration == Duration.zero) {
+                          final isRemote = audioUri.startsWith('http://') || audioUri.startsWith('https://');
+                          final Source source = isRemote
+                              ? UrlSource(audioUri)
+                              : DeviceFileSource(audioUri);
+                          await _audioPlayer.play(source);
                         } else {
                           await _audioPlayer.resume();
                         }

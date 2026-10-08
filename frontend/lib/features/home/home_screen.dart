@@ -9,7 +9,6 @@ import '../../core/repositories/demo_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_atmosphere.dart';
-import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
 import '../../core/widgets/theme_toggle_button.dart';
 
@@ -21,13 +20,16 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
   // Real recent session — null while loading or when user has none yet
   SessionSummary? _recentSession;
   bool _recentSessionLoading = true;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -41,6 +43,13 @@ class _HomeScreenState extends State<HomeScreen>
       curve: Curves.easeOut,
     );
 
+    // Populate from in-memory cache immediately if available
+    final cached = SessionRepository.instance.cachedRecentSession;
+    if (cached != null) {
+      _recentSession = cached;
+      _recentSessionLoading = false;
+    }
+
     // Defer loads until after the first frame so navigation is not blocked.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -49,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool force = false}) async {
     if (context.read<UserProvider>().isGuest) {
       context.read<StatsProvider>().loadDemo();
       if (mounted) {
@@ -60,15 +69,19 @@ class _HomeScreenState extends State<HomeScreen>
       }
       return;
     }
+    // Only show loading if we don't already have a recent session
+    if (_recentSession == null) {
+      setState(() => _recentSessionLoading = true);
+    }
     // Load summary stats (feeds the 3 stat cards)
-    context.read<StatsProvider>().loadSummaryOnly();
+    context.read<StatsProvider>().loadSummaryOnly(force: force);
 
     // Load the most recent session (feeds the recent session card)
     try {
-      final sessions = await SessionRepository.instance.listSessions(limit: 1);
+      final session = await SessionRepository.instance.getRecentSession(forceRefresh: force);
       if (mounted) {
         setState(() {
-          _recentSession = sessions.isNotEmpty ? sessions.first : null;
+          _recentSession = session;
           _recentSessionLoading = false;
         });
       }
@@ -84,14 +97,12 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _handleRefresh() async {
-    _fadeController.reset();
-    setState(() => _recentSessionLoading = true);
-    await _loadData();
-    _fadeController.forward();
+    await _loadData(force: true);
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     // Select only the fields we actually use so that unrelated state changes
     // (e.g. dark mode toggle in ThemeToggleButton) do not rebuild this Scaffold.
     final user = context.select<UserProvider, UserProfile>((p) => p.user);
@@ -285,35 +296,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 80),
               ],
             ),
           ),
         ),
-      ),
-
-      // 8. Custom Bottom Navigation Bar
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 0,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              break;
-            case 1:
-              context.go('/history');
-              break;
-            case 2:
-              context.push('/interview');
-              break;
-            case 3:
-              context.go('/progress');
-              break;
-            case 4:
-              context.go('/profile');
-              break;
-          }
-        },
-        onMicTap: () => context.push('/interview'),
       ),
 
       // FloatingActionButton — Quick Practice (Unit 1)

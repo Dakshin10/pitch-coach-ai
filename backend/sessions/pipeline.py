@@ -105,6 +105,10 @@ class PauseAnalysis:
     avg_length: float
     total_pause_time: float
 
+    @property
+    def avg_pause_length(self) -> float:
+        return self.avg_length
+
 
 @dataclass
 class FeedbackItem:
@@ -152,35 +156,56 @@ def _transcribe(
             temperature=0.0,
         )
 
-    transcript: str = response.text or ""
+    transcript: str = getattr(response, "text", "") or ""
     word_timestamps: List[WordTimestamp] = []
 
     # Prefer word-level timestamps
     words = getattr(response, "words", None)
+    if words is None and isinstance(response, dict):
+        words = response.get("words")
+
     if words:
         for w in words:
-            clean = (w.word or "").strip()
+            if isinstance(w, dict):
+                clean = (w.get("word") or "").strip()
+                start = float(w.get("start", 0.0))
+                end = float(w.get("end", 0.0))
+            else:
+                clean = (getattr(w, "word", "") or "").strip()
+                start = float(getattr(w, "start", 0.0))
+                end = float(getattr(w, "end", 0.0))
             if clean:
                 word_timestamps.append(WordTimestamp(
                     word=clean.lower(),
-                    start=float(w.start),
-                    end=float(w.end),
+                    start=start,
+                    end=end,
                 ))
     else:
         # Fallback: split the transcript text and assign evenly across duration
         tokens = [t for t in transcript.lower().split() if t]
         if tokens:
-            segs = getattr(response, "segments", None) or []
+            segs = getattr(response, "segments", None)
+            if segs is None and isinstance(response, dict):
+                segs = response.get("segments")
+            segs = segs or []
             if segs:
                 # Use segment boundaries proportionally
                 for seg in segs:
-                    seg_words = seg.get("text", "").lower().split()
+                    if isinstance(seg, dict):
+                        seg_text = seg.get("text", "")
+                        seg_start = float(seg.get("start", 0.0))
+                        seg_end = float(seg.get("end", 0.0))
+                    else:
+                        seg_text = getattr(seg, "text", "")
+                        seg_start = float(getattr(seg, "start", 0.0))
+                        seg_end = float(getattr(seg, "end", 0.0))
+                    seg_words = seg_text.lower().split()
                     n = len(seg_words)
                     if n == 0:
                         continue
-                    seg_dur = (float(seg.get("end", 0)) - float(seg.get("start", 0))) / n
+                    seg_dur = (seg_end - seg_start) / n
                     for i, w in enumerate(seg_words):
-                        t0 = float(seg.get("start", 0)) + i * seg_dur
+                        t0 = seg_start + i * seg_dur
                         word_timestamps.append(WordTimestamp(w.strip(), t0, t0 + seg_dur))
 
     return transcript, word_timestamps
@@ -284,7 +309,7 @@ def _compute_clarity_score(filler: FillerAnalysis, pauses: PauseAnalysis) -> flo
     clamped to [0, 100]
     """
     filler_ded = filler.rate_per_100_words * FILLER_PENALTY_PER_RATE_UNIT
-    pause_ded = max(0.0, (pauses.avg_pause_length - PAUSE_IDEAL_MAX_S) * PAUSE_PENALTY_PER_EXTRA_S)
+    pause_ded = max(0.0, (pauses.avg_length - PAUSE_IDEAL_MAX_S) * PAUSE_PENALTY_PER_EXTRA_S)
     return round(max(0.0, min(100.0, 100.0 - filler_ded - pause_ded)), 1)
 
 

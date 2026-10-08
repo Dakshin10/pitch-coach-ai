@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, RedirectResponse
 from google.cloud import firestore as fs
 
 from auth.dependencies import get_current_user
@@ -65,6 +66,7 @@ def _to_result(s: PracticeSession) -> SessionResult:
         is_analyzed=s.is_analyzed,
         analysis_failed=s.analysis_failed,
         failure_reason=s.failure_reason,
+        audio_url=f"/sessions/{s.id}/audio" if _audio_exists(s.audio_url) else None,
     )
 
 
@@ -228,7 +230,7 @@ async def finish_session(
     if session_data.get("user_id") != current_user.id:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Validate, then upload the recording to Firebase Storage
+    # Validate, then save the recording (Firebase Storage if configured, else local disk)
     raw_name = audio_file.filename or "recording.m4a"
     ext = os.path.splitext(raw_name)[1].lower() or ".m4a"
     if ext not in _ALLOWED_AUDIO_EXTS:
@@ -241,16 +243,36 @@ async def finish_session(
     if not content:
         raise HTTPException(status_code=400, detail="Audio file is empty")
 
-    audio_ref = f"audio/{current_user.id}/{session_id}{ext}"
-    try:
-        await run_in_threadpool(
-            lambda: get_bucket().blob(audio_ref).upload_from_string(
-                content, content_type=audio_file.content_type or "audio/mp4"
+    # ── Storage: Firebase Storage if bucket is configured, else local disk fallback ──
+    stored_ref = None
+    if settings.FIREBASE_STORAGE_BUCKET:
+        candidate_ref = f"audio/{current_user.id}/{session_id}{ext}"
+        try:
+            await run_in_threadpool(
+                lambda: get_bucket().blob(candidate_ref).upload_from_string(
+                    content, content_type=audio_file.content_type or "audio/mp4"
+                )
             )
-        )
-    except Exception as exc:
-        logger.error("[storage] upload failed for session %s: %s", session_id, exc)
-        raise HTTPException(status_code=503, detail="Could not store the recording. Please try again.")
+            stored_ref = candidate_ref
+            logger.info("[storage] Saved recording to Firebase Storage: %s", stored_ref)
+        except Exception as exc:
+            logger.warning("[storage] Firebase upload failed for session %s: %s; falling back to local disk", session_id, exc)
+
+    if not stored_ref:
+        # Local disk fallback — ensures recordings are preserved safely
+        upload_dir = os.path.abspath(settings.AUDIO_UPLOAD_DIR)
+        os.makedirs(upload_dir, exist_ok=True)
+        stored_ref = os.path.join(upload_dir, f"{session_id}{ext}")
+        try:
+            await run_in_threadpool(
+                lambda: open(stored_ref, "wb").write(content)  # noqa: WPS515
+            )
+            logger.info("[storage] Saved recording locally: %s", stored_ref)
+        except Exception as exc:
+            logger.error("[storage] Local disk save failed for session %s: %s", session_id, exc)
+            raise HTTPException(status_code=503, detail="Could not store the recording. Please try again.")
+
+    audio_ref = stored_ref
 
     doc_ref.update({
         "audio_url": audio_ref,
@@ -269,6 +291,7 @@ async def finish_session(
     updated_doc = doc_ref.get()
     session = PracticeSession.from_dict(updated_doc.to_dict())
     return _to_result(session)
+
 
 
 @router.post("/{session_id}/retry", response_model=SessionResult)
@@ -366,6 +389,41 @@ def get_session(
                 pass
 
     return _to_result(session)
+
+
+@router.get("/{session_id}/audio")
+def get_session_audio(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: fs.Client = Depends(get_db),
+):
+    """Streams the session's recorded audio for in-app playback."""
+    doc = db.collection(SESSIONS_COL).document(session_id).get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Session not found")
+    data = doc.to_dict()
+    if data.get("user_id") != current_user.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    audio_ref = data.get("audio_url")
+    if not audio_ref:
+        raise HTTPException(status_code=404, detail="No audio recorded for this session")
+
+    # Local disk playback
+    if os.path.exists(audio_ref):
+        return FileResponse(audio_ref, media_type="audio/mp4", filename=f"session_{session_id}.m4a")
+
+    # Firebase Storage playback
+    if settings.FIREBASE_STORAGE_BUCKET:
+        try:
+            blob = get_bucket().blob(audio_ref)
+            if blob.exists():
+                url = blob.generate_signed_url(expiration=timedelta(hours=2))
+                return RedirectResponse(url=url)
+        except Exception as exc:
+            logger.error("[storage] Failed to generate signed URL for %s: %s", audio_ref, exc)
+
+    raise HTTPException(status_code=404, detail="Audio file not found")
 
 
 @router.get("", response_model=List[SessionSummary])

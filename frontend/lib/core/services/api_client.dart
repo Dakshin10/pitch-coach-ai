@@ -17,7 +17,7 @@ class ApiClient {
     final d = Dio(
       BaseOptions(
         baseUrl: AppConfig.apiBaseUrl,
-        connectTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 4),
         receiveTimeout: const Duration(seconds: 60), // longer for audio uploads
         contentType: 'application/json',
       ),
@@ -25,6 +25,10 @@ class ApiClient {
     d.interceptors.add(_AuthInterceptor(d, _storage));
     if (kDebugMode) d.interceptors.add(_SafeNetworkLogger());
     return d;
+  }
+
+  void updateBaseUrl(String newUrl) {
+    dio.options.baseUrl = newUrl;
   }
 
   // ── Convenience wrappers ──────────────────────────────────────────────────

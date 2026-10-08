@@ -6,7 +6,6 @@ import '../../core/services/notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_atmosphere.dart';
-import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/gradient_button.dart';
 import '../../core/widgets/theme_toggle_button.dart';
 
@@ -17,11 +16,16 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with AutomaticKeepAliveClientMixin {
   TimeOfDay? _reminderTime; // TimePicker (Unit 2)
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final userProvider = Provider.of<UserProvider>(context);
     final user = userProvider.user;
 
@@ -246,13 +250,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
-      ),
-
-      // Bottom Navigation Bar
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 4, // Profile active
-        onTap: (index) => _handleNavigation(context, index),
-        onMicTap: () => context.push('/interview'),
       ),
     );
   }
@@ -516,25 +513,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _handleNavigation(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/home');
-        break;
-      case 1:
-        context.go('/history');
-        break;
-      case 2:
-        context.push('/interview');
-        break;
-      case 3:
-        context.go('/progress');
-        break;
-      case 4:
-        // Already on Profile
-        break;
-    }
-  }
 
   /// Manage practice reminder: change time or disable (Unit 2).
   Future<void> _handleReminderTap() async {

@@ -206,7 +206,7 @@ class InterviewSessionController extends ChangeNotifier {
         _phase = RecordingPhase.idle;
         notifyListeners();
         onComplete(null);
-      } else if (_sessionId != null) {
+      } else {
         final result = await _sessionRepo.finishSession(_elapsedSeconds.toDouble());
         resolvedSessionId = result?.id ?? _sessionId;
         _phase = RecordingPhase.idle;

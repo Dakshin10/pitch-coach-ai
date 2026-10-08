@@ -133,6 +133,7 @@ class SessionResult(BaseModel):
     is_analyzed: bool
     analysis_failed: bool = False
     failure_reason: Optional[str] = None
+    audio_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

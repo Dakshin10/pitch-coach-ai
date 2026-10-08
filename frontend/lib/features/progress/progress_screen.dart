@@ -1,13 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/stats_models.dart';
 import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../core/widgets/bottom_nav_bar.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -16,27 +14,34 @@ class ProgressScreen extends StatefulWidget {
   State<ProgressScreen> createState() => _ProgressScreenState();
 }
 
-class _ProgressScreenState extends State<ProgressScreen> {
+class _ProgressScreenState extends State<ProgressScreen>
+    with AutomaticKeepAliveClientMixin {
   String _selectedRange = 'Week'; // 'Week' or 'Month'
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    // Load all stats data when screen opens
+    // Load all stats data when screen opens if not already ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final stats = context.read<StatsProvider>();
       if (context.read<UserProvider>().isGuest) {
         stats.loadDemo();
       } else {
-        stats.loadAll(trendRange: 'week');
+        if (stats.state != StatsLoadState.ready) {
+          stats.loadAll(trendRange: 'week');
+        }
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final statsProvider = context.watch<StatsProvider>();
-    final isLoading = statsProvider.isLoading || statsProvider.state == StatsLoadState.idle;
+    final isLoading = statsProvider.isLoading && statsProvider.state != StatsLoadState.ready;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -46,7 +51,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             if (context.read<UserProvider>().isGuest) {
               statsProvider.loadDemo();
             } else {
-              await statsProvider.loadAll(trendRange: _selectedRange.toLowerCase());
+              await statsProvider.loadAll(trendRange: _selectedRange.toLowerCase(), force: true);
             }
           },
           color: AppColors.primaryPurple,
@@ -116,12 +121,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ),
           ),
         ),
-      ),
-
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 3,
-        onTap: (index) => _handleNavigation(context, index),
-        onMicTap: () => context.push('/interview'),
       ),
     );
   }
@@ -707,24 +706,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
-  void _handleNavigation(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/home');
-        break;
-      case 1:
-        context.go('/history');
-        break;
-      case 2:
-        context.push('/interview');
-        break;
-      case 3:
-        break; // Already on Progress
-      case 4:
-        context.go('/profile');
-        break;
-    }
-  }
 }
 
 // ── Data class for GridView metric cards ─────────────────────────────────────

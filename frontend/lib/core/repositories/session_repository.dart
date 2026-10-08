@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
+
+import '../config/app_config.dart';
 import '../models/session_result.dart';
 import '../services/api_client.dart';
 import '../utils/local_file.dart';
@@ -23,12 +25,28 @@ class SessionRepository {
   final _api = ApiClient.instance;
   final AudioRecorder _recorder = AudioRecorder();
 
+  
+
   String? _currentSessionId;
   String? _currentAudioPath;
   static final Map<String, String> _audioPathCache = {};
+  // Paths staged for deletion once the results screen is done with them
+  static final Set<String> _pendingDeletePaths = {};
+  List<SessionSummary>? _cachedSessions;
+  DateTime? _sessionsCacheTime;
 
   String? get currentSessionId => _currentSessionId;
   String? get currentAudioPath => _currentAudioPath;
+  List<SessionSummary>? get cachedSessions => _cachedSessions;
+  SessionSummary? get cachedRecentSession =>
+      (_cachedSessions != null && _cachedSessions!.isNotEmpty)
+          ? _cachedSessions!.first
+          : null;
+
+  void invalidateCache() {
+    _cachedSessions = null;
+    _sessionsCacheTime = null;
+  }
 
   // ── Permissions ───────────────────────────────────────────────────────────
 
@@ -88,9 +106,36 @@ class SessionRepository {
     return recordedPath;
   }
 
+  /// Explicitly releases and deletes the locally-cached audio file for a session
+  /// (call this after the results screen is dismissed / done with playback).
+  Future<void> releaseAudioFile(String sessionId) async {
+    final path = _audioPathCache.remove(sessionId);
+    if (path != null) {
+      _pendingDeletePaths.remove(path);
+      await deleteLocalFile(path);
+    }
+  }
+
+  /// Cleans up any audio files that were staged for deletion from previous sessions.
+  Future<void> _cleanupPendingDeletes() async {
+    final toDelete = Set<String>.from(_pendingDeletePaths);
+    for (final path in toDelete) {
+      // Only delete if the path is not referenced by any active cache entry
+      final isInUse = _audioPathCache.values.contains(path);
+      if (!isInUse) {
+        _pendingDeletePaths.remove(path);
+        await deleteLocalFile(path);
+      }
+    }
+  }
+
+  Completer<String?>? _sessionRegistrationCompleter;
+
   // ── Session lifecycle ─────────────────────────────────────────────────────
 
-  /// Step 1: create session row on backend and start recording.
+  /// Step 1: start recording immediately (mic activates instantly), then
+  /// register the session on the backend concurrently in the background.
+  /// This ensures zero UI lag when tapping the mic.
   Future<String?> startSession({
     required String mode,
     required String topicOrQuestion,
@@ -98,17 +143,14 @@ class SessionRepository {
     if (!await _recorder.hasPermission()) {
       throw StateError('Microphone permission is required to record.');
     }
-    // 1a. Create session on backend after permission is known.
-    final data = await _api.post('/sessions/start', data: {
-      'mode': mode,
-      'topic_or_question': topicOrQuestion,
-    }) as Map<String, dynamic>;
-    _currentSessionId = data['session_id'] as String;
+    // Clean up audio files from previous sessions now that we're starting fresh
+    await _cleanupPendingDeletes();
 
-    // 1b. Start recording
+    // 1a. Start recording immediately so the mic activates without waiting for
+    //     the network round-trip to the backend.
     final dir = await getApplicationDocumentsDirectory();
-    _currentAudioPath =
-        '${dir.path}/session_${_currentSessionId}_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    final tempId = 'tmp_${DateTime.now().millisecondsSinceEpoch}';
+    _currentAudioPath = '${dir.path}/session_$tempId.m4a';
 
     await _recorder.start(
       const RecordConfig(
@@ -120,8 +162,27 @@ class SessionRepository {
       path: _currentAudioPath!,
     );
 
+    // 1b. Register session on the backend concurrently in background
+    _currentSessionId = null;
+    final completer = Completer<String?>();
+    _sessionRegistrationCompleter = completer;
+
+    _api.post('/sessions/start', data: {
+      'mode': mode,
+      'topic_or_question': topicOrQuestion,
+    }).then((res) {
+      final data = res as Map<String, dynamic>;
+      final id = data['session_id'] as String?;
+      _currentSessionId = id;
+      if (!completer.isCompleted) completer.complete(id);
+    }).catchError((_) {
+      _currentSessionId = null;
+      if (!completer.isCompleted) completer.complete(null);
+    });
+
     return _currentSessionId;
   }
+
 
   /// Stops recorder without uploading. Returns the local audio file path.
   Future<String?> stopAudioRecorder() async {
@@ -131,10 +192,40 @@ class SessionRepository {
 
   /// Step 2: stop recording and upload audio → triggers AI pipeline on server.
   Future<SessionResult?> finishSession(double durationSeconds) async {
+    // If background registration is still in flight, wait briefly
+    if (_currentSessionId == null && _sessionRegistrationCompleter != null) {
+      try {
+        _currentSessionId = await _sessionRegistrationCompleter!.future.timeout(
+          const Duration(milliseconds: 2000),
+          onTimeout: () => null,
+        );
+      } catch (_) {}
+    }
+
+    // If session registration with backend failed at start, attempt a late registration now.
+    if (_currentSessionId == null && _currentAudioPath != null) {
+      try {
+        final data = await _api.post('/sessions/start', data: {
+          'mode': 'interview',
+          'topic_or_question': 'Practice session',
+        }) as Map<String, dynamic>;
+        _currentSessionId = data['session_id'] as String;
+      } catch (_) {
+        // Still unreachable — return null so the controller handles it as a local-only session.
+        return null;
+      }
+    }
     if (_currentSessionId == null) return null;
 
-    // Stop recorder — returns the file path
-    final path = await _recorder.stop();
+    // Stop recorder safely — checking isRecording first prevents "Stop() called but track is not started or stopped"
+    String? path;
+    try {
+      if (await _recorder.isRecording()) {
+        path = await _recorder.stop();
+      }
+    } catch (e) {
+      debugPrint('[SessionRepository] recorder.stop notice: $e');
+    }
     final audioPath = path ?? _currentAudioPath;
     if (audioPath == null) {
       throw StateError('Recording did not produce an audio file.');
@@ -169,13 +260,17 @@ class SessionRepository {
       formData,
     ) as Map<String, dynamic>;
 
-    // Delete local audio after a successful upload to save device disk space
-    await deleteLocalFile(audioPath);
-    _audioPathCache.remove(sessionId);
+    // Cache the audio path BEFORE deletion so ResultsScreen can play it back.
+    // Actual file deletion is deferred to the next session start or an explicit
+    // releaseAudioFile() call, giving the results screen time to use the file.
+    _audioPathCache[sessionId] = audioPath;
+    _pendingDeletePaths.add(audioPath);
     _currentAudioPath = null;
     _currentSessionId = null;
+    invalidateCache();
 
-    return SessionResult.fromJson(raw);
+    final result = SessionResult.fromJson(raw);
+    return result.copyWith(audioPath: audioPath);
   }
 
   /// Step 3 (polling): fetch session until is_analyzed = true.
@@ -186,6 +281,13 @@ class SessionRepository {
     if (cachedPath != null) {
       return result.copyWith(audioPath: cachedPath);
     }
+    final serverAudio = raw['audio_url'] as String?;
+    if (serverAudio != null && serverAudio.isNotEmpty) {
+      final fullUrl = serverAudio.startsWith('http')
+          ? serverAudio
+          : '${AppConfig.apiBaseUrl}$serverAudio';
+      return result.copyWith(audioUrl: fullUrl);
+    }
     return result;
   }
 
@@ -194,23 +296,55 @@ class SessionRepository {
     await _api.post('/sessions/$sessionId/retry');
   }
 
-  /// History list — used by HistoryScreen.
+  /// History list — used by HistoryScreen with in-memory caching.
   Future<List<SessionSummary>> listSessions({
     String? mode,
     String? search,
     int page = 1,
     int limit = 20,
+    bool forceRefresh = false,
   }) async {
+    final isDefaultQuery = (mode == null || mode == 'All') &&
+        (search == null || search.isEmpty) &&
+        page == 1;
+
+    // Return in-memory cached sessions if available, fresh (< 3 mins), and not forced
+    if (isDefaultQuery &&
+        !forceRefresh &&
+        _cachedSessions != null &&
+        _sessionsCacheTime != null) {
+      final age = DateTime.now().difference(_sessionsCacheTime!);
+      if (age < const Duration(minutes: 3)) {
+        return _cachedSessions!;
+      }
+    }
+
     final params = <String, dynamic>{
       'page': page.toString(),
       'limit': limit.toString(),
     };
-    if (mode != null) params['mode'] = mode;
-    if (search != null) params['search'] = search;
+    if (mode != null && mode != 'All') params['mode'] = mode;
+    if (search != null && search.isNotEmpty) params['search'] = search;
     final raw = await _api.get('/sessions', params: params) as List<dynamic>;
-    return raw
+    final list = raw
         .map((e) => SessionSummary.fromJson(e as Map<String, dynamic>))
         .toList();
+
+    if (isDefaultQuery) {
+      _cachedSessions = list;
+      _sessionsCacheTime = DateTime.now();
+    }
+
+    return list;
+  }
+
+  /// Recent session helper for HomeScreen with caching support.
+  Future<SessionSummary?> getRecentSession({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedSessions != null && _cachedSessions!.isNotEmpty) {
+      return _cachedSessions!.first;
+    }
+    final list = await listSessions(limit: 1, forceRefresh: forceRefresh);
+    return list.isNotEmpty ? list.first : null;
   }
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -227,6 +361,7 @@ class SessionRepository {
     }
     _currentSessionId = null;
     _currentAudioPath = null;
+    _sessionRegistrationCompleter = null;
   }
 
   void dispose() {

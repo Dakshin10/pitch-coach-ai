@@ -8,6 +8,7 @@ import 'core/providers/slide_coach_provider.dart';
 import 'core/providers/stats_provider.dart';
 import 'core/providers/user_provider.dart';
 import 'core/router/app_router.dart';
+import 'core/services/api_client.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -15,6 +16,12 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppConfig.validate();
+
+  // Fast auto-discovery of backend (127.0.0.1 for adb reverse or 10.0.2.2 for emulator)
+  try {
+    final discovered = await AppConfig.discoverBaseUrl();
+    ApiClient.instance.updateBaseUrl(discovered);
+  } catch (_) {}
 
   // Firebase / notifications must never block first paint (white/blank web screen).
   try {

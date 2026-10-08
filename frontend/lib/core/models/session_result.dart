@@ -52,6 +52,8 @@ class SessionResult {
   final String? failureReason;
   /// Local path to the recorded audio file, populated by SessionRepository after upload.
   final String? audioPath;
+  /// Remote or relative streaming URL for the session audio.
+  final String? audioUrl;
 
   const SessionResult({
     required this.id,
@@ -73,7 +75,11 @@ class SessionResult {
     this.analysisFailed = false,
     this.failureReason,
     this.audioPath,
+    this.audioUrl,
   });
+
+  /// Returns whichever audio locator is available: local file path or remote URL.
+  String? get playableAudioUri => audioPath ?? audioUrl;
 
   factory SessionResult.fromJson(Map<String, dynamic> j) => SessionResult(
         id: j['id'] as String,
@@ -97,6 +103,8 @@ class SessionResult {
         isAnalyzed: j['is_analyzed'] as bool? ?? false,
         analysisFailed: j['analysis_failed'] as bool? ?? false,
         failureReason: j['failure_reason'] as String?,
+        audioPath: j['audio_path'] as String?,
+        audioUrl: j['audio_url'] as String?,
       );
 
   SessionResult copyWith({
@@ -119,6 +127,7 @@ class SessionResult {
     bool? analysisFailed,
     String? failureReason,
     String? audioPath,
+    String? audioUrl,
   }) {
     return SessionResult(
       id: id ?? this.id,
@@ -140,6 +149,7 @@ class SessionResult {
       analysisFailed: analysisFailed ?? this.analysisFailed,
       failureReason: failureReason ?? this.failureReason,
       audioPath: audioPath ?? this.audioPath,
+      audioUrl: audioUrl ?? this.audioUrl,
     );
   }
 

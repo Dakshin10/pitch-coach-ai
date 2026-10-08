@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     # Uploads larger than this are rejected (recordings are small AAC files)
     MAX_AUDIO_UPLOAD_MB: int = 25
 
+    # Audio storage directory fallback for local disk
+    AUDIO_UPLOAD_DIR: str = "./audio_files"
+
     # Slide Coach Groq models
     # Groq deprecated llama-4-scout and llama-3.3-70b-versatile in mid-2026.
     # Current active models with Vision & JSON mode are qwen/qwen3.8-27b and openai/gpt-oss-120b.
