@@ -5,7 +5,7 @@ All field names here must match what the Flutter app expects.
 from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -13,14 +13,28 @@ from pydantic import BaseModel
 # ─────────────────────────────────────────────────────────────────────────────
 
 class SignupRequest(BaseModel):
-    email: str
-    password: str
-    full_name: str
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128, description="Password must be between 8 and 128 characters")
+    full_name: str = Field(..., min_length=1, max_length=100, description="Full name must not exceed 100 characters")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
 
 
 class RefreshRequest(BaseModel):
@@ -32,9 +46,16 @@ class FirebaseLoginRequest(BaseModel):
 
 
 class UpgradeGuestRequest(BaseModel):
-    email: str
-    password: str
-    full_name: str
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128, description="Password must be between 8 and 128 characters")
+    full_name: str = Field(..., min_length=1, max_length=100, description="Full name must not exceed 100 characters")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
 
 
 class UserResponse(BaseModel):
@@ -111,6 +132,7 @@ class SessionResult(BaseModel):
     created_at: datetime
     is_analyzed: bool
     analysis_failed: bool = False
+    failure_reason: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -125,6 +147,7 @@ class SessionSummary(BaseModel):
     created_at: datetime
     is_analyzed: bool
     analysis_failed: bool = False
+    failure_reason: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

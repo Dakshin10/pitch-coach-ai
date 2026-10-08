@@ -1,8 +1,9 @@
-"""FastAPI dependency: extract and validate the current user from JWT."""
+from datetime import datetime, timezone, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from google.cloud import firestore as fs
 
+from config import get_settings
 from firestore import get_db
 from models import User, USERS_COL
 from auth.utils import decode_token
@@ -25,4 +26,17 @@ def get_current_user(
     doc = db.collection(USERS_COL).document(user_id).get()
     if not doc.exists:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return User.from_dict(doc.to_dict())
+    user = User.from_dict(doc.to_dict())
+
+    # Check guest expiration
+    if user.is_guest:
+        now = datetime.now(timezone.utc)
+        settings = get_settings()
+        expiry = user.expires_at or (user.created_at + timedelta(days=settings.GUEST_EXPIRE_DAYS))
+        if now > expiry:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Guest session has expired. Please sign up to keep your data.",
+            )
+
+    return user

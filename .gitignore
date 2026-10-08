@@ -69,6 +69,7 @@ htmlcov/
 
 # Backend runtime data
 backend/audio_files/
+backend/slide_decks/
 backend/*.db
 backend/*.db-shm
 backend/*.db-wal
@@ -76,14 +77,14 @@ backend/*.db-wal
 # ─── Flutter / Dart / Pub ─────────────────────────────────────────────────────
 **/doc/api/
 **/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-build/
-coverage/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
 
 # Generated files
 *.g.dart
@@ -91,14 +92,15 @@ coverage/
 *.mocks.dart
 
 # ─── Android ──────────────────────────────────────────────────────────────────
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/app/build
-/android/.gradle
-/android/captures
-/android/local.properties
-/android/key.properties
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/android/app/build
+**/android/.gradle
+**/android/captures
+**/android/local.properties
+**/android/key.properties
+!**/android/key.properties.example
 
 # ─── iOS / macOS ──────────────────────────────────────────────────────────────
 **/ios/Flutter/App.framework
