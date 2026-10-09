@@ -10,12 +10,20 @@ class StatsSummary {
   final double avgConfidence;
   final int streakDays;
   final double fillerReductionPct;
+  final double? avgScore;
+  final double? avgWpm;
+  final double? avgClarity;
+  final double? totalDuration;
 
   const StatsSummary({
     required this.totalSessions,
     required this.avgConfidence,
     required this.streakDays,
     required this.fillerReductionPct,
+    this.avgScore,
+    this.avgWpm,
+    this.avgClarity,
+    this.totalDuration,
   });
 
   factory StatsSummary.fromJson(Map<String, dynamic> j) => StatsSummary(
@@ -23,6 +31,10 @@ class StatsSummary {
         avgConfidence: (j['avg_confidence'] as num?)?.toDouble() ?? 0,
         streakDays: (j['streak_days'] as num?)?.toInt() ?? 0,
         fillerReductionPct: (j['filler_reduction_pct'] as num?)?.toDouble() ?? 0,
+        avgScore: (j['avg_score'] as num?)?.toDouble(),
+        avgWpm: (j['avg_wpm'] as num?)?.toDouble(),
+        avgClarity: (j['avg_clarity'] as num?)?.toDouble(),
+        totalDuration: (j['total_duration'] as num?)?.toDouble(),
       );
 
   static const StatsSummary empty = StatsSummary(
@@ -30,6 +42,10 @@ class StatsSummary {
     avgConfidence: 0,
     streakDays: 0,
     fillerReductionPct: 0,
+    avgScore: 0.0,
+    avgWpm: 0.0,
+    avgClarity: 0.0,
+    totalDuration: 0.0,
   );
 }
 

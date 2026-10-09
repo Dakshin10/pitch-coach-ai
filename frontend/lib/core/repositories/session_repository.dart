@@ -4,10 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
+import 'package:uuid/uuid.dart';
 
 import '../config/app_config.dart';
 import '../models/session_result.dart';
 import '../services/api_client.dart';
+import '../services/local_database_service.dart';
 import '../utils/local_file.dart';
 
 enum MicPermissionState {
@@ -149,8 +151,9 @@ class SessionRepository {
     // 1a. Start recording immediately so the mic activates without waiting for
     //     the network round-trip to the backend.
     final dir = await getApplicationDocumentsDirectory();
-    final tempId = 'tmp_${DateTime.now().millisecondsSinceEpoch}';
-    _currentAudioPath = '${dir.path}/session_$tempId.m4a';
+    final generatedSessionId = const Uuid().v4();
+    _currentSessionId = generatedSessionId;
+    _currentAudioPath = '${dir.path}/session_$generatedSessionId.m4a';
 
     await _recorder.start(
       const RecordConfig(
@@ -163,21 +166,29 @@ class SessionRepository {
     );
 
     // 1b. Register session on the backend concurrently in background
-    _currentSessionId = null;
     final completer = Completer<String?>();
     _sessionRegistrationCompleter = completer;
 
+    final now = DateTime.now();
+    final localDate =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final tzOffsetMinutes = now.timeZoneOffset.inMinutes;
+
     _api.post('/sessions/start', data: {
+      'session_id': generatedSessionId,
       'mode': mode,
       'topic_or_question': topicOrQuestion,
+      'local_date': localDate,
+      'tz_offset_minutes': tzOffsetMinutes,
     }).then((res) {
       final data = res as Map<String, dynamic>;
-      final id = data['session_id'] as String?;
+      final id = (data['session_id'] as String?) ?? generatedSessionId;
       _currentSessionId = id;
       if (!completer.isCompleted) completer.complete(id);
     }).catchError((_) {
-      _currentSessionId = null;
-      if (!completer.isCompleted) completer.complete(null);
+      // In offline scenario, client generated ID remains authoritative
+      _currentSessionId = generatedSessionId;
+      if (!completer.isCompleted) completer.complete(generatedSessionId);
     });
 
     return _currentSessionId;
@@ -205,11 +216,19 @@ class SessionRepository {
     // If session registration with backend failed at start, attempt a late registration now.
     if (_currentSessionId == null && _currentAudioPath != null) {
       try {
+        final generatedId = const Uuid().v4();
+        final now = DateTime.now();
+        final localDate =
+            '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+        final tzOffsetMinutes = now.timeZoneOffset.inMinutes;
         final data = await _api.post('/sessions/start', data: {
+          'session_id': generatedId,
           'mode': 'interview',
           'topic_or_question': 'Practice session',
+          'local_date': localDate,
+          'tz_offset_minutes': tzOffsetMinutes,
         }) as Map<String, dynamic>;
-        _currentSessionId = data['session_id'] as String;
+        _currentSessionId = (data['session_id'] as String?) ?? generatedId;
       } catch (_) {
         // Still unreachable — return null so the controller handles it as a local-only session.
         return null;
@@ -340,8 +359,19 @@ class SessionRepository {
 
   /// Recent session helper for HomeScreen with caching support.
   Future<SessionSummary?> getRecentSession({bool forceRefresh = false}) async {
-    if (!forceRefresh && _cachedSessions != null && _cachedSessions!.isNotEmpty) {
-      return _cachedSessions!.first;
+    if (!forceRefresh) {
+      if (_cachedSessions != null && _cachedSessions!.isNotEmpty) {
+        return _cachedSessions!.first;
+      }
+      final localDb = LocalDatabaseService.instance;
+      if (localDb.isOpen && localDb.currentUserId != null && localDb.currentUserId != 'guest') {
+        try {
+          final localRecent = await localDb.getRecentSession(localDb.currentUserId!);
+          if (localRecent != null) {
+            return localRecent;
+          }
+        } catch (_) {}
+      }
     }
     final list = await listSessions(limit: 1, forceRefresh: forceRefresh);
     return list.isNotEmpty ? list.first : null;

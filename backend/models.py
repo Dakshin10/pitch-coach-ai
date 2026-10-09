@@ -107,6 +107,10 @@ class PracticeSession:
 
     ai_feedback: List[Dict[str, Any]] = field(default_factory=list)
     created_at: datetime = field(default_factory=_now_utc)
+    local_date: Optional[str] = None
+    tz_offset_minutes: int = 0
+    d1_pending: bool = False
+    stage: str = "pending"
     is_analyzed: bool = False
     analysis_failed: bool = False
     failure_reason: Optional[str] = None
@@ -130,6 +134,19 @@ class PracticeSession:
             "overall_score": self.overall_score,
             "ai_feedback": self.ai_feedback,
             "created_at": self.created_at,
+            "local_date": self.local_date,
+            "tz_offset_minutes": self.tz_offset_minutes,
+            "d1_pending": self.d1_pending,
+            "stage": self.stage,
+            "metrics": {
+                "wpm": self.wpm,
+                "overall": self.overall_score,
+                "clarity": self.clarity_score,
+                "confidence": self.confidence_score,
+                "pause_count": self.pause_count,
+                "duration": self.duration_seconds,
+                "filler_count": self.filler_word_count,
+            },
             "is_analyzed": self.is_analyzed,
             "analysis_failed": self.analysis_failed,
             "failure_reason": self.failure_reason,
@@ -155,6 +172,10 @@ class PracticeSession:
             overall_score=d.get("overall_score", 0.0),
             ai_feedback=d.get("ai_feedback", []),
             created_at=d.get("created_at") or _now_utc(),
+            local_date=d.get("local_date"),
+            tz_offset_minutes=d.get("tz_offset_minutes", 0),
+            d1_pending=d.get("d1_pending", False),
+            stage=d.get("stage", "done" if d.get("is_analyzed") else "pending"),
             is_analyzed=d.get("is_analyzed", False),
             analysis_failed=d.get("analysis_failed", False),
             failure_reason=d.get("failure_reason"),

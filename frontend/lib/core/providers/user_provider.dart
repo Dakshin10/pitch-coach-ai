@@ -3,6 +3,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/firebase_auth_repository.dart';
+import '../services/local_database_service.dart';
+import '../services/sync_service.dart';
 
 enum AuthState { loading, unauthenticated, guest, authenticated, error }
 
@@ -108,6 +110,13 @@ class UserProvider extends ChangeNotifier {
     _user = UserProfile.fromJson(data);
     _user.darkMode = keptDark;
     _isLoggedIn = true;
+
+    // Switch local SQLite database to the authenticated user and trigger background pull sync
+    if (_user.id.isNotEmpty && !_user.isGuest) {
+      LocalDatabaseService.instance.initForUser(_user.id).then((_) {
+        SyncService.instance.pull(userId: _user.id);
+      }).catchError((_) {});
+    }
   }
 
   Future<void> _loadLocalTheme() async {
@@ -303,6 +312,7 @@ class UserProvider extends ChangeNotifier {
   Future<void> firebaseLogout() async {
     await _firebaseAuth.signOut();
     await _auth.logout(); // also clear any legacy JWT tokens
+    await LocalDatabaseService.instance.close();
     final keptDark = _user.darkMode;
     _isLoggedIn = false;
     _user = UserProfile(
@@ -324,6 +334,7 @@ class UserProvider extends ChangeNotifier {
   Future<bool> loginAsGuest() async {
     // Guest is a local demo identity. It has no token and never calls protected APIs.
     await _auth.logout();
+    await LocalDatabaseService.instance.close();
     final keptDark = _user.darkMode;
     _user = UserProfile(
       id: 'demo-guest', name: 'Guest', email: '', role: 'Student',
@@ -414,6 +425,7 @@ class UserProvider extends ChangeNotifier {
       // Not signed in via Firebase (or SDK unavailable) — nothing to do.
     }
     await _auth.logout();
+    await LocalDatabaseService.instance.close();
     final keptDark = _user.darkMode;
     _isLoggedIn = false;
     _user = UserProfile(

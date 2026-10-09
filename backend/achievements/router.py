@@ -78,6 +78,10 @@ def get_achievements(
     current_user: User = Depends(get_current_user),
     db: fs.Client = Depends(get_db),
 ):
+    # Evaluate and persist any newly eligible unlocks in D1 / Firestore
+    from achievements.service import evaluate_user_achievements
+    evaluate_user_achievements(current_user.id, db=db)
+
     # Fetch analyzed sessions
     session_docs = (
         db.collection(SESSIONS_COL)

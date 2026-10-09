@@ -1,0 +1,8 @@
+name = "pitch-coach"
+compatibility_date = "2024-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pitch-coach-db"
+database_id = "62517660-27da-4a72-a347-45326dcdad9b"
+migrations_dir = "d1/migrations"

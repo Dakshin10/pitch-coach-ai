@@ -31,7 +31,8 @@ class _ProgressScreenState extends State<ProgressScreen>
         stats.loadDemo();
       } else {
         if (stats.state != StatsLoadState.ready) {
-          stats.loadAll(trendRange: 'week');
+          final userId = context.read<UserProvider>().user.id;
+          stats.loadAll(trendRange: 'week', userId: userId);
         }
       }
     });
@@ -51,7 +52,8 @@ class _ProgressScreenState extends State<ProgressScreen>
             if (context.read<UserProvider>().isGuest) {
               statsProvider.loadDemo();
             } else {
-              await statsProvider.loadAll(trendRange: _selectedRange.toLowerCase(), force: true);
+              final userId = context.read<UserProvider>().user.id;
+              await statsProvider.loadAll(trendRange: _selectedRange.toLowerCase(), force: true, userId: userId);
             }
           },
           color: AppColors.primaryPurple,

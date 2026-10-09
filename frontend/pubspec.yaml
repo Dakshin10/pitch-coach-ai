@@ -39,6 +39,13 @@ dependencies:
   flutter_svg: ^2.3.0
   go_router: ^17.3.0
   provider: ^6.1.5+1
+  uuid: ^4.6.0
+
+  # ── Local SQLite & Sync ───────────────────────────────────────────────────
+  sqflite: ^2.3.3+1
+  sqflite_common_ffi: ^2.3.3
+  path: ^1.9.0
+  connectivity_plus: ^6.0.5
 
   # ── File Picking ──────────────────────────────────────────────────────────
   file_picker: ^8.1.7              # PDF document picking for Slide Coach

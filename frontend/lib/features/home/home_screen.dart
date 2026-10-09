@@ -74,7 +74,8 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() => _recentSessionLoading = true);
     }
     // Load summary stats (feeds the 3 stat cards)
-    context.read<StatsProvider>().loadSummaryOnly(force: force);
+    final userId = context.read<UserProvider>().user.id;
+    context.read<StatsProvider>().loadSummaryOnly(force: force, userId: userId);
 
     // Load the most recent session (feeds the recent session card)
     try {

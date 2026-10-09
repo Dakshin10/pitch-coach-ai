@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/models/practice_mode.dart';
 import '../../../core/repositories/session_repository.dart';
+import '../../../core/services/local_database_service.dart';
+import '../../../core/services/outbox_worker.dart';
 import '../../../core/services/upload_queue_service.dart';
 
 enum RecordingPhase {
@@ -78,6 +82,7 @@ class InterviewSessionController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   MicPermissionState get micPermissionState => _micPermissionState;
   String? get sessionId => _sessionId;
+  String? get activeAudioPath => _activeAudioPath;
 
   String get formattedTime {
     final minutes = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
@@ -199,82 +204,170 @@ class InterviewSessionController extends ChangeNotifier {
     _durationWarning = null;
     notifyListeners();
 
-    String? resolvedSessionId = _sessionId;
+    if (isGuest) {
+      await _sessionRepo.finishDemoRecording();
+      _phase = RecordingPhase.idle;
+      notifyListeners();
+      onComplete(null);
+      return;
+    }
+
+    final audioPath = await _sessionRepo.stopAudioRecorder();
+    final effectiveSessionId = _sessionId ?? const Uuid().v4();
+    _sessionId = effectiveSessionId;
+    _activeAudioPath = audioPath;
+
+    final now = DateTime.now();
+    final localDate =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final tzOffsetMinutes = now.timeZoneOffset.inMinutes;
+    final userId = LocalDatabaseService.instance.currentUserId ?? 'user';
+
+    // 1. Insert local session_metrics row with status='pending'
+    if (LocalDatabaseService.instance.isOpen) {
+      try {
+        await LocalDatabaseService.instance.upsertSessionMetric({
+          'id': effectiveSessionId,
+          'user_id': userId,
+          'mode': _currentMode.id,
+          'topic_or_question': currentPrompt.text,
+          'duration_seconds': _elapsedSeconds.toDouble(),
+          'wpm': 0.0,
+          'filler_word_count': 0,
+          'pause_count': 0,
+          'avg_pause_length': 0.0,
+          'clarity_score': 0.0,
+          'confidence_score': 0.0,
+          'overall_score': 0.0,
+          'status': 'pending',
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+          'local_date': localDate,
+          'tz_offset_minutes': tzOffsetMinutes,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        });
+
+        // 2. Insert sync_outbox row (CREATE_SESSION)
+        await LocalDatabaseService.instance.enqueueOutbox(
+          id: effectiveSessionId,
+          userId: userId,
+          action: 'CREATE_SESSION',
+          payload: jsonEncode({
+            'mode': _currentMode.id,
+            'topic_or_question': currentPrompt.text,
+            'duration_seconds': _elapsedSeconds.toDouble(),
+            'local_date': localDate,
+            'tz_offset_minutes': tzOffsetMinutes,
+          }),
+          localAudioPath: audioPath,
+        );
+      } catch (e) {
+        debugPrint('[InterviewSessionController] Error saving pending session to SQLite: $e');
+      }
+    }
+
+    // Also register in legacy upload queue for file backup
+    if (audioPath != null) {
+      await _uploadQueue.enqueue(
+        sessionId: effectiveSessionId,
+        audioPath: audioPath,
+        durationSeconds: _elapsedSeconds.toDouble(),
+        mode: _currentMode.id,
+        topicOrQuestion: currentPrompt.text,
+      );
+    }
+
+    // 3. Process via OutboxWorker
     try {
-      if (isGuest) {
-        await _sessionRepo.finishDemoRecording();
-        _phase = RecordingPhase.idle;
-        notifyListeners();
-        onComplete(null);
-      } else {
-        final result = await _sessionRepo.finishSession(_elapsedSeconds.toDouble());
-        resolvedSessionId = result?.id ?? _sessionId;
+      await OutboxWorker.instance.process(userId: userId);
+
+      // Check if outbox item succeeded
+      bool isStillQueued = false;
+      if (LocalDatabaseService.instance.isOpen) {
+        final pending = await LocalDatabaseService.instance.getPendingOutbox(userId);
+        isStillQueued = pending.any((i) => i['id'] == effectiveSessionId);
+      }
+
+      if (!isStillQueued) {
         _phase = RecordingPhase.idle;
         _failedAudioPath = null;
         _failedSessionId = null;
         notifyListeners();
-        onComplete(resolvedSessionId);
+        onComplete(effectiveSessionId);
+      } else {
+        _phase = RecordingPhase.failed;
+        _failedSessionId = effectiveSessionId;
+        _failedAudioPath = audioPath;
+        _errorMessage = 'Waiting to sync. Your recording is safely saved and will upload automatically.';
+        notifyListeners();
       }
     } catch (e) {
-      // Keep local file and register to offline upload queue
       _phase = RecordingPhase.failed;
-      _failedSessionId = _sessionId;
-      _failedAudioPath = _activeAudioPath ?? _sessionRepo.currentAudioPath;
-      _errorMessage =
-          'Upload failed due to connection issues. Your recording is safely saved on this device.';
-
-      if (_failedAudioPath != null) {
-        await _uploadQueue.enqueue(
-          sessionId: _failedSessionId,
-          audioPath: _failedAudioPath!,
-          durationSeconds: _elapsedSeconds.toDouble(),
-          mode: _currentMode.id,
-          topicOrQuestion: currentPrompt.text,
-          error: e.toString(),
-        );
-      }
+      _failedSessionId = effectiveSessionId;
+      _failedAudioPath = audioPath;
+      _errorMessage = 'Waiting to sync. Your recording is safely saved on this device.';
       notifyListeners();
     }
   }
 
   /// Retries uploading the saved failed recording.
   Future<void> retryUpload(void Function(String? sessionId) onComplete) async {
-    if (_failedAudioPath == null) return;
+    if (_failedAudioPath == null && _failedSessionId == null) return;
 
     _phase = RecordingPhase.uploading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final queued = await _uploadQueue.getPendingUploads();
-      final item = queued.firstWhere(
-        (i) => i.audioPath == _failedAudioPath,
-        orElse: () => PendingUploadItem(
-          id: _failedSessionId ?? 'retry_${DateTime.now().millisecondsSinceEpoch}',
-          sessionId: _failedSessionId,
-          audioPath: _failedAudioPath!,
-          durationSeconds: _elapsedSeconds.toDouble(),
-          mode: _currentMode.id,
-          topicOrQuestion: currentPrompt.text,
-          createdAt: DateTime.now(),
-        ),
-      );
+      if (_failedSessionId != null) {
+        await OutboxWorker.instance.retry(_failedSessionId!);
+        final userId = LocalDatabaseService.instance.currentUserId ?? 'user';
+        final pending = await LocalDatabaseService.instance.getPendingOutbox(userId);
+        final isStillQueued = pending.any((i) => i['id'] == _failedSessionId);
 
-      final result = await _uploadQueue.retryUpload(item);
-      _phase = RecordingPhase.idle;
-      _failedAudioPath = null;
-      _failedSessionId = null;
-      notifyListeners();
-      onComplete(result.id);
+        if (!isStillQueued) {
+          _phase = RecordingPhase.idle;
+          _failedAudioPath = null;
+          _failedSessionId = null;
+          notifyListeners();
+          onComplete(_failedSessionId);
+          return;
+        }
+      }
+
+      // Fallback: legacy queue retry
+      if (_failedAudioPath != null) {
+        final queued = await _uploadQueue.getPendingUploads();
+        final item = queued.firstWhere(
+          (i) => i.audioPath == _failedAudioPath,
+          orElse: () => PendingUploadItem(
+            id: _failedSessionId ?? 'retry_${DateTime.now().millisecondsSinceEpoch}',
+            sessionId: _failedSessionId,
+            audioPath: _failedAudioPath!,
+            durationSeconds: _elapsedSeconds.toDouble(),
+            mode: _currentMode.id,
+            topicOrQuestion: currentPrompt.text,
+            createdAt: DateTime.now(),
+          ),
+        );
+        final result = await _uploadQueue.retryUpload(item);
+        _phase = RecordingPhase.idle;
+        _failedAudioPath = null;
+        _failedSessionId = null;
+        notifyListeners();
+        onComplete(result.id);
+      }
     } catch (e) {
       _phase = RecordingPhase.failed;
-      _errorMessage = 'Retry failed: $e. You can try again or save for later.';
+      _errorMessage = 'Retry failed: $e. You can try again or wait for network.';
       notifyListeners();
     }
   }
 
   /// Discards the failed take and cleans up local storage.
   Future<void> discardFailedRecording() async {
+    if (_failedSessionId != null && LocalDatabaseService.instance.isOpen) {
+      await LocalDatabaseService.instance.deleteOutbox(_failedSessionId!);
+    }
     if (_failedAudioPath != null) {
       await _uploadQueue.remove(_failedSessionId ?? '', deleteAudio: true);
     }

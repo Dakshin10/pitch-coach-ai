@@ -10,6 +10,8 @@ import 'core/providers/user_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/api_client.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/outbox_worker.dart';
+import 'core/services/sync_service.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 
@@ -40,6 +42,9 @@ void main() async {
     }
   }
 
+  // Initialize offline OutboxWorker on app start
+  OutboxWorker.instance.init();
+
   runApp(
     MultiProvider(
       providers: [
@@ -55,8 +60,32 @@ void main() async {
   );
 }
 
-class PitchCoachApp extends StatelessWidget {
+class PitchCoachApp extends StatefulWidget {
   const PitchCoachApp({super.key});
+
+  @override
+  State<PitchCoachApp> createState() => _PitchCoachAppState();
+}
+
+class _PitchCoachAppState extends State<PitchCoachApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        SyncService.instance.pull();
+        OutboxWorker.instance.process();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

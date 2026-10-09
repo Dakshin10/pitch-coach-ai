@@ -99,8 +99,45 @@ class UpdateProfileRequest(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class StartSessionRequest(BaseModel):
+    session_id: Optional[str] = None
     mode: str = "interview"
     topic_or_question: str = "Tell me about yourself."
+    local_date: Optional[str] = None
+    tz_offset_minutes: Optional[int] = None
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            import uuid
+            try:
+                uuid.UUID(v)
+            except ValueError:
+                raise ValueError("session_id must be a valid UUID")
+        return v
+
+    @field_validator("local_date")
+    @classmethod
+    def validate_local_date(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            import re
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
+                raise ValueError("local_date must be in YYYY-MM-DD format")
+            from datetime import datetime
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError("local_date must be a valid calendar date in YYYY-MM-DD format")
+        return v
+
+    @field_validator("tz_offset_minutes")
+    @classmethod
+    def validate_tz_offset(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None:
+            if not (-720 <= v <= 840):
+                raise ValueError("tz_offset_minutes must be between -720 and 840")
+        return v
 
 
 class StartSessionResponse(BaseModel):
@@ -130,6 +167,8 @@ class SessionResult(BaseModel):
     overall_score: float
     ai_feedback: List[FeedbackItem]
     created_at: datetime
+    local_date: Optional[str] = None
+    tz_offset_minutes: Optional[int] = None
     is_analyzed: bool
     analysis_failed: bool = False
     failure_reason: Optional[str] = None
@@ -146,6 +185,8 @@ class SessionSummary(BaseModel):
     overall_score: float
     confidence_score: float
     created_at: datetime
+    local_date: Optional[str] = None
+    tz_offset_minutes: Optional[int] = None
     is_analyzed: bool
     analysis_failed: bool = False
     failure_reason: Optional[str] = None
@@ -162,11 +203,20 @@ class StatsSummary(BaseModel):
     avg_confidence: float
     streak_days: int
     filler_reduction_pct: float     # positive = improvement, negative = got worse
+    avg_score: Optional[float] = None
+    avg_wpm: Optional[float] = None
+    avg_clarity: Optional[float] = None
+    total_duration: Optional[float] = None
 
 
 class TrendPoint(BaseModel):
     date: str                       # "Mon" / "W1" depending on range
     confidence: float
+
+
+class StreakResponse(BaseModel):
+    streak: int
+    last_day: Optional[str] = None
 
 
 class SkillBreakdown(BaseModel):

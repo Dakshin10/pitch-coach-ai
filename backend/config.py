@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = ""
     ADMIN_USER_IDS: str = ""
 
+    # Cloudflare D1 (SQL storage for metrics and aggregates)
+    CF_ACCOUNT_ID: str = ""
+    CF_D1_DATABASE_ID: str = ""
+    CF_API_TOKEN: str = ""
+
     @property
     def allowed_origins_list(self) -> List[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]

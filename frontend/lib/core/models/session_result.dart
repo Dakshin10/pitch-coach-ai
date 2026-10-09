@@ -46,6 +46,8 @@ class SessionResult {
   final double overallScore;
   final List<FeedbackItem> aiFeedback;
   final DateTime createdAt;
+  final String? localDate;
+  final int? tzOffsetMinutes;
   final bool isAnalyzed;
   /// True when the server-side AI analysis failed (scores are placeholders).
   final bool analysisFailed;
@@ -71,6 +73,8 @@ class SessionResult {
     required this.overallScore,
     required this.aiFeedback,
     required this.createdAt,
+    this.localDate,
+    this.tzOffsetMinutes,
     required this.isAnalyzed,
     this.analysisFailed = false,
     this.failureReason,
@@ -100,6 +104,8 @@ class SessionResult {
             .map((e) => FeedbackItem.fromJson(e as Map<String, dynamic>))
             .toList(),
         createdAt: DateTime.parse(j['created_at'] as String),
+        localDate: j['local_date'] as String?,
+        tzOffsetMinutes: (j['tz_offset_minutes'] as num?)?.toInt(),
         isAnalyzed: j['is_analyzed'] as bool? ?? false,
         analysisFailed: j['analysis_failed'] as bool? ?? false,
         failureReason: j['failure_reason'] as String?,
@@ -174,6 +180,8 @@ class SessionSummary {
   final double overallScore;
   final double confidenceScore;
   final DateTime createdAt;
+  final String? localDate;
+  final int? tzOffsetMinutes;
   final bool isAnalyzed;
   final bool analysisFailed;
   final String? failureReason;
@@ -186,6 +194,8 @@ class SessionSummary {
     required this.overallScore,
     required this.confidenceScore,
     required this.createdAt,
+    this.localDate,
+    this.tzOffsetMinutes,
     required this.isAnalyzed,
     this.analysisFailed = false,
     this.failureReason,
@@ -199,6 +209,8 @@ class SessionSummary {
         overallScore: (j['overall_score'] as num?)?.toDouble() ?? 0,
         confidenceScore: (j['confidence_score'] as num?)?.toDouble() ?? 0,
         createdAt: DateTime.parse(j['created_at'] as String),
+        localDate: j['local_date'] as String?,
+        tzOffsetMinutes: (j['tz_offset_minutes'] as num?)?.toInt(),
         isAnalyzed: j['is_analyzed'] as bool? ?? false,
         analysisFailed: j['analysis_failed'] as bool? ?? false,
         failureReason: j['failure_reason'] as String?,

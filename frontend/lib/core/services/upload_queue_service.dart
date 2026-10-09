@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 import '../models/session_result.dart';
 import '../services/api_client.dart';
 import '../utils/local_file.dart';
@@ -175,11 +176,19 @@ class UploadQueueService {
 
     // If no backend session was created initially, create one now
     if (targetSessionId.isEmpty) {
+      final generatedId = const Uuid().v4();
+      final now = DateTime.now();
+      final localDate =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final tzOffsetMinutes = now.timeZoneOffset.inMinutes;
       final startData = await api.post('/sessions/start', data: {
+        'session_id': generatedId,
         'mode': item.mode,
         'topic_or_question': item.topicOrQuestion,
+        'local_date': localDate,
+        'tz_offset_minutes': tzOffsetMinutes,
       }) as Map<String, dynamic>;
-      targetSessionId = startData['session_id'] as String;
+      targetSessionId = (startData['session_id'] as String?) ?? generatedId;
     }
 
     final audioPart = await MultipartFile.fromFile(
