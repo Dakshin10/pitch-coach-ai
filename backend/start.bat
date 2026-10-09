@@ -3,7 +3,7 @@ REM ── Pitch Coach Backend Startup Script ───────────�
 REM Run this from the backend\ directory after activating your Python venv.
 REM
 REM First-time setup:
-REM   python -m venv venv
+REM   py -3.12 -m venv venv
 REM   venv\Scripts\activate
 REM   pip install -r requirements.txt
 REM   copy .env.example .env

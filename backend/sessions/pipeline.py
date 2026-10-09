@@ -466,7 +466,7 @@ Example:
             model=llm_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=700,
+            max_tokens=1500,
             response_format={"type": "json_object"},
         )
         raw = resp.choices[0].message.content or "{}"
