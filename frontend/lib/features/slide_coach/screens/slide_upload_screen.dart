@@ -179,7 +179,7 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
                     Text(
                       _pickedFileSize != null
                           ? '${(_pickedFileSize! / (1024 * 1024)).toStringAsFixed(1)} MB • Ready'
-                          : 'Max 25 MB • 1 to 30 slides',
+                          : 'Max 25 MB • 1 to 20 slides',
                       style: AppTextStyles.caption.copyWith(color: AppColors.textSecondaryOf(context)),
                     ),
                   ],

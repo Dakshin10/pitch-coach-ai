@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/slide_coach_models.dart';
 import '../repositories/slide_coach_repository.dart';
+import '../services/notification_service.dart';
 
 class SlideCoachProvider extends ChangeNotifier {
   final _repo = SlideCoachRepository.instance;
+  static const String _storageActiveDeckKey = 'active_processing_deck_id';
+  final _storage = const FlutterSecureStorage();
 
   // ── Upload State ──
   bool _isUploading = false;
@@ -22,10 +26,21 @@ class SlideCoachProvider extends ChangeNotifier {
   String? _pollError;
   Timer? _pollTimer;
 
+  // Completed announcement modal trigger
+  SlideDeckModel? _completedDeckToAnnounce;
+  SlideDeckModel? get completedDeckToAnnounce => _completedDeckToAnnounce;
+
   String? get activeDeckId => _activeDeckId;
   SlideDeckStatusModel? get status => _status;
   bool get isPolling => _isPolling;
   String? get pollError => _pollError;
+  bool get hasActiveBackgroundProcessing =>
+      _isPolling || (_status != null && _status!.isProcessing);
+
+  void dismissCompletedAnnouncement() {
+    _completedDeckToAnnounce = null;
+    notifyListeners();
+  }
 
   // ── Active Deck Review State ──
   SlideDeckModel? _deck;
@@ -81,6 +96,48 @@ class SlideCoachProvider extends ChangeNotifier {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Restore State on App Launch or Return
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> restoreActiveDeckIfProcessing() async {
+    try {
+      final storedId = await _storage.read(key: _storageActiveDeckKey);
+      if (storedId == null || storedId.trim().isEmpty) return;
+      if (_isPolling && _activeDeckId == storedId) return;
+
+      _activeDeckId = storedId;
+      final st = await _repo.getStatus(storedId);
+      _status = st;
+
+      if (st.status == 'done') {
+        await _storage.delete(key: _storageActiveDeckKey);
+        await loadDeck(storedId);
+        if (_deck != null) {
+          _completedDeckToAnnounce = _deck;
+          try {
+            await NotificationService.instance.showInstantNotification(
+              'Slide Deck Ready! 📊',
+              'Your presentation "${_deck!.fileName}" has been analyzed and is ready for rehearsal.',
+            );
+          } catch (e) {
+            debugPrint('Failed to send instant notification: $e');
+          }
+        }
+        notifyListeners();
+      } else if (st.status == 'failed') {
+        await _storage.delete(key: _storageActiveDeckKey);
+        _pollError = st.error ?? 'Analysis failed';
+        notifyListeners();
+      } else {
+        // Still in progress (rendering / reading_slides / writing_coaching)
+        startPolling(storedId);
+      }
+    } catch (e) {
+      debugPrint('Error restoring active deck: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Upload & Polling Actions
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -114,6 +171,7 @@ class SlideCoachProvider extends ChangeNotifier {
       final deckId = res['deck_id'] as String;
       _activeDeckId = deckId;
       _isUploading = false;
+      await _storage.write(key: _storageActiveDeckKey, value: deckId);
       notifyListeners();
 
       // Start status polling
@@ -132,6 +190,7 @@ class SlideCoachProvider extends ChangeNotifier {
     _pollTimer?.cancel();
     _isPolling = true;
     _pollError = null;
+    _storage.write(key: _storageActiveDeckKey, value: deckId);
     notifyListeners();
 
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
@@ -143,10 +202,24 @@ class SlideCoachProvider extends ChangeNotifier {
         if (st.status == 'done') {
           timer.cancel();
           _isPolling = false;
+          await _storage.delete(key: _storageActiveDeckKey);
           await loadDeck(deckId);
+          if (_deck != null) {
+            _completedDeckToAnnounce = _deck;
+            try {
+              await NotificationService.instance.showInstantNotification(
+                'Slide Deck Ready! 📊',
+                'Your presentation "${_deck!.fileName}" has been analyzed and is ready for rehearsal.',
+              );
+            } catch (e) {
+              debugPrint('Failed to send notification: $e');
+            }
+          }
+          notifyListeners();
         } else if (st.status == 'failed') {
           timer.cancel();
           _isPolling = false;
+          await _storage.delete(key: _storageActiveDeckKey);
           _pollError = st.error ?? 'Analysis failed';
           notifyListeners();
         }

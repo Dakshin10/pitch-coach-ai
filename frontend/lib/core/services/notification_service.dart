@@ -146,8 +146,8 @@ class NotificationService {
     await _plugin.cancel(_dailyReminderId);
   }
 
-  /// Show a one-shot instant notification (e.g., confirmation after setup).
-  Future<void> showInstantNotification(String title, String body) async {
+  /// Show a one-shot instant notification (e.g., slide processing completion or setup).
+  Future<void> showInstantNotification(String title, String body, {int? id}) async {
     if (kIsWeb) return;
     await initialize();
 
@@ -155,16 +155,21 @@ class NotificationService {
       _channelId,
       _channelName,
       channelDescription: _channelDesc,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      importance: Importance.high,
+      priority: Priority.high,
       icon: '@mipmap/ic_launcher',
     );
-    const darwinDetails = DarwinNotificationDetails();
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
     const details = NotificationDetails(
       android: androidDetails,
       iOS: darwinDetails,
     );
 
-    await _plugin.show(0, title, body, details);
+    final notificationId = id ?? (DateTime.now().millisecondsSinceEpoch % 100000);
+    await _plugin.show(notificationId, title, body, details);
   }
 }

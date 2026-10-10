@@ -169,14 +169,25 @@ class DeckStore:
         try:
             db = get_db()
             if db is not None:
-                docs = (
-                    db.collection(SLIDE_DECKS_COL)
-                    .where("user_id", "==", user_id)
-                    .where("content_hash", "==", content_hash)
-                    .where("status", "==", "done")
-                    .limit(1)
-                    .stream()
-                )
+                try:
+                    from google.cloud.firestore_v1.base_query import FieldFilter
+                    docs = (
+                        db.collection(SLIDE_DECKS_COL)
+                        .where(filter=FieldFilter("user_id", "==", user_id))
+                        .where(filter=FieldFilter("content_hash", "==", content_hash))
+                        .where(filter=FieldFilter("status", "==", "done"))
+                        .limit(1)
+                        .stream()
+                    )
+                except Exception:
+                    docs = (
+                        db.collection(SLIDE_DECKS_COL)
+                        .where("user_id", "==", user_id)
+                        .where("content_hash", "==", content_hash)
+                        .where("status", "==", "done")
+                        .limit(1)
+                        .stream()
+                    )
                 for doc in docs:
                     deck = SlideDeck.from_dict(doc.to_dict())
                     self._update_cache(deck)

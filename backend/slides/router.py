@@ -99,10 +99,15 @@ def _run_deck_pipeline(
         deck.progress = 45
         deck_store.save(deck)
 
+        def on_vision_progress(completed: int, total: int):
+            deck.progress = min(70, 45 + int((completed / total) * 25))
+            deck_store.save(deck)
+
         descriptions = extract_all_slides_vision(
             image_paths=image_paths,
             client=client,
             model=settings.GROQ_VISION_MODEL,
+            on_progress=on_vision_progress,
         )
         deck.progress = 70
         deck_store.save(deck)
@@ -210,8 +215,8 @@ async def upload_deck(
 
     if page_count < 1:
         raise HTTPException(status_code=400, detail="The PDF document is empty (0 pages).")
-    if page_count > 60:
-        raise HTTPException(status_code=400, detail=f"PDF exceeds maximum allowed pages (found {page_count}, limit is 60).")
+    if page_count > 20:
+        raise HTTPException(status_code=400, detail=f"PDF exceeds maximum allowed pages (found {page_count}, limit is 20).")
 
     # 5. Check SHA-256 cache
     content_hash = hashlib.sha256(

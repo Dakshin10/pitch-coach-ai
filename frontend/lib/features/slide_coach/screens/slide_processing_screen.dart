@@ -64,7 +64,11 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
         title: const Text('AI Analysis in Progress'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          tooltip: 'Minimize & Run in Background',
+          onPressed: () => context.go('/home'),
+        ),
       ),
       body: Center(
         child: Padding(
@@ -161,6 +165,19 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
                   title: 'Speech Coaching & Timing',
                   isDone: progress >= 1.0,
                   isActive: stage == 'writing_coaching',
+                ),
+
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: () => context.go('/home'),
+                  icon: const Icon(Icons.downloading_rounded, size: 18),
+                  label: const Text('Minimize & Run in Background'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primaryPurple,
+                    side: BorderSide(color: AppColors.primaryPurple.withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
                 ),
               ],
             ],

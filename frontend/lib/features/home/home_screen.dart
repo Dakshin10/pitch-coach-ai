@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/session_result.dart';
+import '../../core/models/slide_coach_models.dart';
+import '../../core/providers/slide_coach_provider.dart';
 import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/repositories/session_repository.dart';
@@ -107,6 +109,16 @@ class _HomeScreenState extends State<HomeScreen>
     // Select only the fields we actually use so that unrelated state changes
     // (e.g. dark mode toggle in ThemeToggleButton) do not rebuild this Scaffold.
     final user = context.select<UserProvider, UserProfile>((p) => p.user);
+    final slideCoach = context.watch<SlideCoachProvider>();
+
+    if (slideCoach.completedDeckToAnnounce != null) {
+      final deck = slideCoach.completedDeckToAnnounce!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        slideCoach.dismissCompletedAnnouncement();
+        _showDeckReadyPopup(context, deck);
+      });
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -123,6 +135,11 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 // 1. Top Header Row (Dynamic User Greeting)
                 _buildHeaderRow(context, user),
+
+                if (slideCoach.hasActiveBackgroundProcessing) ...[
+                  const SizedBox(height: 16),
+                  _buildSlideProcessingBanner(context, slideCoach),
+                ],
 
                 const SizedBox(height: 24),
 
@@ -772,6 +789,274 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSlideProcessingBanner(BuildContext context, SlideCoachProvider provider) {
+    final st = provider.status;
+    final progress = (st?.progress ?? 15) / 100.0;
+    final stage = st?.stageLabel ?? 'Analyzing slide deck visuals & script...';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardOf(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryPurple.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryPurple.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () => context.push('/slide-coach/processing'),
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: AppColors.primaryPurple,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Slide Deck Processing in Background',
+                            style: AppTextStyles.bodyBold.copyWith(
+                              color: AppColors.textPrimaryOf(context),
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            '${(progress * 100).toInt()}%',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.primaryPurple,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        stage,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondaryOf(context),
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: AppColors.primaryPurple,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                color: AppColors.primaryPurple,
+                backgroundColor: AppColors.borderOf(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeckReadyPopup(BuildContext context, SlideDeckModel deck) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        backgroundColor: AppColors.cardOf(dialogCtx),
+        child: Padding(
+          padding: const EdgeInsets.all(22.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Slide Deck Ready! 📊',
+                style: AppTextStyles.headingMOf(dialogCtx),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                deck.fileName,
+                style: AppTextStyles.bodyBold.copyWith(
+                  color: AppColors.primaryPurple,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'AI vision analysis is complete. Your slide coaching, talking points, and duration budgets are ready.',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondaryOf(dialogCtx),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.scaffoldOf(dialogCtx),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.borderOf(dialogCtx)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildPopupStatItem(
+                      dialogCtx,
+                      icon: Icons.slideshow_rounded,
+                      label: 'Slides',
+                      value: '${deck.slides.length}',
+                    ),
+                    Container(width: 1, height: 26, color: AppColors.borderOf(dialogCtx)),
+                    _buildPopupStatItem(
+                      dialogCtx,
+                      icon: Icons.timer_outlined,
+                      label: 'Target',
+                      value: '${(deck.targetTotalDurationSeconds / 60).toStringAsFixed(1)}m',
+                    ),
+                    Container(width: 1, height: 26, color: AppColors.borderOf(dialogCtx)),
+                    _buildPopupStatItem(
+                      dialogCtx,
+                      icon: Icons.people_outline_rounded,
+                      label: 'Audience',
+                      value: deck.audience,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(dialogCtx).pop(),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('Later'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(dialogCtx).pop();
+                        context.push('/slide-coach/review');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryPurple,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('Review Now'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPopupStatItem(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 20, color: AppColors.primaryPurple),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: AppTextStyles.bodyBold.copyWith(
+            color: AppColors.textPrimaryOf(context),
+            fontSize: 13,
+          ),
+        ),
+        Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textSecondaryOf(context),
+            fontSize: 10,
+          ),
+        ),
+      ],
     );
   }
 }

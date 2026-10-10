@@ -128,7 +128,8 @@ def get_metrics_changes(
 
     # Fallback to Firestore
     try:
-        query = db.collection(SESSIONS_COL).where("user_id", "==", current_user.id).order_by("created_at").limit(limit)
+        # Avoid composite index requirement by filtering user_id in Firestore and sorting in Python
+        query = db.collection(SESSIONS_COL).where("user_id", "==", current_user.id).limit(limit)
         docs = query.get()
         sessions = []
         fillers = []

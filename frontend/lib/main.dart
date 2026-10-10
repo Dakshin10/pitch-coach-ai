@@ -53,7 +53,7 @@ void main() async {
         // SessionResultsProvider is created per-results-screen via ChangeNotifierProvider.value
         // but we expose one top-level instance for convenience
         ChangeNotifierProvider(create: (_) => SessionResultsProvider()),
-        ChangeNotifierProvider(create: (_) => SlideCoachProvider()),
+        ChangeNotifierProvider(create: (_) => SlideCoachProvider()..restoreActiveDeckIfProcessing()),
       ],
       child: const PitchCoachApp(),
     ),
@@ -77,6 +77,9 @@ class _PitchCoachAppState extends State<PitchCoachApp> {
       onResume: () {
         SyncService.instance.pull();
         OutboxWorker.instance.process();
+        try {
+          context.read<SlideCoachProvider>().restoreActiveDeckIfProcessing();
+        } catch (_) {}
       },
     );
   }

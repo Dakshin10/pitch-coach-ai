@@ -126,7 +126,6 @@ class PracticeSession:
             "transcript": self.transcript,
             "wpm": self.wpm,
             "filler_word_count": self.filler_word_count,
-            "filler_word_breakdown": self.filler_word_breakdown,
             "pause_count": self.pause_count,
             "avg_pause_length": self.avg_pause_length,
             "clarity_score": self.clarity_score,

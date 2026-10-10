@@ -7,7 +7,8 @@ import math
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+import concurrent.futures
 
 import pymupdf  # PyMuPDF
 from groq import Groq
@@ -59,9 +60,9 @@ def validate_and_render_pdf(
     if page_count < 1:
         doc.close()
         raise ValueError("The PDF document is empty (0 pages).")
-    if page_count > 60:
+    if page_count > 20:
         doc.close()
-        raise ValueError(f"Deck exceeds maximum page limit (found {page_count} pages, limit is 60).")
+        raise ValueError(f"Deck exceeds maximum page limit (found {page_count} pages, limit is 20).")
 
     os.makedirs(output_dir, exist_ok=True)
     image_paths: List[str] = []
@@ -127,43 +128,39 @@ def _call_groq_with_backoff(
     raise RuntimeError(f"Groq API failed after {max_retries} attempts: {last_err}")
 
 
-def _extract_batch_vision(
+def _extract_single_slide_vision(
     client: Groq,
     model: str,
-    batch_slides: List[Tuple[int, str]],  # (slide_number, image_path)
-) -> List[SlideVisionDescription]:
-    """Analyzes a batch of <= 5 slides using VISION_MODEL in JSON mode."""
-    slide_numbers = [s[0] for s in batch_slides]
+    slide_num: int,
+    img_path: str,
+) -> SlideVisionDescription:
+    """
+    Analyzes a single slide image using Groq vision model with strict JSON formatting.
+    Sending 1 image per request respects Groq's 3-image ceiling and delivers deep per-slide analysis.
+    """
     system_prompt = (
-        "You are an expert presentation visual analyst. You only describe what is visible on each slide.\n"
+        "You are an expert presentation visual analyst. Describe what is visible on this slide accurately.\n"
         "Return ONLY a JSON object with this exact schema:\n"
         "{\n"
-        '  "slides": [\n'
-        "    {\n"
-        '      "slide_number": int,\n'
-        '      "title": "Slide header or headline",\n'
-        '      "main_message": "Core concept communicated by this slide",\n'
-        '      "visible_text": "Key text, bullets, labels, or numbers present",\n'
-        '      "visuals": "Describe charts, diagrams, product mockups, trend direction, and metrics",\n'
-        '      "text_density": "low" | "medium" | "high",\n'
-        '      "readability_issues": ["list any font size, contrast, or clutter issues"]\n'
-        "    }\n"
-        "  ]\n"
+        '  "slide_number": int,\n'
+        '  "title": "Slide header or headline",\n'
+        '  "main_message": "Core concept communicated by this slide",\n'
+        '  "visible_text": "Key text, bullets, labels, or numbers present",\n'
+        '  "visuals": "Describe charts, diagrams, product mockups, trend direction, and metrics",\n'
+        '  "text_density": "low" | "medium" | "high",\n'
+        '  "readability_issues": ["list any font size, contrast, or clutter issues"]\n'
         "}\n"
-        f"You are analyzing slides {slide_numbers}. Provide an entry for each slide."
+        f"You are analyzing Slide {slide_num}."
     )
 
+    b64 = _encode_image_b64(img_path)
     user_content: List[Dict[str, Any]] = [
-        {"type": "text", "text": f"Analyze these {len(batch_slides)} slides in order and describe them strictly in JSON."}
-    ]
-
-    for slide_num, img_path in batch_slides:
-        b64 = _encode_image_b64(img_path)
-        user_content.append({"type": "text", "text": f"--- Slide {slide_num} ---"})
-        user_content.append({
+        {"type": "text", "text": f"Analyze Slide {slide_num} and describe it strictly in JSON according to the schema."},
+        {
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
-        })
+        }
+    ]
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -171,78 +168,110 @@ def _extract_batch_vision(
     ]
 
     # Attempt 1
-    raw = _call_groq_with_backoff(
-        client=client,
-        model=model,
-        messages=messages,
-        response_format={"type": "json_object"},
-    )
-
     try:
+        raw = _call_groq_with_backoff(
+            client=client,
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
         data = json.loads(raw)
-        parsed = BatchVisionResponse.model_validate(data)
-        if parsed.slides:
-            return parsed.slides
+        if "slides" in data and isinstance(data["slides"], list) and len(data["slides"]) > 0:
+            matched = next((s for s in data["slides"] if isinstance(s, dict) and s.get("slide_number") == slide_num), None)
+            if matched:
+                data = matched
+            elif 0 <= slide_num - 1 < len(data["slides"]):
+                data = data["slides"][slide_num - 1]
+            else:
+                data = data["slides"][0]
+        data["slide_number"] = slide_num
+        return SlideVisionDescription.model_validate(data)
     except Exception as exc:
-        logger.warning("Stage B batch %s initial parse failed (%s). Attempting repair prompt...", slide_numbers, exc)
+        logger.warning("Stage B slide %d initial parse failed (%s). Attempting repair prompt...", slide_num, exc)
 
     # Attempt 2: Repair prompt
-    repair_messages = messages + [
-        {"role": "assistant", "content": raw},
-        {"role": "user", "content": "Your previous response was not valid JSON conforming to the requested schema. Return valid JSON only with the key 'slides'."}
-    ]
-    raw_repair = _call_groq_with_backoff(
-        client=client,
-        model=model,
-        messages=repair_messages,
-        response_format={"type": "json_object"},
-    )
-    data_repair = json.loads(raw_repair)
-    parsed_repair = BatchVisionResponse.model_validate(data_repair)
-    return parsed_repair.slides
+    try:
+        repair_messages = messages + [
+            {"role": "user", "content": f"Return valid JSON only conforming to the schema for Slide {slide_num}."}
+        ]
+        raw_repair = _call_groq_with_backoff(
+            client=client,
+            model=model,
+            messages=repair_messages,
+            response_format={"type": "json_object"},
+        )
+        data_repair = json.loads(raw_repair)
+        if "slides" in data_repair and isinstance(data_repair["slides"], list) and len(data_repair["slides"]) > 0:
+            matched_repair = next((s for s in data_repair["slides"] if isinstance(s, dict) and s.get("slide_number") == slide_num), None)
+            if matched_repair:
+                data_repair = matched_repair
+            elif 0 <= slide_num - 1 < len(data_repair["slides"]):
+                data_repair = data_repair["slides"][slide_num - 1]
+            else:
+                data_repair = data_repair["slides"][0]
+        data_repair["slide_number"] = slide_num
+        return SlideVisionDescription.model_validate(data_repair)
+    except Exception as exc:
+        logger.error("Stage B slide %d repair failed (%s). Using fallback description.", slide_num, exc)
+        return SlideVisionDescription(
+            slide_number=slide_num,
+            title=f"Slide {slide_num}",
+            main_message="Presentation slide content",
+            visible_text="",
+            visuals="Visual slide diagram",
+            text_density="medium",
+            readability_issues=[]
+        )
 
 
 def extract_all_slides_vision(
     image_paths: List[str],
     client: Groq,
     model: str,
+    on_progress: Optional[Callable[[int, int], None]] = None,
 ) -> List[SlideVisionDescription]:
-    """Runs Stage B across all slides in batches of <= 5."""
+    """Runs Stage B across all slides in parallel using ThreadPoolExecutor for high throughput."""
     start_time = time.time()
     total_slides = len(image_paths)
     all_slides_numbered = [(i + 1, path) for i, path in enumerate(image_paths)]
 
-    # Chunk into batches of <= 5
-    batches: List[List[Tuple[int, str]]] = []
-    for i in range(0, total_slides, GROQ_MAX_VISION_BATCH):
-        batches.append(all_slides_numbered[i: i + GROQ_MAX_VISION_BATCH])
-
     descriptions: List[SlideVisionDescription] = []
+    completed_count = 0
 
-    for batch in batches:
-        batch_results = _extract_batch_vision(client, model, batch)
-        descriptions.extend(batch_results)
+    # Parallel execution with bounded concurrency (3-4 workers to balance speed and rate limits)
+    max_workers = min(4, max(1, total_slides))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_num = {
+            executor.submit(_extract_single_slide_vision, client, model, num, path): num
+            for num, path in all_slides_numbered
+        }
 
-    # Sort and verify slide numbering
+        for future in concurrent.futures.as_completed(future_to_num):
+            slide_num = future_to_num[future]
+            try:
+                desc = future.result()
+                descriptions.append(desc)
+            except Exception as exc:
+                logger.error("Slide %d extraction unhandled exception: %s", slide_num, exc)
+                descriptions.append(SlideVisionDescription(
+                    slide_number=slide_num,
+                    title=f"Slide {slide_num}",
+                    main_message="Presentation slide",
+                    visible_text="",
+                    visuals="Slide graphic",
+                    text_density="medium",
+                    readability_issues=[]
+                ))
+            completed_count += 1
+            if on_progress:
+                try:
+                    on_progress(completed_count, total_slides)
+                except Exception as p_err:
+                    logger.debug("Vision progress callback error: %s", p_err)
+
     descriptions.sort(key=lambda s: s.slide_number)
-
-    # If any slide was missed in model output, fill in a fallback entry
-    existing_nums = {s.slide_number for s in descriptions}
-    for i in range(1, total_slides + 1):
-        if i not in existing_nums:
-            descriptions.append(SlideVisionDescription(
-                slide_number=i,
-                title=f"Slide {i}",
-                main_message="Presentation slide",
-                visible_text="",
-                visuals="Slide graphic",
-                text_density="medium",
-                readability_issues=[]
-            ))
-    descriptions.sort(key=lambda s: s.slide_number)
-
     elapsed = time.time() - start_time
-    logger.info("Stage B (Vision Extraction): extracted %d slides in %.2fs", total_slides, elapsed)
+    logger.info("Stage B (Vision Extraction): extracted %d slides in %.2fs (parallel)", total_slides, elapsed)
     return descriptions
 
 

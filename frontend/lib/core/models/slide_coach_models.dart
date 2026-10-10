@@ -179,6 +179,9 @@ class SlideDeckModel {
         'created_at': createdAt,
         'updated_at': updatedAt,
       };
+
+  String get fileName => filename;
+  int get targetTotalDurationSeconds => timeLimitSeconds;
 }
 
 class SlideDeckStatusModel {
@@ -196,6 +199,8 @@ class SlideDeckStatusModel {
     this.error,
   });
 
+  bool get isProcessing => status == 'processing';
+
   factory SlideDeckStatusModel.fromJson(Map<String, dynamic> json) {
     return SlideDeckStatusModel(
       deckId: json['deck_id'] as String? ?? '',
@@ -204,6 +209,19 @@ class SlideDeckStatusModel {
       progress: (json['progress'] as num?)?.toInt() ?? 0,
       error: json['error'] as String?,
     );
+  }
+
+  String get stageLabel {
+    switch (stage) {
+      case 'rendering':
+        return 'Rendering slides';
+      case 'reading_slides':
+        return 'Scanning slide visuals';
+      case 'writing_coaching':
+        return 'Synthesizing speech & timing';
+      default:
+        return 'Analyzing presentation';
+    }
   }
 }
 
