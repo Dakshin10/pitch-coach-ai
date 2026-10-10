@@ -13,6 +13,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class ResultsScreen extends StatefulWidget {
   final String? sessionId;
@@ -291,8 +292,8 @@ class _ResultsScreenState extends State<ResultsScreen>
                             height: 48,
                             child: OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textPrimaryDark,
-                                side: const BorderSide(color: AppColors.divider, width: 1.2),
+                                foregroundColor: AppColors.textPrimaryOf(context),
+                                side: BorderSide(color: AppColors.borderOf(context), width: 1.2),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -301,8 +302,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                               icon: const Icon(Icons.home_outlined, size: 20),
                               label: Text(
                                 'Back to Home',
-                                style: AppTextStyles.bodyM.copyWith(
-                                  color: AppColors.textPrimaryDark,
+                                style: AppTextStyles.bodyMOf(context).copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -404,16 +404,17 @@ class _ResultsScreenState extends State<ResultsScreen>
               }
             },
             child: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEBEBF5),
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.iconButtonBgOf(context),
                 shape: BoxShape.circle,
+                border: Border.all(color: AppColors.borderOf(context)),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.chevron_left_rounded,
                 size: 26,
-                color: AppColors.textPrimaryDark,
+                color: AppColors.textPrimaryOf(context),
               ),
             ),
           ),
@@ -421,13 +422,12 @@ class _ResultsScreenState extends State<ResultsScreen>
           // Title
           Text(
             'Session Results',
-            style: AppTextStyles.headingM.copyWith(
+            style: AppTextStyles.headingMOf(context).copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),
 
-          // Empty spacer for symmetry
-          const SizedBox(width: 36),
+          const ThemeToggleButton(size: 38, compact: true),
         ],
       ),
     );
@@ -447,12 +447,10 @@ class _ResultsScreenState extends State<ResultsScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 14, offset: Offset(0, 4)),
-        ],
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,7 +474,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Listen to Your Recording',
-                        style: AppTextStyles.headingM.copyWith(fontSize: 14)),
+                        style: AppTextStyles.headingMOf(context).copyWith(fontSize: 14)),
                     Text(
                       hasAudio ? 'Tap play to review your speech' : 'No recording available',
                       style: AppTextStyles.caption.copyWith(
@@ -606,15 +604,10 @@ class _ResultsScreenState extends State<ResultsScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 18,
-            offset: Offset(0, 5),
-          ),
-        ],
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Stack(
         children: [
@@ -641,7 +634,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                         size: 92,
                         strokeWidth: 9,
                         centerBigText: '${_scoreGaugeAnimation.value.round()}%',
-                        trackColor: const Color(0xFFEDEDF5),
+                        trackColor: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF282548)
+                            : const Color(0xFFEDEDF5),
                         gradientColors: const [
                           AppColors.primaryPurpleLight,
                           AppColors.primaryPurple,
@@ -701,7 +696,7 @@ class _ResultsScreenState extends State<ResultsScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Performance Summary', style: AppTextStyles.headingM),
+        Text('Performance Summary', style: AppTextStyles.headingMOf(context)),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -767,16 +762,10 @@ class _ResultsScreenState extends State<ResultsScreen>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider, width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: AppColors.borderOf(context), width: 1),
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,7 +787,7 @@ class _ResultsScreenState extends State<ResultsScreen>
             builder: (context, val, child) {
               return Text(
                 '${val.round()}$suffix',
-                style: AppTextStyles.headingXL.copyWith(
+                style: AppTextStyles.headingXLOf(context).copyWith(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                 ),
@@ -834,7 +823,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Session Comparison', style: AppTextStyles.headingM),
+            Text('Session Comparison', style: AppTextStyles.headingMOf(context)),
             Row(
               children: [
                 Text(
@@ -860,16 +849,10 @@ class _ResultsScreenState extends State<ResultsScreen>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.cardOf(context),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.divider, width: 1),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.cardShadow,
-                blurRadius: 14,
-                offset: Offset(0, 4),
-              ),
-            ],
+            border: Border.all(color: AppColors.borderOf(context), width: 1),
+            boxShadow: AppColors.softShadowOf(context),
           ),
           child: Column(
             children: [
@@ -893,7 +876,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                           drawVerticalLine: false,
                           horizontalInterval: 25,
                           getDrawingHorizontalLine: (value) => FlLine(
-                            color: AppColors.divider.withValues(alpha: 0.7),
+                            color: AppColors.dividerOf(context).withValues(alpha: 0.7),
                             strokeWidth: 1,
                           ),
                         ),
@@ -959,7 +942,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                                 radius: 4,
                                 color: AppColors.primaryPurple,
                                 strokeWidth: 1.5,
-                                strokeColor: Colors.white,
+                                strokeColor: AppColors.cardOf(context),
                               ),
                             ),
                             spots: List.generate(youData.length, (i) {
@@ -982,7 +965,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                                 radius: 3,
                                 color: AppColors.textSecondary.withValues(alpha: 0.6),
                                 strokeWidth: 1,
-                                strokeColor: Colors.white,
+                                strokeColor: AppColors.cardOf(context),
                               ),
                             ),
                             spots: List.generate(lastWeekData.length, (i) {
@@ -1044,20 +1027,14 @@ class _ResultsScreenState extends State<ResultsScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Suggestions', style: AppTextStyles.headingM),
+        Text('Suggestions', style: AppTextStyles.headingMOf(context)),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.cardOf(context),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.divider, width: 1),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.cardShadow,
-                blurRadius: 12,
-                offset: Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: AppColors.borderOf(context), width: 1),
+            boxShadow: AppColors.softShadowOf(context),
           ),
           child: Column(
             children: hasRealFeedback
@@ -1146,8 +1123,7 @@ class _ResultsScreenState extends State<ResultsScreen>
           Expanded(
             child: Text(
               text,
-              style: AppTextStyles.bodyM.copyWith(
-                color: AppColors.textPrimaryDark,
+              style: AppTextStyles.bodyMOf(context).copyWith(
                 fontWeight: FontWeight.w500,
                 fontSize: 13.5,
               ),

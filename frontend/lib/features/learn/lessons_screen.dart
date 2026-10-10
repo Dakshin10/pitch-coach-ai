@@ -4,6 +4,7 @@ import '../../core/models/lesson_model.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class LessonsScreen extends StatefulWidget {
   const LessonsScreen({super.key});
@@ -26,7 +27,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,23 +40,27 @@ class _LessonsScreenState extends State<LessonsScreen> {
                 children: [
                   Text(
                     'Learn',
-                    style: AppTextStyles.headingXL.copyWith(
-                      color: AppColors.textPrimaryDark,
-                    ),
+                    style: AppTextStyles.headingXLOf(context),
                   ),
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.divider),
-                    ),
-                    child: const Icon(
-                      Icons.school_rounded,
-                      size: 20,
-                      color: AppColors.primaryPurple,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppColors.cardOf(context),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.borderOf(context)),
+                        ),
+                        child: const Icon(
+                          Icons.school_rounded,
+                          size: 20,
+                          color: AppColors.primaryPurple,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const ThemeToggleButton(size: 38, compact: true),
+                    ],
                   ),
                 ],
               ),
@@ -67,7 +72,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 'Improve your communication skills',
-                style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyMOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
               ),
             ),
 
@@ -86,15 +91,15 @@ class _LessonsScreenState extends State<LessonsScreen> {
                       label: Text(cat),
                       selected: isSelected,
                       selectedColor: AppColors.primaryPurple,
-                      backgroundColor: Colors.white,
-                      labelStyle: AppTextStyles.caption.copyWith(
-                        color: isSelected ? Colors.white : AppColors.textPrimaryDark,
+                      backgroundColor: AppColors.cardOf(context),
+                      labelStyle: AppTextStyles.captionOf(context).copyWith(
+                        color: isSelected ? Colors.white : AppColors.textPrimaryOf(context),
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                          color: isSelected ? AppColors.primaryPurple : AppColors.divider,
+                          color: isSelected ? AppColors.primaryPurple : AppColors.borderOf(context),
                         ),
                       ),
                       onSelected: (selected) {
@@ -175,12 +180,10 @@ class _LessonCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.cardOf(context),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider),
-          boxShadow: const [
-            BoxShadow(color: AppColors.cardShadow, blurRadius: 10, offset: Offset(0, 3)),
-          ],
+          border: Border.all(color: AppColors.borderOf(context)),
+          boxShadow: AppColors.softShadowOf(context),
         ),
         child: Row(
           children: [
@@ -203,7 +206,7 @@ class _LessonCard extends StatelessWidget {
                 children: [
                   Text(
                     lesson.title,
-                    style: AppTextStyles.headingM.copyWith(
+                    style: AppTextStyles.headingMOf(context).copyWith(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),

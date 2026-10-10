@@ -5,6 +5,7 @@ import '../../core/models/lesson_model.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/gradient_button.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class LessonDetailScreen extends StatefulWidget {
   final Lesson lesson;
@@ -100,7 +101,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -113,21 +114,22 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                   GestureDetector(
                     onTap: () => context.pop(),
                     child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEBEBF5),
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.iconButtonBgOf(context),
                         shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.borderOf(context)),
                       ),
-                      child: const Icon(Icons.chevron_left_rounded,
-                          size: 26, color: AppColors.textPrimaryDark),
+                      child: Icon(Icons.chevron_left_rounded,
+                          size: 26, color: AppColors.textPrimaryOf(context)),
                     ),
                   ),
                   Text(
                     'Lesson',
-                    style: AppTextStyles.headingM.copyWith(fontWeight: FontWeight.w700),
+                    style: AppTextStyles.headingMOf(context).copyWith(fontWeight: FontWeight.w700),
                   ),
-                  const SizedBox(width: 36),
+                  const ThemeToggleButton(size: 38, compact: true),
                 ],
               ),
             ),
@@ -148,7 +150,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                     // ── Lesson Title ─────────────────────────────────────
                     Text(
                       widget.lesson.title,
-                      style: AppTextStyles.headingXL.copyWith(fontSize: 22),
+                      style: AppTextStyles.headingXLOf(context).copyWith(fontSize: 22),
                     ),
 
                     const SizedBox(height: 4),
@@ -201,16 +203,10 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.cardOf(context),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.divider),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: AppColors.cardShadow,
-                            blurRadius: 10,
-                            offset: Offset(0, 3),
-                          ),
-                        ],
+                        border: Border.all(color: AppColors.borderOf(context)),
+                        boxShadow: AppColors.softShadowOf(context),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,7 +218,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 'Key Takeaways',
-                                style: AppTextStyles.headingM.copyWith(fontSize: 15),
+                                style: AppTextStyles.headingMOf(context).copyWith(fontSize: 15),
                               ),
                             ],
                           ),
@@ -238,8 +234,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                                 Expanded(
                                   child: Text(
                                     t,
-                                    style: AppTextStyles.bodyM.copyWith(
-                                      color: AppColors.textPrimaryDark,
+                                    style: AppTextStyles.bodyMOf(context).copyWith(
                                       fontWeight: FontWeight.w500,
                                       fontSize: 13.5,
                                     ),

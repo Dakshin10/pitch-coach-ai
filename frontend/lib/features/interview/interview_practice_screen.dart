@@ -6,6 +6,8 @@ import '../../core/providers/user_provider.dart';
 import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/app_atmosphere.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 export 'controllers/interview_session_controller.dart';
 import 'controllers/interview_session_controller.dart';
 
@@ -84,15 +86,18 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     final shouldLeave = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardDarkElevated,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.cardOf(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppColors.borderOf(context)),
+        ),
         title: Text(
           'Discard Recording?',
-          style: AppTextStyles.headingM.copyWith(color: AppColors.textOnDark),
+          style: AppTextStyles.headingMOf(context),
         ),
         content: Text(
           'Leaving now will cancel your active recording. Are you sure you want to discard this take?',
-          style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
+          style: AppTextStyles.bodyMOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
         ),
         actions: [
           TextButton(
@@ -133,12 +138,13 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-            child: Column(
-              children: [
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: AppAtmosphere(
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              child: Column(
+                children: [
                 // 1. Top bar with Mode Title, Back button, and Timer / Target pill
                 _buildTopAppBar(context, ctrl),
 
@@ -171,6 +177,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             ),
           ),
         ),
+        ),
       ),
     );
   }
@@ -192,26 +199,33 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
+              color: AppColors.iconButtonBgOf(context),
               shape: BoxShape.circle,
+              border: Border.all(color: AppColors.borderOf(context)),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.chevron_left_rounded,
               size: 26,
-              color: AppColors.textOnDark,
+              color: AppColors.textPrimaryOf(context),
             ),
           ),
         ),
         Text(
           ctrl.currentMode.title,
-          style: AppTextStyles.headingM.copyWith(
-            color: AppColors.textOnDark,
+          style: AppTextStyles.headingMOf(context).copyWith(
             fontWeight: FontWeight.w700,
           ),
         ),
-        _TimerPill(
-          time: ctrl.isRecording ? ctrl.formattedTime : '${ctrl.currentPrompt.targetDurationSeconds}s target',
-          isActive: ctrl.isRecording,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _TimerPill(
+              time: ctrl.isRecording ? ctrl.formattedTime : '${ctrl.currentPrompt.targetDurationSeconds}s target',
+              isActive: ctrl.isRecording,
+            ),
+            const SizedBox(width: 8),
+            const ThemeToggleButton(size: 38, compact: true),
+          ],
         ),
       ],
     );
@@ -234,13 +248,13 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.primaryPurple.withValues(alpha: 0.22)
-                      : Colors.white.withValues(alpha: 0.05),
+                      ? AppColors.primaryPurple.withValues(alpha: 0.18)
+                      : AppColors.cardOf(context),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected
-                        ? AppColors.primaryPurpleLight
-                        : Colors.white.withValues(alpha: 0.08),
+                        ? AppColors.primaryPurple
+                        : AppColors.borderOf(context),
                     width: 1.2,
                   ),
                 ),
@@ -250,13 +264,13 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                     Icon(
                       mode.icon,
                       size: 16,
-                      color: isSelected ? AppColors.primaryPurpleLight : AppColors.textSecondary,
+                      color: isSelected ? AppColors.primaryPurple : AppColors.textSecondaryOf(context),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       mode.title.replaceAll(' Practice', ''),
-                      style: AppTextStyles.caption.copyWith(
-                        color: isSelected ? AppColors.textOnDark : AppColors.textSecondary,
+                      style: AppTextStyles.captionOf(context).copyWith(
+                        color: isSelected ? AppColors.primaryPurple : AppColors.textSecondaryOf(context),
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
@@ -276,16 +290,10 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black38,
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,13 +305,13 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryPurple.withValues(alpha: 0.2),
+                  color: AppColors.primaryPurple.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   prompt.category,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.primaryPurpleLight,
+                  style: AppTextStyles.captionOf(context).copyWith(
+                    color: AppColors.primaryPurple,
                     fontWeight: FontWeight.w700,
                     fontSize: 11,
                   ),
@@ -311,8 +319,8 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               ),
               Text(
                 'Question ${ctrl.promptIndex + 1} of ${ctrl.totalPrompts}',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textSecondary,
+                style: AppTextStyles.captionOf(context).copyWith(
+                  color: AppColors.textSecondaryOf(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -324,8 +332,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           // Question Prompt Text
           Text(
             prompt.text,
-            style: AppTextStyles.headingM.copyWith(
-              color: AppColors.textOnDark,
+            style: AppTextStyles.headingMOf(context).copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
               height: 1.35,
@@ -337,7 +344,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
+                color: AppColors.surfaceSubtleOf(context),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -423,9 +430,10 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Column(
         children: [
@@ -437,36 +445,36 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             ),
             child: const Icon(
               Icons.mic_none_rounded,
-              color: AppColors.primaryPurpleLight,
+              color: AppColors.primaryPurple,
               size: 38,
             ),
           ),
           const SizedBox(height: 14),
           Text(
             'Ready to Rehearse',
-            style: AppTextStyles.headingM.copyWith(color: AppColors.textOnDark),
+            style: AppTextStyles.headingMOf(context),
           ),
           const SizedBox(height: 8),
           Text(
             'Take a breath, organize your key points, and tap the record button below when ready.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary, height: 1.35),
+            style: AppTextStyles.bodyMOf(context).copyWith(color: AppColors.textSecondaryOf(context), height: 1.35),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: AppColors.surfaceSubtleOf(context),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer_outlined, size: 16, color: AppColors.primaryPurpleLight),
+                const Icon(Icons.timer_outlined, size: 16, color: AppColors.primaryPurple),
                 const SizedBox(width: 8),
                 Text(
                   'Recommended: ${ctrl.currentPrompt.targetDurationSeconds}s • Min: 5s • Max: 5m',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.captionOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ],
             ),
@@ -481,20 +489,14 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: ctrl.durationWarning != null
               ? AppColors.warningAmber.withValues(alpha: 0.4)
-              : AppColors.primaryPurple.withValues(alpha: 0.2),
+              : AppColors.primaryPurple.withValues(alpha: 0.3),
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black38,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Column(
         children: [
@@ -530,8 +532,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           // Elapsed timer display
           Text(
             ctrl.formattedTime,
-            style: AppTextStyles.headingXL.copyWith(
-              color: AppColors.textOnDark,
+            style: AppTextStyles.headingXLOf(context).copyWith(
               fontSize: 42,
               fontWeight: FontWeight.w800,
               fontFeatures: [const FontFeature.tabularFigures()],
@@ -586,9 +587,10 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: AppColors.softShadowOf(context),
       ),
       child: Column(
         children: [
@@ -597,19 +599,19 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             height: 44,
             child: CircularProgressIndicator(
               strokeWidth: 3.5,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurpleLight),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
             ),
           ),
           const SizedBox(height: 18),
           Text(
             'Uploading & Analyzing...',
-            style: AppTextStyles.headingM.copyWith(color: AppColors.textOnDark),
+            style: AppTextStyles.headingMOf(context),
           ),
           const SizedBox(height: 8),
           Text(
             'Transferring audio to server. Deep speech analysis will begin immediately.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.bodyMOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
           ),
         ],
       ),
@@ -860,19 +862,19 @@ class _TimerPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: isActive
-            ? AppColors.primaryPurple.withValues(alpha: 0.25)
-            : Colors.white.withValues(alpha: 0.08),
+            ? AppColors.primaryPurple.withValues(alpha: 0.18)
+            : AppColors.surfaceSubtleOf(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isActive
-              ? AppColors.primaryPurpleLight.withValues(alpha: 0.6)
-              : Colors.transparent,
+              ? AppColors.primaryPurple
+              : AppColors.borderOf(context),
         ),
       ),
       child: Text(
         time,
-        style: AppTextStyles.bodySmallBold.copyWith(
-          color: isActive ? AppColors.primaryPurpleLight : AppColors.textSecondary,
+        style: AppTextStyles.bodySmallBoldOf(context).copyWith(
+          color: isActive ? AppColors.primaryPurple : AppColors.textSecondaryOf(context),
           fontWeight: FontWeight.w700,
           fontFeatures: [const FontFeature.tabularFigures()],
         ),

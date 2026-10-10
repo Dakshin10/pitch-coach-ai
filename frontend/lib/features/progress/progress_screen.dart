@@ -6,6 +6,7 @@ import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -69,25 +70,37 @@ class _ProgressScreenState extends State<ProgressScreen>
                   children: [
                     Text(
                       'Progress',
-                      style: AppTextStyles.headingXL.copyWith(
-                        color: AppColors.textPrimaryOf(context),
-                      ),
+                      style: AppTextStyles.headingXLOf(context),
                     ),
                     Row(
                       children: [
-                        Text(
-                          'This Month',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardOf(context),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.borderOf(context)),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                'This Month',
+                                style: AppTextStyles.captionOf(context).copyWith(
+                                  color: AppColors.textSecondaryOf(context),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 18,
-                          color: AppColors.textSecondary,
-                        ),
+                        const SizedBox(width: 10),
+                        const ThemeToggleButton(size: 38, compact: true),
                       ],
                     ),
                   ],
@@ -283,11 +296,13 @@ class _ProgressScreenState extends State<ProgressScreen>
             children: [
               Text(
                 'Confidence Over Time',
-                style: AppTextStyles.headingM.copyWith(fontWeight: FontWeight.w700),
+                style: AppTextStyles.headingMOf(context).copyWith(fontWeight: FontWeight.w700),
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEBEBF5),
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF282548)
+                      : const Color(0xFFEBEBF5),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -393,7 +408,7 @@ class _ProgressScreenState extends State<ProgressScreen>
                                   radius: 4,
                                   color: AppColors.primaryPurple,
                                   strokeWidth: 2,
-                                  strokeColor: Colors.white,
+                                  strokeColor: AppColors.cardOf(context),
                                 ),
                               ),
                               spots: spots,
@@ -461,7 +476,7 @@ class _ProgressScreenState extends State<ProgressScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Skill Breakdown',
-              style: AppTextStyles.headingM.copyWith(fontWeight: FontWeight.w700)),
+              style: AppTextStyles.headingMOf(context).copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           if (isLoading)
             const Center(
@@ -500,7 +515,9 @@ class _ProgressScreenState extends State<ProgressScreen>
                       child: LinearProgressIndicator(
                         value: score.clamp(0.0, 1.0),
                         minHeight: 8,
-                        backgroundColor: const Color(0xFFEFEFF5),
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF282548)
+                            : const Color(0xFFEFEFF5),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                       ),
                     ),
@@ -517,7 +534,7 @@ class _ProgressScreenState extends State<ProgressScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Achievements', style: AppTextStyles.headingM),
+        Text('Achievements', style: AppTextStyles.headingMOf(context)),
         const SizedBox(height: 12),
         if (isLoading)
           const Center(
@@ -564,15 +581,17 @@ class _ProgressScreenState extends State<ProgressScreen>
                             shape: BoxShape.circle,
                             gradient: badge.isUnlocked
                                 ? AppColors.primaryGradient
-                                : const LinearGradient(
-                                    colors: [Color(0xFFE0E0E8), Color(0xFFD0D0D8)]),
+                                : LinearGradient(
+                                    colors: Theme.of(context).brightness == Brightness.dark
+                                        ? const [Color(0xFF2C2845), Color(0xFF232038)]
+                                        : const [Color(0xFFE0E0E8), Color(0xFFD0D0D8)]),
                           ),
                           child: Center(
                             child: Text(
                               badge.icon,
                               style: TextStyle(
                                 fontSize: 22,
-                                color: badge.isUnlocked ? Colors.white : Colors.grey,
+                                color: badge.isUnlocked ? Colors.white : AppColors.textSecondaryOf(context),
                               ),
                             ),
                           ),
@@ -618,15 +637,19 @@ class _ProgressScreenState extends State<ProgressScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.cardOf(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppColors.borderOf(context)),
+        ),
         title: Row(
           children: [
             Text(badge.icon, style: const TextStyle(fontSize: 28)),
             const SizedBox(width: 10),
-            Expanded(child: Text(badge.title, style: AppTextStyles.headingM)),
+            Expanded(child: Text(badge.title, style: AppTextStyles.headingMOf(context))),
           ],
         ),
-        content: Text(unlockedText, style: AppTextStyles.bodyM),
+        content: Text(unlockedText, style: AppTextStyles.bodyMOf(context)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

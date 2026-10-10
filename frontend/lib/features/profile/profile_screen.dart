@@ -487,13 +487,17 @@ class _ProfileScreenState extends State<ProfileScreen>
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out of Pitch Coach?'),
+        backgroundColor: AppColors.cardOf(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppColors.borderOf(context)),
+        ),
+        title: Text('Log Out', style: AppTextStyles.headingMOf(context)),
+        content: Text('Are you sure you want to log out of Pitch Coach?', style: AppTextStyles.bodyMOf(context)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryOf(context))),
           ),
           ElevatedButton(
             onPressed: () {
@@ -519,9 +523,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (_reminderTime != null) {
       final action = await showModalBottomSheet<String>(
         context: context,
-        backgroundColor: Colors.white,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        backgroundColor: AppColors.cardOf(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          side: BorderSide(color: AppColors.borderOf(context)),
         ),
         builder: (ctx) => SafeArea(
           child: Padding(
@@ -532,17 +537,17 @@ class _ProfileScreenState extends State<ProfileScreen>
               children: [
                 Text(
                   'Daily Practice Reminder',
-                  style: AppTextStyles.headingM.copyWith(fontWeight: FontWeight.w700),
+                  style: AppTextStyles.headingMOf(context).copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Currently set for ${_reminderTime!.format(context)} daily.',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.captionOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
                   leading: const Icon(Icons.access_time_rounded, color: AppColors.primaryPurple),
-                  title: const Text('Change Reminder Time'),
+                  title: Text('Change Reminder Time', style: AppTextStyles.bodyMOf(context)),
                   onTap: () => Navigator.pop(ctx, 'change'),
                 ),
                 ListTile(
@@ -584,13 +589,22 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       initialTime: _reminderTime ?? const TimeOfDay(hour: 9, minute: 0),
       builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryPurple,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textPrimaryDark,
-            ),
+            colorScheme: isDark
+                ? const ColorScheme.dark(
+                    primary: AppColors.primaryPurple,
+                    onPrimary: Colors.white,
+                    surface: AppColors.cardDark,
+                    onSurface: AppColors.textOnDark,
+                  )
+                : const ColorScheme.light(
+                    primary: AppColors.primaryPurple,
+                    onPrimary: Colors.white,
+                    surface: Colors.white,
+                    onSurface: AppColors.textPrimaryDark,
+                  ),
           ),
           child: child!,
         );

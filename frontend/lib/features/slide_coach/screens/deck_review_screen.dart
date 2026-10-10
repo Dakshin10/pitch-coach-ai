@@ -6,6 +6,7 @@ import '../../../core/providers/slide_coach_provider.dart';
 import '../../../core/repositories/slide_coach_repository.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 
 class DeckReviewScreen extends StatefulWidget {
   const DeckReviewScreen({super.key});
@@ -71,6 +72,10 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
             tooltip: 'Q&A Prep',
             onPressed: () => context.push('/slide-coach/qa'),
           ),
+          const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: ThemeToggleButton(size: 38, compact: true),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -91,7 +96,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
                 children: [
                   Text(
                     'Slides (${provider.currentSlideIndex + 1}/${deck.slides.length})',
-                    style: AppTextStyles.sectionHeader,
+                    style: AppTextStyles.sectionHeaderOf(context),
                   ),
                   Text(
                     'Total limit: ${deck.timeLimitSeconds}s',
@@ -217,11 +222,11 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
               const Spacer(),
               const Icon(Icons.auto_stories, color: AppColors.primaryPurple, size: 20),
               const SizedBox(width: 6),
-              Text('Story Arc', style: AppTextStyles.bodyBold),
+              Text('Story Arc', style: AppTextStyles.bodyBoldOf(context)),
             ],
           ),
           const SizedBox(height: 10),
-          Text(summary.storyArc, style: AppTextStyles.bodyText),
+          Text(summary.storyArc, style: AppTextStyles.bodyTextOf(context)),
           if (summary.missingSections.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text('Missing Pitch Elements:', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
@@ -357,7 +362,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Slide ${slide.slideNumber}', style: AppTextStyles.caption.copyWith(color: AppColors.primaryPurple)),
-                Text(slide.slideTitle, style: AppTextStyles.bodyBold),
+                Text(slide.slideTitle, style: AppTextStyles.bodyBoldOf(context)),
               ],
             ),
           ),
@@ -402,7 +407,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
               children: [
                 Text('Key Audience Takeaway', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text(slide.keyTakeaway, style: AppTextStyles.bodyText),
+                Text(slide.keyTakeaway, style: AppTextStyles.bodyTextOf(context)),
               ],
             ),
           ),
@@ -429,7 +434,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Talking Points (Say These)', style: AppTextStyles.bodyBold),
+              Text('Talking Points (Say These)', style: AppTextStyles.bodyBoldOf(context)),
               Text('Auto-saved', style: AppTextStyles.caption.copyWith(color: AppColors.successGreen)),
             ],
           ),
@@ -496,7 +501,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
         side: BorderSide(color: AppColors.borderOf(context)),
       ),
       leading: const Icon(Icons.record_voice_over, color: AppColors.primaryPurple, size: 20),
-      title: Text('Word-for-Word Pitch Script', style: AppTextStyles.bodyBold),
+      title: Text('Word-for-Word Pitch Script', style: AppTextStyles.bodyBoldOf(context)),
       subtitle: const Text('Expand to view or edit full speech', style: TextStyle(fontSize: 11)),
       childrenPadding: const EdgeInsets.all(14),
       children: [
@@ -535,7 +540,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
               children: [
                 Text('Slide Transition Hook', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text('"${slide.transitionToNext}"', style: AppTextStyles.bodyText.copyWith(fontStyle: FontStyle.italic)),
+                Text('"${slide.transitionToNext}"', style: AppTextStyles.bodyTextOf(context).copyWith(fontStyle: FontStyle.italic)),
               ],
             ),
           ),
@@ -559,7 +564,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
             children: [
               const Icon(Icons.analytics_outlined, color: AppColors.primaryPurple, size: 20),
               const SizedBox(width: 6),
-              Text('Visual Layout & Critique', style: AppTextStyles.bodyBold),
+              Text('Visual Layout & Critique', style: AppTextStyles.bodyBoldOf(context)),
               const Spacer(),
               if (slide.textDensity != null)
                 Container(

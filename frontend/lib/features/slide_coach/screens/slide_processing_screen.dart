@@ -75,7 +75,7 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
               if (error != null) ...[
                 const Icon(Icons.error_outline, size: 64, color: AppColors.dangerRed),
                 const SizedBox(height: 18),
-                Text('Analysis Error', style: AppTextStyles.headingM),
+                Text('Analysis Error', style: AppTextStyles.headingMOf(context)),
                 const SizedBox(height: 8),
                 Text(
                   error,
@@ -124,7 +124,7 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
 
                 Text(
                   _getStageTitle(stage),
-                  style: AppTextStyles.headingM,
+                  style: AppTextStyles.headingMOf(context),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),

@@ -152,7 +152,7 @@ class _SlideRehearsalScreenState extends State<SlideRehearsalScreen> {
             children: [
               const CircularProgressIndicator(color: AppColors.primaryPurple),
               const SizedBox(height: 24),
-              Text('Analyzing Rehearsal Performance...', style: AppTextStyles.headingM),
+              Text('Analyzing Rehearsal Performance...', style: AppTextStyles.headingMOf(context)),
               const SizedBox(height: 8),
               Text(
                 'Splitting slide transcripts • Counting fillers • Scoring talking points',
@@ -438,7 +438,7 @@ class _RehearsalReportSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Text('Rehearsal Report', style: AppTextStyles.headingL),
+            Text('Rehearsal Report', style: AppTextStyles.headingLOf(context)),
             Text(
               'Total Duration: ${report.totalDurationSeconds.toInt()}s (Target: ${report.timeLimitSeconds}s)',
               style: AppTextStyles.caption.copyWith(color: AppColors.textSecondaryOf(context)),
@@ -459,7 +459,7 @@ class _RehearsalReportSheet extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Top 3 Improvements
-            Text('Top Improvements for Next Run:', style: AppTextStyles.bodyBold),
+            Text('Top Improvements for Next Run:', style: AppTextStyles.bodyBoldOf(context)),
             const SizedBox(height: 6),
             ...report.overallFeedback.map((tip) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),
@@ -467,7 +467,7 @@ class _RehearsalReportSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('• ', style: TextStyle(color: AppColors.primaryPurple, fontWeight: FontWeight.bold)),
-                      Expanded(child: Text(tip, style: AppTextStyles.bodyText)),
+                      Expanded(child: Text(tip, style: AppTextStyles.bodyTextOf(context))),
                     ],
                   ),
                 )),
@@ -475,7 +475,7 @@ class _RehearsalReportSheet extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Per Slide Breakdown
-            Text('Slide-by-Slide Performance:', style: AppTextStyles.bodyBold),
+            Text('Slide-by-Slide Performance:', style: AppTextStyles.bodyBoldOf(context)),
             const SizedBox(height: 10),
             ...report.slideReports.map((slide) => Container(
                   margin: const EdgeInsets.only(bottom: 14),
@@ -491,7 +491,7 @@ class _RehearsalReportSheet extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Slide ${slide.slideNumber}: ${slide.slideTitle}', style: AppTextStyles.bodyBold),
+                          Text('Slide ${slide.slideNumber}: ${slide.slideTitle}', style: AppTextStyles.bodyBoldOf(context)),
                           Text(
                             '${slide.actualDurationSeconds.toInt()}s / ${slide.targetDurationSeconds}s',
                             style: TextStyle(

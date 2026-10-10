@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/slide_coach_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 
 class SlideUploadScreen extends StatefulWidget {
   const SlideUploadScreen({super.key});
@@ -89,6 +90,12 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => context.pop(),
         ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: ThemeToggleButton(size: 38, compact: true),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -137,7 +144,7 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
             const SizedBox(height: 24),
 
             // 1. PDF File Drop Zone
-            Text('Presentation Deck (PDF only)', style: AppTextStyles.sectionHeader),
+            Text('Presentation Deck (PDF only)', style: AppTextStyles.sectionHeaderOf(context)),
             const SizedBox(height: 8),
             InkWell(
               onTap: provider.isUploading ? null : _pickPdf,
@@ -183,7 +190,7 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
             const SizedBox(height: 24),
 
             // 2. Audience Selection
-            Text('Target Audience', style: AppTextStyles.sectionHeader),
+            Text('Target Audience', style: AppTextStyles.sectionHeaderOf(context)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -215,7 +222,7 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Total Time Limit', style: AppTextStyles.sectionHeader),
+                Text('Total Time Limit', style: AppTextStyles.sectionHeaderOf(context)),
                 Text(
                   '$_timeLimitMinutes min (${_timeLimitMinutes * 60}s)',
                   style: AppTextStyles.bodyBold.copyWith(color: AppColors.primaryPurple),
@@ -236,7 +243,7 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
             const SizedBox(height: 16),
 
             // 4. Primary Presentation Goal
-            Text('Primary Goal', style: AppTextStyles.sectionHeader),
+            Text('Primary Goal', style: AppTextStyles.sectionHeaderOf(context)),
             const SizedBox(height: 8),
             TextField(
               controller: _goalController,

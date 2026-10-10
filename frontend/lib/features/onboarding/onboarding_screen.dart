@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_atmosphere.dart';
 import '../../core/widgets/gradient_button.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -90,8 +91,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   position: _slideUp,
                   child: Column(
                     children: [
-                      // No theme toggle on the launch screen — accessible in Profile
                       const SizedBox(height: 8),
+                      const Align(
+                        alignment: Alignment.topRight,
+                        child: ThemeToggleButton(size: 40, compact: true),
+                      ),
                       const Spacer(flex: 1),
                       _buildHeroSection(isDark),
                       const Spacer(flex: 1),

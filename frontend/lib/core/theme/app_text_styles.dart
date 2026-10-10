@@ -91,4 +91,38 @@ abstract class AppTextStyles {
         color: AppColors.textSecondary,
         height: 1.45,
       );
+
+  // Context-aware theme-responsive text style getters
+  static TextStyle displayLargeOf(BuildContext context) =>
+      displayLarge.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle headingXLOf(BuildContext context) =>
+      headingXL.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle headingLOf(BuildContext context) =>
+      headingL.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle headingMOf(BuildContext context) =>
+      headingM.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle bodyMOf(BuildContext context) =>
+      bodyM.copyWith(color: AppColors.textSecondaryOf(context));
+
+  static TextStyle bodyBoldOf(BuildContext context) =>
+      bodyBold.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle bodySmallBoldOf(BuildContext context) =>
+      bodySmallBold.copyWith(color: AppColors.textSecondaryOf(context));
+
+  static TextStyle captionOf(BuildContext context) =>
+      caption.copyWith(color: AppColors.textSecondaryOf(context));
+
+  static TextStyle sectionHeaderOf(BuildContext context) =>
+      sectionHeader.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle labelOf(BuildContext context) =>
+      label.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle bodyTextOf(BuildContext context) =>
+      bodyText.copyWith(color: AppColors.textSecondaryOf(context));
 }

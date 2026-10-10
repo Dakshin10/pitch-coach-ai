@@ -7,6 +7,7 @@ import '../../../core/models/slide_coach_models.dart';
 import '../../../core/providers/slide_coach_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 
 class SlideQaScreen extends StatefulWidget {
   const SlideQaScreen({super.key});
@@ -92,6 +93,12 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => context.pop(),
         ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: ThemeToggleButton(size: 38, compact: true),
+          ),
+        ],
       ),
       body: provider.isLoadingQuestions
           ? const Center(
@@ -157,7 +164,7 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
                                 const Icon(Icons.help_outline, color: AppColors.primaryPurple, size: 24),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: Text(curQ.question, style: AppTextStyles.headingM),
+                                  child: Text(curQ.question, style: AppTextStyles.headingMOf(context)),
                                 ),
                               ],
                             ),
@@ -284,7 +291,7 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Evaluation & Scoring', style: AppTextStyles.bodyBold),
+              Text('Evaluation & Scoring', style: AppTextStyles.bodyBoldOf(context)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -321,7 +328,7 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
           const SizedBox(height: 12),
           Text('Coach Critique:', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
-          Text(eval.critique, style: AppTextStyles.bodyText),
+          Text(eval.critique, style: AppTextStyles.bodyTextOf(context)),
 
           const SizedBox(height: 14),
           Container(
@@ -345,7 +352,7 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(eval.sampleBetterAnswer, style: AppTextStyles.bodyText),
+                Text(eval.sampleBetterAnswer, style: AppTextStyles.bodyTextOf(context)),
               ],
             ),
           ),

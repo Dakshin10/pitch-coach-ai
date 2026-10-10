@@ -8,6 +8,7 @@ import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -143,9 +144,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                       color: AppColors.textPrimaryOf(context),
                     ),
                   ),
-                  // DatePicker filter button (Unit 2)
+                  // Theme Toggle & DatePicker filter button (Unit 2)
                   Row(
                     children: [
+                      const ThemeToggleButton(size: 38, compact: true),
+                      const SizedBox(width: 8),
                       if (_selectedDate != null)
                         TextButton(
                           onPressed: () {
@@ -206,18 +209,17 @@ class _HistoryScreenState extends State<HistoryScreen>
                   controller: _searchController,
                   onChanged: (val) {
                     setState(() => _searchQuery = val);
-                    // Debounce-style reload: reload on submit / clear only
                   },
                   onSubmitted: (_) => _loadSessions(),
                   style: AppTextStyles.bodyM.copyWith(color: AppColors.textPrimaryOf(context)),
                   decoration: InputDecoration(
                     hintText: 'Search sessions...',
                     hintStyle: AppTextStyles.bodyM.copyWith(
-                      color: AppColors.textSecondary.withValues(alpha: 0.7),
+                      color: AppColors.textSecondaryOf(context).withValues(alpha: 0.7),
                     ),
-                    prefixIcon: const Icon(
+                    prefixIcon: Icon(
                       Icons.search_rounded,
-                      color: AppColors.textSecondary,
+                      color: AppColors.textSecondaryOf(context),
                       size: 20,
                     ),
                     suffixIcon: _searchQuery.isNotEmpty
@@ -250,15 +252,15 @@ class _HistoryScreenState extends State<HistoryScreen>
                         label: Text(chip),
                         selected: isSelected,
                         selectedColor: AppColors.primaryPurple,
-                        backgroundColor: Colors.white,
+                        backgroundColor: AppColors.cardOf(context),
                         labelStyle: AppTextStyles.caption.copyWith(
-                          color: isSelected ? Colors.white : AppColors.textPrimaryDark,
+                          color: isSelected ? Colors.white : AppColors.textPrimaryOf(context),
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                           side: BorderSide(
-                            color: isSelected ? AppColors.primaryPurple : AppColors.divider,
+                            color: isSelected ? AppColors.primaryPurple : AppColors.borderOf(context),
                           ),
                         ),
                         onSelected: (selected) {
@@ -306,9 +308,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                                               vertical: 8.0),
                                           child: Text(
                                             groupKey,
-                                            style: AppTextStyles.headingM.copyWith(
+                                            style: AppTextStyles.headingMOf(context).copyWith(
                                               fontSize: 15,
-                                              color: AppColors.textSecondary,
+                                              color: AppColors.textSecondaryOf(context),
                                             ),
                                           ),
                                         ),
@@ -375,7 +377,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             ),
             title: Text(
               session.topicOrQuestion,
-              style: AppTextStyles.headingM.copyWith(
+              style: AppTextStyles.headingMOf(context).copyWith(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -388,8 +390,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                 const SizedBox(height: 2),
                 Text(
                   session.modeLabel,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
+                  style: AppTextStyles.captionOf(context).copyWith(
+                    color: AppColors.textSecondaryOf(context),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -397,8 +399,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                   '${session.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
                   '${session.createdAt.toLocal().minute.toString().padLeft(2, '0')}'
                   ' · ${session.durationFormatted}',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                  style: AppTextStyles.captionOf(context).copyWith(
+                    color: AppColors.textSecondaryOf(context).withValues(alpha: 0.7),
                     fontSize: 11,
                   ),
                 ),
@@ -446,7 +448,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             ),
           ),
           const SizedBox(height: 16),
-          Text('No sessions found', style: AppTextStyles.headingL),
+          Text('No sessions found', style: AppTextStyles.headingLOf(context)),
           const SizedBox(height: 8),
           Text(
             _searchQuery.isNotEmpty
@@ -454,7 +456,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                 : _selectedDate != null
                     ? 'No sessions on the selected date.'
                     : 'Start practicing to build your session history.',
-            style: AppTextStyles.bodyM,
+            style: AppTextStyles.bodyMOf(context).copyWith(
+              color: AppColors.textSecondaryOf(context),
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -481,9 +485,9 @@ class _HistoryScreenState extends State<HistoryScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSecondary),
+          Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSecondaryOf(context)),
           const SizedBox(height: 16),
-          Text(_errorMessage ?? 'Something went wrong.', style: AppTextStyles.bodyM, textAlign: TextAlign.center),
+          Text(_errorMessage ?? 'Something went wrong.', style: AppTextStyles.bodyMOf(context), textAlign: TextAlign.center),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _loadSessions,
@@ -504,13 +508,22 @@ class _HistoryScreenState extends State<HistoryScreen>
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryPurple,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textPrimaryDark,
-            ),
+            colorScheme: isDark
+                ? const ColorScheme.dark(
+                    primary: AppColors.primaryPurple,
+                    onPrimary: Colors.white,
+                    surface: AppColors.cardDark,
+                    onSurface: AppColors.textOnDark,
+                  )
+                : const ColorScheme.light(
+                    primary: AppColors.primaryPurple,
+                    onPrimary: Colors.white,
+                    surface: Colors.white,
+                    onSurface: AppColors.textPrimaryDark,
+                  ),
           ),
           child: child!,
         );
