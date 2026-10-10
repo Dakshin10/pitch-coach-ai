@@ -1,10 +1,10 @@
-# 🎯 Pitch Coach
+# Pitch Coach
 
 A modern Flutter app for practicing public speaking, pitch presentations, and interview skills — featuring comprehensive speech metrics, automated AI coaching upon recording completion, multimodal pitch deck analysis, and a polished light/dark design system.
 
 ---
 
-## 🚀 Features
+## Features
 
 - **Interactive Onboarding**: Brand-forward intro with animated sound waves and guest / login entry points.
 - **Home Dashboard**: Practice modes, weekly progress stats, recent sessions, and quick lesson chips.
@@ -22,7 +22,7 @@ A modern Flutter app for practicing public speaking, pitch presentations, and in
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend (Flutter)
 - Flutter / Dart (`^3.10.0`)
@@ -41,7 +41,7 @@ A modern Flutter app for practicing public speaking, pitch presentations, and in
 
 ---
 
-## 📁 Project Architecture
+## Project Architecture
 
 ```
 pitch-coach/
@@ -81,7 +81,7 @@ pitch-coach/
 
 ---
 
-## 🏁 How to Run
+## How to Run
 
 ### Prerequisites
 
@@ -149,7 +149,7 @@ Use the sun/moon button to switch light and dark themes. The choice is kept on d
 
 ---
 
-## 🎨 Recent UI / UX notes
+## Recent UI / UX notes
 
 - Atmospheric gradient backgrounds with soft aurora motion in dark mode
 - Glass-style cards and theme-aware text/surfaces across home, profile, history, and progress
@@ -158,7 +158,7 @@ Use the sun/moon button to switch light and dark themes. The choice is kept on d
 
 ---
 
-## ⚙️ Windows Build Troubleshooting
+## Windows Build Troubleshooting
 
 If the project drive differs from the Pub Cache drive, Kotlin incremental compilation may fail. In `android/gradle.properties`:
 
@@ -169,7 +169,7 @@ kotlin.incremental.usePreciseJavaTracking=false
 
 ---
 
-## 🧪 Command Reference
+## Command Reference
 
 ### 1. Flutter Commands (from `frontend/` directory)
 
@@ -272,7 +272,7 @@ copy .env.example .env
 
 ---
 
-## 📊 Slide Coach AI Documentation
+## Slide Coach AI Documentation
 
 ### Architecture & Three-Stage Pipeline
 1. **Stage A: Render (PyMuPDF)**: Validates `%PDF` magic bytes, ensures length is between 1 and 30 pages (under 25MB), and renders crisp JPEGs at max 1024px width (quality 70).
@@ -339,6 +339,6 @@ flutter test
 
 ---
 
-## 📄 License
+## License
 
 This project is created for educational and development purposes.

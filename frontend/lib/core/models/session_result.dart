@@ -166,6 +166,21 @@ class SessionResult {
     final s = total % 60;
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
+
+  String get sessionId => id;
+
+  String get modeLabel {
+    switch (mode) {
+      case 'presentation':
+        return 'Presentation';
+      case 'free_talk':
+        return 'Free Talk';
+      default:
+        return 'Interview';
+    }
+  }
+
+  int get totalFillerCount => fillerWordCount;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

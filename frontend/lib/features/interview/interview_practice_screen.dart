@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/practice_mode.dart';
+import '../../core/providers/session_results_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
@@ -60,6 +61,24 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 0.35).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctrl = context.read<InterviewSessionController>();
+      ctrl.onAutoStop = (sessionId) {
+        if (!mounted) return;
+        if (sessionId != null) {
+          context.read<SessionResultsProvider>().startBackgroundProcessing(
+            sessionId: sessionId,
+            topic: ctrl.currentPrompt.text,
+            mode: ctrl.currentMode.id,
+          );
+          context.push('/results', extra: sessionId);
+        } else {
+          context.push('/results');
+        }
+      };
+    });
   }
 
   @override
@@ -736,7 +755,16 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
                 onPressed: () => ctrl.retryUpload((sessionId) {
-                  context.push('/results', extra: sessionId);
+                  if (sessionId != null && context.mounted) {
+                    context.read<SessionResultsProvider>().startBackgroundProcessing(
+                      sessionId: sessionId,
+                      topic: ctrl.currentPrompt.text,
+                      mode: ctrl.currentMode.id,
+                    );
+                    context.push('/results', extra: sessionId);
+                  } else if (context.mounted) {
+                    context.push('/results');
+                  }
                 }),
                 icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: const Text('Retry Upload'),
@@ -769,7 +797,16 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           // Stop Button
           GestureDetector(
             onTap: () => ctrl.stopRecording((sessionId) {
-              context.push('/results', extra: sessionId);
+              if (sessionId != null && context.mounted) {
+                context.read<SessionResultsProvider>().startBackgroundProcessing(
+                  sessionId: sessionId,
+                  topic: ctrl.currentPrompt.text,
+                  mode: ctrl.currentMode.id,
+                );
+                context.push('/results', extra: sessionId);
+              } else if (context.mounted) {
+                context.push('/results');
+              }
             }),
             child: Container(
               width: 76,

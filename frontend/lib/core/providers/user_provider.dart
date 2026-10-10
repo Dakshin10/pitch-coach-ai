@@ -3,7 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/firebase_auth_repository.dart';
+import '../services/api_client.dart';
 import '../services/local_database_service.dart';
+import '../services/notification_service.dart';
 import '../services/sync_service.dart';
 
 enum AuthState { loading, unauthenticated, guest, authenticated, error }
@@ -20,6 +22,9 @@ class UserProfile {
   String feedbackTone;
   bool isGuest;
   bool darkMode;
+  String? avatarUrl;
+  DateTime? createdAt;
+  Map<String, dynamic>? settings;
 
   // Stats are now fetched separately via StatsProvider; keep as fallback defaults
   int sessionsCompleted;
@@ -37,6 +42,9 @@ class UserProfile {
     required this.feedbackTone,
     this.isGuest = false,
     this.darkMode = false,
+    this.avatarUrl,
+    this.createdAt,
+    this.settings,
     this.sessionsCompleted = 0,
     this.avgScore = 0.0,
     this.memberSince = '',
@@ -51,20 +59,51 @@ class UserProfile {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
+  bool get isPro => settings?['is_pro'] == true || role.toLowerCase().contains('pro');
+
+  String? get fullAvatarUrl {
+    if (avatarUrl == null || avatarUrl!.isEmpty) return null;
+    if (avatarUrl!.startsWith('http')) return avatarUrl;
+    final base = ApiClient.instance.dio.options.baseUrl.replaceAll(RegExp(r'/+$'), '');
+    final path = avatarUrl!.startsWith('/') ? avatarUrl! : '/$avatarUrl';
+    return '$base$path';
+  }
+
   /// Build from API /me response JSON.
-  factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
-        id: j['id'] as String? ?? '',
-        name: j['full_name'] as String? ?? 'User',
-        email: j['email'] as String? ?? '',
-        role: j['role_occupation'] as String? ?? '',
-        targetGoal: j['primary_objective'] as String? ?? '',
-        experienceLevel: j['experience_level'] as String? ?? 'Intermediate',
-        targetIndustry: j['target_industry'] as String? ?? '',
-        feedbackTone: j['feedback_style'] as String? ?? 'Encouraging & Constructive',
-        isGuest: j['is_guest'] as bool? ?? false,
-        darkMode: j['dark_mode'] as bool? ?? false,
-        memberSince: '',
-      );
+  factory UserProfile.fromJson(Map<String, dynamic> j) {
+    DateTime? created;
+    if (j['created_at'] != null) {
+      created = DateTime.tryParse(j['created_at'].toString());
+    }
+
+    String formattedMemberSince = '';
+    if (created != null) {
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      formattedMemberSince = '${months[created.month - 1]} ${created.year}';
+    } else {
+      formattedMemberSince = 'Recently';
+    }
+
+    return UserProfile(
+      id: j['id'] as String? ?? '',
+      name: j['full_name'] as String? ?? 'User',
+      email: j['email'] as String? ?? '',
+      role: j['role_occupation'] as String? ?? '',
+      targetGoal: j['primary_objective'] as String? ?? '',
+      experienceLevel: j['experience_level'] as String? ?? 'Intermediate',
+      targetIndustry: j['target_industry'] as String? ?? '',
+      feedbackTone: j['feedback_style'] as String? ?? 'Encouraging & Constructive',
+      isGuest: j['is_guest'] as bool? ?? false,
+      darkMode: j['dark_mode'] as bool? ?? false,
+      avatarUrl: j['avatar_url'] as String?,
+      createdAt: created,
+      settings: j['settings'] as Map<String, dynamic>?,
+      memberSince: formattedMemberSince,
+    );
+  }
 }
 
 /// UserProvider — wires all auth operations to the real API **and** Firebase.
@@ -400,6 +439,16 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> patchUser(Map<String, dynamic> data) async {
+    try {
+      if (!_user.isGuest && _isLoggedIn && await _auth.hasStoredTokens) {
+        final updated = await _auth.updateMe(data);
+        _adoptUser(updated);
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
   Future<void> setDarkMode(bool enabled) async {
     _user.darkMode = enabled;
     notifyListeners();
@@ -416,14 +465,79 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  // ── Logout ────────────────────────────────────────────────────────────────
+  // ── Avatar Upload & Remove ────────────────────────────────────────────────
+
+  Future<bool> uploadAvatar(String filePath, {void Function(double)? onProgress}) async {
+    _setLoading(true);
+    try {
+      final updated = await _auth.uploadAvatar(
+        filePath,
+        onProgress: (sent, total) {
+          if (total > 0 && onProgress != null) {
+            onProgress(sent / total);
+          }
+        },
+      );
+      _adoptUser(updated);
+      _error = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = _extractErrorMessage(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Refreshes user profile from backend
+  Future<void> fetchUserProfile() async {
+    try {
+      if (!_user.isGuest && _isLoggedIn && await _auth.hasStoredTokens) {
+        final userData = await _auth.getMe();
+        if (userData != null) {
+          _adoptUser(userData);
+          notifyListeners();
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> removeAvatar() async {
+    _setLoading(true);
+    try {
+      _user.avatarUrl = null;
+      notifyListeners();
+      if (!_user.isGuest && await _auth.hasStoredTokens) {
+        final updated = await _auth.updateMe({'avatar_url': ''});
+        _adoptUser(updated);
+      }
+      return true;
+    } catch (e) {
+      _error = _extractErrorMessage(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ── Logout & Account Deletion ─────────────────────────────────────────────
 
   Future<void> logout() async {
     try {
       await _firebaseAuth.signOut();
-    } catch (_) {
-      // Not signed in via Firebase (or SDK unavailable) — nothing to do.
-    }
+    } catch (_) {}
+
+    try {
+      await NotificationService.instance.cancelDailyReminder();
+    } catch (_) {}
+
+    try {
+      await _storage.deleteAll();
+    } catch (_) {}
+
     await _auth.logout();
     await LocalDatabaseService.instance.close();
     final keptDark = _user.darkMode;
@@ -441,6 +555,24 @@ class UserProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  Future<bool> deleteAccount() async {
+    _setLoading(true);
+    try {
+      if (!_user.isGuest && await _auth.hasStoredTokens) {
+        await _auth.deleteAccount();
+      }
+      await logout();
+      return true;
+    } catch (e) {
+      _error = _extractErrorMessage(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
 
   // ── Internal helpers ──────────────────────────────────────────────────────
 

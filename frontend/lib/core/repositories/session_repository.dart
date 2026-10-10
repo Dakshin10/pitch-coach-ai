@@ -292,26 +292,57 @@ class SessionRepository {
     return result.copyWith(audioPath: audioPath);
   }
 
-  /// Step 3 (polling): fetch session until is_analyzed = true.
-  Future<SessionResult> getSession(String sessionId) async {
+  // ── Session Result In-Memory Cache (Instant Load, Zero Re-calculation) ───
+  final Map<String, SessionResult> _sessionResultCache = {};
+
+  SessionResult? getCachedSession(String sessionId) => _sessionResultCache[sessionId];
+
+  void cacheSession(SessionResult result) {
+    if (result.isAnalyzed && !result.analysisFailed) {
+      _sessionResultCache[result.id] = result;
+    }
+  }
+
+  void invalidateSessionResult(String sessionId) {
+    _sessionResultCache.remove(sessionId);
+  }
+
+  /// Step 3 (polling/retrieval): fetch session with local cache verification.
+  /// If session is already analyzed and cached, returns instantly with 0ms delay.
+  Future<SessionResult> getSession(String sessionId, {bool forceRefresh = false}) async {
+    if (!forceRefresh && _sessionResultCache.containsKey(sessionId)) {
+      final cached = _sessionResultCache[sessionId]!;
+      if (cached.isAnalyzed && !cached.analysisFailed) {
+        return cached;
+      }
+    }
+
     final raw = await _api.get('/sessions/$sessionId') as Map<String, dynamic>;
     final result = SessionResult.fromJson(raw);
     final cachedPath = _audioPathCache[sessionId];
+    SessionResult resolved = result;
     if (cachedPath != null) {
-      return result.copyWith(audioPath: cachedPath);
+      resolved = result.copyWith(audioPath: cachedPath);
+    } else {
+      final serverAudio = raw['audio_url'] as String?;
+      if (serverAudio != null && serverAudio.isNotEmpty) {
+        final fullUrl = serverAudio.startsWith('http')
+            ? serverAudio
+            : '${AppConfig.apiBaseUrl}$serverAudio';
+        resolved = result.copyWith(audioUrl: fullUrl);
+      }
     }
-    final serverAudio = raw['audio_url'] as String?;
-    if (serverAudio != null && serverAudio.isNotEmpty) {
-      final fullUrl = serverAudio.startsWith('http')
-          ? serverAudio
-          : '${AppConfig.apiBaseUrl}$serverAudio';
-      return result.copyWith(audioUrl: fullUrl);
+
+    if (resolved.isAnalyzed && !resolved.analysisFailed) {
+      _sessionResultCache[sessionId] = resolved;
     }
-    return result;
+
+    return resolved;
   }
 
   /// Asks the server to re-run analysis on an already-uploaded recording.
   Future<void> retryAnalysis(String sessionId) async {
+    _sessionResultCache.remove(sessionId);
     await _api.post('/sessions/$sessionId/retry');
   }
 

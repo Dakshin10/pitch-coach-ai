@@ -121,4 +121,18 @@ class SlideCoachRepository {
     );
     return QaEvaluationModel.fromJson(Map<String, dynamic>.from(resp as Map));
   }
+
+  /// Lists all saved presentation decks for the current user.
+  Future<List<SlideDeckModel>> listDecks() async {
+    final resp = await _api.get('/slides');
+    final list = resp as List<dynamic>? ?? [];
+    return list
+        .map((e) => SlideDeckModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Triggers re-analysis of an existing deck.
+  Future<void> reanalyzeDeck(String deckId) async {
+    await _api.post('/slides/$deckId/reanalyze');
+  }
 }

@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path/path.dart' as p;
 import '../services/api_client.dart';
 
 /// Handles authentication API calls and token/user persistence.
@@ -115,6 +117,42 @@ class AuthRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Upload an avatar image file to backend
+  Future<Map<String, dynamic>> uploadAvatar(String filePath, {void Function(int, int)? onProgress}) async {
+    final fileName = p.basename(filePath);
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+    });
+    final data = await _api.postMultipart(
+      '/users/me/avatar',
+      formData,
+      onSendProgress: onProgress,
+    );
+    final user = data as Map<String, dynamic>;
+    await _cacheUser(user);
+    return user;
+  }
+
+  /// Delete user account permanently
+  Future<void> deleteAccount() async {
+    await _api.dio.delete('/users/me');
+    await logout();
+  }
+
+  /// Submit user feedback
+  Future<Map<String, dynamic>> submitFeedback({
+    required String category,
+    required String message,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final data = await _api.post('/feedback', data: {
+      'category': category,
+      'message': message,
+      'metadata': metadata ?? {},
+    });
+    return data as Map<String, dynamic>;
   }
 
   // ── Internal helpers ──────────────────────────────────────────────────────

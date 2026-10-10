@@ -25,6 +25,7 @@ USERS_COL = "users"
 SESSIONS_COL = "sessions"
 ACHIEVEMENTS_COL = "achievements"
 SLIDE_DECKS_COL = "slide_decks"
+FEEDBACK_COL = "feedback"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +45,8 @@ class User:
     feedback_style: str = "Encouraging & Constructive"
     is_guest: bool = False
     dark_mode: bool = False
+    avatar_url: Optional[str] = None
+    settings: Dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=_now_utc)
     expires_at: Optional[datetime] = None
 
@@ -62,6 +65,8 @@ class User:
             "feedback_style": self.feedback_style,
             "is_guest": self.is_guest,
             "dark_mode": self.dark_mode,
+            "avatar_url": self.avatar_url,
+            "settings": self.settings,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
         }
@@ -80,6 +85,8 @@ class User:
             feedback_style=d.get("feedback_style", "Encouraging & Constructive"),
             is_guest=d.get("is_guest", False),
             dark_mode=d.get("dark_mode", False),
+            avatar_url=d.get("avatar_url"),
+            settings=d.get("settings") or {},
             created_at=d.get("created_at") or _now_utc(),
             expires_at=d.get("expires_at"),
         )

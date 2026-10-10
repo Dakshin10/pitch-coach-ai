@@ -6,6 +6,8 @@ import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/app_icon.dart';
+import '../../core/widgets/app_illustration.dart';
 import '../../core/widgets/theme_toggle_button.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -163,7 +165,7 @@ class _ProgressScreenState extends State<ProgressScreen>
       ),
       _GridMetric(
         label: 'Streak',
-        value: isLoading ? '...' : '${s.streakDays} 🔥',
+        value: isLoading ? '...' : '${s.streakDays}',
         trend: isLoading ? '' : 'days',
         icon: Icons.local_fire_department_rounded,
         color: AppColors.warningAmber,
@@ -544,15 +546,26 @@ class _ProgressScreenState extends State<ProgressScreen>
           )
         else if (provider.achievements.isEmpty)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            width: double.infinity,
             decoration: BoxDecoration(
               color: AppColors.cardOf(context),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.borderOf(context)),
             ),
-            child: Text(
-              'Complete sessions to unlock achievements! 🏆',
-              style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AppIllustration.achievementsEmpty(size: 64),
+                const SizedBox(height: 12),
+                Text(
+                  'Complete sessions to unlock achievements!',
+                  style: AppTextStyles.bodyM.copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           )
         else
@@ -587,12 +600,12 @@ class _ProgressScreenState extends State<ProgressScreen>
                                         : const [Color(0xFFE0E0E8), Color(0xFFD0D0D8)]),
                           ),
                           child: Center(
-                            child: Text(
+                            child: AppIcon(
                               badge.icon,
-                              style: TextStyle(
-                                fontSize: 22,
-                                color: badge.isUnlocked ? Colors.white : AppColors.textSecondaryOf(context),
-                              ),
+                              size: 22,
+                              color: badge.isUnlocked
+                                  ? Colors.white
+                                  : AppColors.textSecondaryOf(context),
                             ),
                           ),
                         ),
@@ -644,8 +657,23 @@ class _ProgressScreenState extends State<ProgressScreen>
         ),
         title: Row(
           children: [
-            Text(badge.icon, style: const TextStyle(fontSize: 28)),
-            const SizedBox(width: 10),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: badge.isUnlocked ? AppColors.primaryGradient : null,
+                color: badge.isUnlocked ? null : AppColors.cardDarkBorder,
+              ),
+              child: Center(
+                child: AppIcon(
+                  badge.icon,
+                  size: 22,
+                  color: badge.isUnlocked ? Colors.white : AppColors.textSecondaryOf(context),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(child: Text(badge.title, style: AppTextStyles.headingMOf(context))),
           ],
         ),

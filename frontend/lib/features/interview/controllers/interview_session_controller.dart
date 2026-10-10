@@ -49,6 +49,7 @@ class InterviewSessionController extends ChangeNotifier {
   String? _failedAudioPath;
   String? _failedSessionId;
   MicPermissionState _micPermissionState = MicPermissionState.granted;
+  void Function(String? sessionId)? onAutoStop;
 
   InterviewSessionController({
     required this.isGuest,
@@ -181,7 +182,7 @@ class InterviewSessionController extends ChangeNotifier {
   }
 
   void _autoStopAtMax() {
-    stopRecording((_) {});
+    stopRecording(onAutoStop ?? (_) {});
   }
 
   /// Stops recording and uploads for AI coaching.

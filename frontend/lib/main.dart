@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/config/app_config.dart';
 import 'core/providers/session_results_provider.dart';
+import 'core/providers/settings_provider.dart';
 import 'core/providers/slide_coach_provider.dart';
 import 'core/providers/stats_provider.dart';
 import 'core/providers/user_provider.dart';
@@ -48,11 +49,12 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => SettingsProvider()..initialize()),
         ChangeNotifierProvider(create: (_) => UserProvider()..tryRestoreSession()),
         ChangeNotifierProvider(create: (_) => StatsProvider()),
         // SessionResultsProvider is created per-results-screen via ChangeNotifierProvider.value
         // but we expose one top-level instance for convenience
-        ChangeNotifierProvider(create: (_) => SessionResultsProvider()),
+        ChangeNotifierProvider(create: (_) => SessionResultsProvider()..restoreActiveSessionIfProcessing()),
         ChangeNotifierProvider(create: (_) => SlideCoachProvider()..restoreActiveDeckIfProcessing()),
       ],
       child: const PitchCoachApp(),
@@ -79,6 +81,7 @@ class _PitchCoachAppState extends State<PitchCoachApp> {
         OutboxWorker.instance.process();
         try {
           context.read<SlideCoachProvider>().restoreActiveDeckIfProcessing();
+          context.read<SessionResultsProvider>().restoreActiveSessionIfProcessing();
         } catch (_) {}
       },
     );
@@ -97,7 +100,7 @@ class _PitchCoachAppState extends State<PitchCoachApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: context.watch<UserProvider>().themeMode,
+      themeMode: context.watch<SettingsProvider>().themeMode,
       routerConfig: AppRouter.router,
     );
   }

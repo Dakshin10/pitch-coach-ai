@@ -40,7 +40,7 @@ class NotificationService {
     }
 
     const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@drawable/ic_notification');
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -115,7 +115,7 @@ class NotificationService {
       channelDescription: _channelDesc,
       importance: Importance.high,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_notification',
     );
     const darwinDetails = DarwinNotificationDetails(
       presentAlert: true,
@@ -129,7 +129,7 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       _dailyReminderId,
-      'Pitch Coach 🎙',
+      'Pitch Coach',
       'Time to practice! Spend 5 minutes improving your communication skills.',
       scheduledDate,
       details,
@@ -140,10 +140,166 @@ class NotificationService {
     );
   }
 
+  /// Request notification permission explicitly on Android 13+ and iOS.
+  Future<bool> requestPermission() async {
+    if (kIsWeb) return false;
+    await initialize();
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final android = _plugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+        final granted = await android?.requestNotificationsPermission();
+        return granted ?? false;
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final ios = _plugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+        final granted = await ios?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        return granted ?? false;
+      }
+    } catch (e) {
+      debugPrint('Error requesting notification permission: $e');
+    }
+    return false;
+  }
+
+  /// Schedule practice notifications at [time] on specified [days] (1 = Mon ... 7 = Sun).
+  Future<void> schedulePracticeReminders({
+    required TimeOfDay time,
+    required List<int> days,
+  }) async {
+    if (kIsWeb) return;
+    await initialize();
+    await cancelPracticeReminders();
+
+    if (days.isEmpty) return;
+
+    final now = tz.TZDateTime.now(tz.local);
+
+    const androidDetails = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: _channelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@drawable/ic_notification',
+    );
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+    );
+
+    // If all 7 days selected, schedule as daily repeating reminder
+    if (days.length == 7) {
+      var scheduledDate = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        time.hour,
+        time.minute,
+      );
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+      await _scheduleZonedWithFallback(
+        id: _dailyReminderId,
+        title: 'Pitch Coach',
+        body: 'Time to practice! Spend 5 minutes improving your communication skills.',
+        scheduledDate: scheduledDate,
+        details: details,
+        matchComponents: DateTimeComponents.time,
+      );
+      return;
+    }
+
+    // Schedule for each selected day of week
+    for (final day in days) {
+      // Find the next occurrence of this weekday (1 = Mon ... 7 = Sun)
+      var targetDate = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        time.hour,
+        time.minute,
+      );
+      while (targetDate.weekday != day || targetDate.isBefore(now)) {
+        targetDate = targetDate.add(const Duration(days: 1));
+      }
+
+      final reminderId = 100 + day;
+      await _scheduleZonedWithFallback(
+        id: reminderId,
+        title: 'Pitch Coach',
+        body: 'Time to practice! Spend 5 minutes improving your communication skills.',
+        scheduledDate: targetDate,
+        details: details,
+        matchComponents: DateTimeComponents.dayOfWeekAndTime,
+      );
+    }
+  }
+
+  Future<void> _scheduleZonedWithFallback({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime scheduledDate,
+    required NotificationDetails details,
+    required DateTimeComponents matchComponents,
+  }) async {
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: matchComponents,
+      );
+    } catch (e) {
+      debugPrint('Exact alarm scheduling failed, falling back to inexact: $e');
+      try {
+        await _plugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledDate,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: matchComponents,
+        );
+      } catch (fallbackError) {
+        debugPrint('Fallback notification scheduling failed: $fallbackError');
+      }
+    }
+  }
+
   /// Cancel any previously scheduled daily reminder.
   Future<void> cancelDailyReminder() async {
+    await cancelPracticeReminders();
+  }
+
+  /// Cancel all practice reminders (daily and per-day).
+  Future<void> cancelPracticeReminders() async {
     if (kIsWeb) return;
     await _plugin.cancel(_dailyReminderId);
+    for (int day = 1; day <= 7; day++) {
+      await _plugin.cancel(100 + day);
+    }
   }
 
   /// Show a one-shot instant notification (e.g., slide processing completion or setup).
@@ -157,7 +313,7 @@ class NotificationService {
       channelDescription: _channelDesc,
       importance: Importance.high,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_notification',
     );
     const darwinDetails = DarwinNotificationDetails(
       presentAlert: true,

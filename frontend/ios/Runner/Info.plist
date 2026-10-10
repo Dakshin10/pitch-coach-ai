@@ -45,6 +45,10 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Pitch Coach records your practice so it can analyze your speech.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Pitch Coach uses the camera to take your profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pitch Coach accesses your photo library to select a profile photo.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>CFBundleURLTypes</key>

@@ -1,13 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:in_app_review/in_app_review.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import '../../core/models/lesson_model.dart';
+import '../../core/providers/settings_provider.dart';
+import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_atmosphere.dart';
+import '../../core/widgets/app_icon.dart';
+import '../../core/widgets/app_toast.dart';
 import '../../core/widgets/gradient_button.dart';
+import '../../core/widgets/settings_section.dart';
+import '../../core/widgets/settings_skeleton.dart';
+import '../../core/widgets/settings_tile.dart';
 import '../../core/widgets/theme_toggle_button.dart';
+import 'widgets/about_pitch_coach_dialog.dart';
+import 'widgets/language_picker_sheet.dart';
+import 'widgets/practice_goals_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -18,248 +32,714 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen>
     with AutomaticKeepAliveClientMixin {
-  TimeOfDay? _reminderTime; // TimePicker (Unit 2)
+  final ImagePicker _imagePicker = ImagePicker();
+  bool _isUploadingAvatar = false;
+  double _avatarUploadProgress = 0.0;
+  String _appVersionString = 'Pitch Coach';
 
   @override
   bool get wantKeepAlive => true;
 
   @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final userProvider = Provider.of<UserProvider>(context);
-    final user = userProvider.user;
+  void initState() {
+    super.initState();
+    _loadPackageInfo();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshAllData();
+    });
+  }
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: AppAtmosphere(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Header Row — centered title
-              SizedBox(
-                height: 44,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Text(
-                      'Profile',
-                      style: AppTextStyles.headingXL.copyWith(
-                        color: AppColors.textPrimaryOf(context),
-                      ),
+  Future<void> _loadPackageInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersionString = 'Pitch Coach v${info.version} (${info.buildNumber})';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _appVersionString = 'Pitch Coach v1.0.0';
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshAllData() async {
+    final userProvider = context.read<UserProvider>();
+    final statsProvider = context.read<StatsProvider>();
+    final settingsProvider = context.read<SettingsProvider>();
+
+    await Future.wait([
+      userProvider.fetchUserProfile(),
+      statsProvider.loadAll(force: true),
+      settingsProvider.initialize(),
+    ]);
+  }
+
+  // ── Avatar Management ─────────────────────────────────────────────────────
+
+  void _showAvatarOptionsSheet() {
+    final user = context.read<UserProvider>().user;
+    final hasAvatar = user.avatarUrl != null && user.avatarUrl!.isNotEmpty;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.cardOf(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: AppColors.borderOf(context)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.textSecondaryOf(context)
+                          .withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        const ThemeToggleButton(size: 40, compact: true),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => context.push('/profile-setup'),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.glassOf(context),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.borderOf(context)),
-                            ),
-                            child: Icon(
-                              Icons.settings_outlined,
-                              size: 20,
-                              color: AppColors.textPrimaryOf(context),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // 2. Profile Header Card (Dynamic)
-              _buildProfileHeaderCard(user),
-
-              const SizedBox(height: 16),
-
-              // 3. Stats Row
-              _buildStatsRow(user),
-
-              const SizedBox(height: 24),
-
-              // 4. Account Section
-              _buildSectionTitle('Account'),
-              const SizedBox(height: 10),
-              _buildSettingsCard([
-                _buildListRow(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Personal Information',
-                  trailingText: user.name,
-                  onTap: () => context.push('/profile-setup'),
-                ),
-                const Divider(height: 1),
-                _buildListRow(
-                  icon: Icons.notifications_none_rounded,
-                  label: 'Notification Preferences',
-                  onTap: () {},
-                ),
-                const Divider(height: 1),
-                _buildListRow(
-                  icon: Icons.flag_outlined,
-                  label: 'Practice Goals & Reminders',
-                  // TimePicker-powered reminder row
-                  trailingText: _reminderTime?.format(context),
-                  onTap: _handleReminderTap,
-                ),
-                const Divider(height: 1),
-                _buildListRow(
-                  icon: Icons.star_outline_rounded,
-                  label: 'Subscription / Upgrade to Pro',
-                  badge: 'PRO',
-                  onTap: () {},
-                ),
-              ]),
-
-              const SizedBox(height: 20),
-
-              // 5.5. Learn Section — navigate to lesson library
-              _buildSectionTitle('Learn'),
-              const SizedBox(height: 10),
-              _buildSettingsCard([
-                _buildListRow(
-                  icon: Icons.school_rounded,
-                  label: 'Communication Lessons',
-                  trailingText: '5 lessons',
-                  onTap: () => context.push('/lessons'),
-                ),
-                const Divider(height: 1),
-                _buildListRow(
-                  icon: Icons.video_library_rounded,
-                  label: 'Watch: Filler Word Reduction',
-                  onTap: () => context.push('/lessons'),
-                ),
-              ]),
-
-              const SizedBox(height: 20),
-
-              // 6. Preferences Section
-              _buildSectionTitle('Preferences'),
-              const SizedBox(height: 10),
-              _buildSettingsCard([
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.dark_mode_outlined,
-                            color: AppColors.primaryPurpleLight,
-                            size: 22,
-                          ),
-                          const SizedBox(width: 14),
-                          Text(
-                            'Dark Mode',
-                            style: AppTextStyles.bodyM.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimaryOf(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Switch(
-                        value: userProvider.user.darkMode,
-                        activeThumbColor: AppColors.primaryPurple,
-                        activeTrackColor: AppColors.primaryPurple.withValues(alpha: 0.4),
-                        onChanged: (val) {
-                          userProvider.setDarkMode(val);
-                        },
-                      ),
-                    ],
                   ),
                 ),
-                const Divider(height: 1),
-                _buildListRow(
-                  icon: Icons.language_rounded,
-                  label: 'Language',
-                  trailingText: 'English',
-                  onTap: () {},
-                ),
-              ]),
-
-              const SizedBox(height: 20),
-
-              // 6. Support Section
-              _buildSectionTitle('Support'),
-              const SizedBox(height: 10),
-              _buildSettingsCard([
-                _buildListRow(
-                  icon: Icons.help_outline_rounded,
-                  label: 'Help Center',
-                  onTap: () {},
-                ),
-                const Divider(height: 1),
-                _buildListRow(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: 'Send Feedback',
-                  onTap: () {},
-                ),
-                const Divider(height: 1),
-                _buildListRow(
-                  icon: Icons.thumb_up_alt_outlined,
-                  label: 'Rate the App',
-                  onTap: () {},
-                ),
-                const Divider(height: 1),
-                _buildListRow(
-                  icon: Icons.info_outline_rounded,
-                  label: 'About Pitch Coach',
-                  onTap: () {},
-                ),
-              ]),
-
-              const SizedBox(height: 28),
-
-              // 7. Log Out Button
-              GradientButton(
-                text: 'Log Out',
-                variant: GradientButtonVariant.tertiary,
-                borderColor: AppColors.dangerRed.withValues(alpha: 0.5),
-                textColor: AppColors.dangerRed,
-                height: 52,
-                onPressed: () => _confirmLogout(context),
-              ),
-
-              const SizedBox(height: 16),
-
-              // App Version Text
-              Center(
-                child: Text(
-                  'Pitch Coach v1.4.2',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary.withValues(alpha: 0.6),
+                Text(
+                  'Profile Photo',
+                  style: AppTextStyles.headingM.copyWith(
+                    fontSize: 18,
+                    color: AppColors.textPrimaryOf(context),
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 24),
-            ],
+                const SizedBox(height: 14),
+                ListTile(
+                  leading: const AppIcon(
+                    AppIcons.camera,
+                    color: AppColors.primaryPurpleLight,
+                    size: 22,
+                  ),
+                  title: Text(
+                    'Take Photo',
+                    style: AppTextStyles.bodyM.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _pickAndUploadAvatar(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const AppIcon(
+                    AppIcons.slides,
+                    color: AppColors.primaryPurpleLight,
+                    size: 22,
+                  ),
+                  title: Text(
+                    'Choose from Gallery',
+                    style: AppTextStyles.bodyM.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _pickAndUploadAvatar(ImageSource.gallery);
+                  },
+                ),
+                if (hasAvatar)
+                  ListTile(
+                    leading: const AppIcon(
+                      AppIcons.trash,
+                      color: AppColors.errorRed,
+                      size: 22,
+                    ),
+                    title: const Text(
+                      'Remove Photo',
+                      style: TextStyle(color: AppColors.errorRed),
+                    ),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _removeAvatar();
+                    },
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildProfileHeaderCard(UserProfile user) {
+  Future<void> _pickAndUploadAvatar(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+
+      if (picked == null || !mounted) return;
+
+      setState(() {
+        _isUploadingAvatar = true;
+        _avatarUploadProgress = 0.05;
+      });
+
+      final userProvider = context.read<UserProvider>();
+      final success = await userProvider.uploadAvatar(
+        picked.path,
+        onProgress: (progress) {
+          if (mounted) {
+            setState(() => _avatarUploadProgress = progress);
+          }
+        },
+      );
+
+      if (mounted) {
+        if (success) {
+          AppToast.success(context, 'Profile picture updated');
+        } else {
+          AppToast.error(
+            context,
+            userProvider.error ?? 'Failed to upload photo',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, 'Permission denied or invalid image');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingAvatar = false;
+          _avatarUploadProgress = 0.0;
+        });
+      }
+    }
+  }
+
+  Future<void> _removeAvatar() async {
+    final userProvider = context.read<UserProvider>();
+    final success = await userProvider.removeAvatar();
+    if (mounted) {
+      if (success) {
+        AppToast.info(context, 'Profile picture removed');
+      } else {
+        AppToast.error(
+          context,
+          userProvider.error ?? 'Failed to remove picture',
+        );
+      }
+    }
+  }
+
+  // ── Ratings & App Actions ─────────────────────────────────────────────────
+
+  Future<void> _handleRateApp() async {
+    final settings = context.read<SettingsProvider>();
+    if (!settings.canPromptForReview()) {
+      AppToast.info(
+        context,
+        'Thank you for rating Pitch Coach! You can submit store reviews anytime.',
+      );
+      return;
+    }
+
+    final inAppReview = InAppReview.instance;
+    try {
+      if (await inAppReview.isAvailable()) {
+        await inAppReview.requestReview();
+      } else {
+        await inAppReview.openStoreListing();
+      }
+      await settings.recordReviewPrompt();
+    } catch (_) {
+      try {
+        await inAppReview.openStoreListing();
+      } catch (_) {}
+    }
+  }
+
+  // ── Auth & Account Cleanup ────────────────────────────────────────────────
+
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.elevatedCardOf(dialogCtx),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: AppColors.borderOf(dialogCtx)),
+        ),
+        title: Text('Log Out', style: AppTextStyles.headingMOf(dialogCtx)),
+        content: Text(
+          'Are you sure you want to log out of Pitch Coach?',
+          style: AppTextStyles.bodyMOf(dialogCtx),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondaryOf(dialogCtx)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.dangerRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true || !mounted) return;
+
+    try {
+      await NotificationService.instance.cancelPracticeReminders();
+      if (!mounted) return;
+      await context.read<UserProvider>().logout();
+      if (mounted) {
+        context.go('/');
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, 'Error during logout: $e');
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final confirmController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final isMatch = confirmController.text.trim() == 'DELETE';
+          return AlertDialog(
+            backgroundColor: AppColors.elevatedCardOf(dialogCtx),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: AppColors.borderOf(dialogCtx)),
+            ),
+            title: Row(
+              children: [
+                const AppIcon(
+                  AppIcons.trash,
+                  color: AppColors.errorRed,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Delete Account',
+                  style: AppTextStyles.headingMOf(dialogCtx).copyWith(
+                    color: AppColors.errorRed,
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This action is irreversible. All speech recordings, scores, slide decks, and settings will be permanently erased.',
+                  style: AppTextStyles.bodyMOf(dialogCtx),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Type DELETE to confirm:',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimaryOf(dialogCtx),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: confirmController,
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'DELETE',
+                    filled: true,
+                    fillColor: AppColors.cardOf(dialogCtx),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColors.textSecondaryOf(dialogCtx)),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: isMatch ? () => Navigator.pop(dialogCtx, true) : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.dangerRed,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor:
+                      AppColors.dangerRed.withValues(alpha: 0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Delete Forever'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await NotificationService.instance.cancelPracticeReminders();
+      if (!mounted) return;
+      final success = await context.read<UserProvider>().deleteAccount();
+      if (mounted) {
+        if (success) {
+          context.go('/');
+        } else {
+          AppToast.error(context, 'Account deletion failed');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, 'Failed to delete account: $e');
+      }
+    }
+  }
+
+  // ── Build Method ──────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final userProvider = context.watch<UserProvider>();
+    final statsProvider = context.watch<StatsProvider>();
+    final settingsProvider = context.watch<SettingsProvider>();
+    final user = userProvider.user;
+
+    // Selected language native name
+    final langNative = switch (settingsProvider.locale) {
+      'ta' => 'தமிழ்',
+      'hi' => 'हिन्दी',
+      'es' => 'Español',
+      _ => 'English',
+    };
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: AppAtmosphere(
+        child: RefreshIndicator(
+          onRefresh: _refreshAllData,
+          color: AppColors.primaryPurple,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0, vertical: 14.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Row
+                    SizedBox(
+                      height: 48,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Text(
+                            'Profile',
+                            style: AppTextStyles.headingXL.copyWith(
+                              color: AppColors.textPrimaryOf(context),
+                              fontSize: 22,
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              const ThemeToggleButton(size: 40, compact: true),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () async {
+                                  final refreshed = await context
+                                      .push('/profile-setup');
+                                  if (refreshed == true && mounted) {
+                                    _refreshAllData();
+                                  }
+                                },
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.glassOf(context),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.borderOf(context),
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: AppIcon(
+                                    AppIcons.settings,
+                                    size: 20,
+                                    color: AppColors.textPrimaryOf(context),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Hero Profile Card
+                    _buildHeroCard(user),
+
+                    const SizedBox(height: 16),
+
+                    // Stats Row
+                    _buildStatsRow(user, statsProvider),
+
+                    const SizedBox(height: 22),
+
+                    // Account Section
+                    SettingsSection(
+                      title: 'Account',
+                      children: [
+                        SettingsTile(
+                          leadingIcon: AppIcons.person,
+                          title: 'Personal Information',
+                          subtitle: 'Name, industry, speaking goals & feedback style',
+                          trailingType: SettingsTileTrailing.value,
+                          trailingText: user.name,
+                          onTap: () async {
+                            final res = await context.push('/profile-setup');
+                            if (res == true && mounted) _refreshAllData();
+                          },
+                        ),
+                        SettingsTile(
+                          leadingIcon: AppIcons.clock,
+                          title: 'Notification Preferences',
+                          subtitle:
+                              'Practice alerts, slide deck ready notifications',
+                          trailingType: SettingsTileTrailing.chevron,
+                          onTap: () =>
+                              context.push('/profile/notifications'),
+                        ),
+                        SettingsTile(
+                          leadingIcon: AppIcons.award,
+                          title: 'Practice Goals & Reminders',
+                          subtitle:
+                              '${settingsProvider.weeklyGoal} sessions/wk • ${settingsProvider.reminderTime.format(context)}',
+                          trailingType: SettingsTileTrailing.chevron,
+                          onTap: () => PracticeGoalsSheet.show(context),
+                        ),
+                        SettingsTile(
+                          leadingIcon: AppIcons.crown,
+                          title: 'Subscription / Upgrade to Pro',
+                          subtitle: user.isPro
+                              ? 'Pro Membership active'
+                              : 'Unlimited AI analyses & advanced acoustics',
+                          badge: 'PRO',
+                          trailingType: SettingsTileTrailing.chevron,
+                          onTap: () => context.push('/profile/pro'),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Learn Section
+                    SettingsSection(
+                      title: 'Learn',
+                      children: [
+                        SettingsTile(
+                          leadingIcon: AppIcons.book,
+                          title: 'Communication Lessons',
+                          subtitle: 'Speech delivery and public speaking courses',
+                          trailingType: SettingsTileTrailing.value,
+                          trailingText:
+                              '${LessonCatalog.all.length} lessons',
+                          onTap: () => context.push('/lessons'),
+                        ),
+                        SettingsTile(
+                          leadingIcon: AppIcons.video,
+                          title: 'Watch: Reduce Filler Words',
+                          subtitle:
+                              '4-minute deep dive on pausing and rhythm',
+                          trailingType: SettingsTileTrailing.chevron,
+                          onTap: () {
+                            try {
+                              final lesson = LessonCatalog.all.firstWhere(
+                                (l) => l.weakAreaTag == 'filler_words',
+                                orElse: () => LessonCatalog.all.first,
+                              );
+                              context.push('/lessons/detail', extra: lesson);
+                            } catch (_) {
+                              context.push('/lessons');
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Preferences Section
+                    SettingsSection(
+                      title: 'Preferences',
+                      children: [
+                        SettingsTile(
+                          leadingIcon: AppIcons.moon,
+                          title: 'Dark Mode',
+                          subtitle: 'Toggle dark or light theme interface',
+                          trailingType: SettingsTileTrailing.toggle,
+                          toggleValue: settingsProvider.isDarkMode(context),
+                          onToggle: (_) =>
+                              settingsProvider.toggleDarkMode(context),
+                        ),
+                        SettingsTile(
+                          leadingIcon: AppIcons.globe,
+                          title: 'Language',
+                          subtitle: 'Transcription & interface language',
+                          trailingType: SettingsTileTrailing.value,
+                          trailingText: langNative,
+                          onTap: () => LanguagePickerSheet.show(context),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Support Section
+                    SettingsSection(
+                      title: 'Support',
+                      children: [
+                        SettingsTile(
+                          leadingIcon: AppIcons.help,
+                          title: 'Help Center',
+                          subtitle: 'Frequently asked questions and guides',
+                          trailingType: SettingsTileTrailing.chevron,
+                          onTap: () => context.push('/profile/help'),
+                        ),
+                        SettingsTile(
+                          leadingIcon: AppIcons.chat,
+                          title: 'Send Feedback',
+                          subtitle: 'Report a bug or suggest improvements',
+                          trailingType: SettingsTileTrailing.chevron,
+                          onTap: () => context.push('/profile/feedback'),
+                        ),
+                        SettingsTile(
+                          leadingIcon: AppIcons.star,
+                          title: 'Rate the App',
+                          subtitle: 'Share your feedback on the App Store',
+                          trailingType: SettingsTileTrailing.chevron,
+                          onTap: _handleRateApp,
+                        ),
+                        SettingsTile(
+                          leadingIcon: AppIcons.info,
+                          title: 'About Pitch Coach',
+                          subtitle: 'Version info, privacy policy, and terms',
+                          trailingType: SettingsTileTrailing.chevron,
+                          onTap: () => AboutPitchCoachDialog.show(context),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // Log Out Button
+                    GradientButton(
+                      text: 'Log Out',
+                      variant: GradientButtonVariant.tertiary,
+                      borderColor: AppColors.dangerRed.withValues(alpha: 0.5),
+                      textColor: AppColors.dangerRed,
+                      height: 50,
+                      onPressed: _confirmLogout,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Delete Account Button (Low-emphasis destructive)
+                    Center(
+                      child: TextButton(
+                        onPressed: _confirmDeleteAccount,
+                        child: Text(
+                          'Delete Account',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.errorRed.withValues(alpha: 0.75),
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // App Version Footer
+                    Center(
+                      child: Text(
+                        _appVersionString,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondaryOf(context)
+                              .withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Hero Card ─────────────────────────────────────────────────────────────
+
+  Widget _buildHeroCard(UserProfile user) {
+    final isDark = AppColors.isDark(context);
+    final avatarUrl = user.fullAvatarUrl;
+
     return GlassSurface(
       elevated: true,
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
       borderRadius: BorderRadius.circular(24),
-      gradient: AppColors.isDark(context)
+      gradient: isDark
           ? LinearGradient(
               colors: [
                 AppColors.primaryPurple.withValues(alpha: 0.22),
@@ -275,68 +755,188 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 92,
-              height: 92,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppColors.auroraGradient,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryPurple.withValues(alpha: 0.4),
-                    blurRadius: 22,
-                    offset: const Offset(0, 8),
+            // Avatar Stack with Camera Badge and Progress Ring
+            GestureDetector(
+              onTap: _showAvatarOptionsSheet,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 92,
+                    height: 92,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: AppColors.auroraGradient,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryPurple.withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: avatarUrl != null
+                          ? Image.network(
+                              avatarUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Center(
+                                child: Text(
+                                  user.initials,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                user.initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  // Upload Progress Overlay
+                  if (_isUploadingAvatar)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black.withValues(alpha: 0.5),
+                        ),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: _avatarUploadProgress > 0
+                                ? _avatarUploadProgress
+                                : null,
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Camera Badge
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const AppIcon(
+                        AppIcons.camera,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              child: Center(
-                child: Text(
-                  user.initials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
+            ),
+
+            const SizedBox(height: 14),
+
+            // User Name & Optional Pro Badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    user.name,
+                    style: AppTextStyles.headingL.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                      fontSize: 20,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                 ),
-              ),
+                if (user.isPro) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'PRO',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              user.name,
-              style: AppTextStyles.headingL.copyWith(
-                color: AppColors.textPrimaryOf(context),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
+
+            const SizedBox(height: 4),
+
+            // User Role Headline
             Text(
               user.role.isEmpty ? 'Pitch Coach member' : user.role,
               style: AppTextStyles.bodyM.copyWith(
                 color: AppColors.textSecondaryOf(context),
+                fontSize: 13,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 18),
-            Center(
-              child: SizedBox(
-                width: 150,
-                height: 40,
-                child: OutlinedButton(
-                  onPressed: () => context.push('/profile-setup'),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: AppColors.primaryPurple.withValues(alpha: 0.55),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+
+            const SizedBox(height: 16),
+
+            // Edit Profile Button
+            SizedBox(
+              height: 38,
+              child: OutlinedButton(
+                onPressed: () async {
+                  final refreshed = await context.push('/profile-setup');
+                  if (refreshed == true && mounted) {
+                    _refreshAllData();
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.5),
                   ),
-                  child: Text(
-                    'Edit Profile',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.primaryPurpleLight,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 0),
+                ),
+                child: Text(
+                  'Edit Profile',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primaryPurpleLight,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -347,294 +947,143 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildStatsRow(UserProfile user) {
+  // ── Quick Stats Row ───────────────────────────────────────────────────────
+
+  Widget _buildStatsRow(UserProfile user, StatsProvider stats) {
+    if (stats.isLoading && !stats.hasData) {
+      return const SettingsSkeleton(height: 72);
+    }
+
+    final totalSessions = stats.summary.totalSessions;
+    final avgScore = stats.summary.avgScore ?? 0.0;
+    final hasSessions = totalSessions > 0 && avgScore > 0;
+
+    // Score color coding
+    final Color scoreColor;
+    if (!hasSessions) {
+      scoreColor = AppColors.textSecondaryOf(context);
+    } else if (avgScore >= 80) {
+      scoreColor = AppColors.successGreen;
+    } else if (avgScore >= 60) {
+      scoreColor = AppColors.primaryPurpleLight;
+    } else {
+      scoreColor = AppColors.errorRed;
+    }
+
+    // Trend indicator if trend points available
+    Widget? trendWidget;
+    if (stats.trend.length >= 2) {
+      final latest = stats.trend.last.confidence;
+      final prior = stats.trend[stats.trend.length - 2].confidence;
+      final diff = latest - prior;
+      if (diff > 0) {
+        trendWidget = Text(
+          '+${diff.toStringAsFixed(0)}',
+          style: const TextStyle(
+            color: AppColors.successGreen,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      } else if (diff < 0) {
+        trendWidget = Text(
+          diff.toStringAsFixed(0),
+          style: const TextStyle(
+            color: AppColors.errorRed,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      }
+    }
+
+    final memberSinceText =
+        user.memberSince.isNotEmpty ? user.memberSince : 'Oct 2026';
+
     return Row(
       children: [
-        Expanded(child: _buildProfileStatTile('Sessions', '${user.sessionsCompleted}')),
+        Expanded(
+          child: InkWell(
+            onTap: () => context.go('/history'),
+            borderRadius: BorderRadius.circular(16),
+            child: _buildProfileStatTile(
+              label: 'Sessions',
+              value: '$totalSessions',
+              context: context,
+            ),
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _buildProfileStatTile('Avg Score', '${user.avgScore.toInt()}%')),
+        Expanded(
+          child: InkWell(
+            onTap: () => context.go('/progress'),
+            borderRadius: BorderRadius.circular(16),
+            child: _buildProfileStatTile(
+              label: 'Avg Score',
+              value: hasSessions ? '${avgScore.toInt()}%' : '--',
+              valueColor: scoreColor,
+              trailingWidget: trendWidget,
+              hint: !hasSessions ? 'Complete a session' : null,
+              context: context,
+            ),
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _buildProfileStatTile('Member Since', user.memberSince)),
+        Expanded(
+          child: _buildProfileStatTile(
+            label: 'Member Since',
+            value: memberSinceText,
+            context: context,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildProfileStatTile(String label, String value) {
+  Widget _buildProfileStatTile({
+    required String label,
+    required String value,
+    required BuildContext context,
+    Color? valueColor,
+    Widget? trailingWidget,
+    String? hint,
+  }) {
     return GlassSurface(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       borderRadius: BorderRadius.circular(16),
       child: Column(
         children: [
-          Text(
-            value,
-            style: AppTextStyles.headingM.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimaryOf(context),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: AppTextStyles.headingM.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: valueColor ?? AppColors.textPrimaryOf(context),
+                ),
+              ),
+              if (trailingWidget != null) ...[
+                const SizedBox(width: 4),
+                trailingWidget,
+              ],
+            ],
           ),
           const SizedBox(height: 2),
           Text(
-            label,
+            hint ?? label,
             style: AppTextStyles.caption.copyWith(
               fontSize: 10.5,
               color: AppColors.textSecondaryOf(context),
             ),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: AppTextStyles.headingM.copyWith(
-        fontSize: 16,
-        color: AppColors.textPrimaryOf(context),
-      ),
-    );
-  }
-
-  Widget _buildSettingsCard(List<Widget> children) {
-    return GlassSurface(
-      borderRadius: BorderRadius.circular(18),
-      child: Column(children: children),
-    );
-  }
-
-  Widget _buildListRow({
-    required IconData icon,
-    required String label,
-    String? badge,
-    String? trailingText,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.primaryPurple.withValues(
-                  alpha: AppColors.isDark(context) ? 0.2 : 0.1,
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: AppColors.primaryPurpleLight, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      label,
-                      style: AppTextStyles.bodyM.copyWith(
-                        color: AppColors.textPrimaryOf(context),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  if (badge != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        badge,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (trailingText != null) ...[
-              Text(
-                trailingText,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textSecondaryOf(context),
-                ),
-              ),
-              const SizedBox(width: 4),
-            ],
-            Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textSecondaryOf(context),
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmLogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.cardOf(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: AppColors.borderOf(context)),
-        ),
-        title: Text('Log Out', style: AppTextStyles.headingMOf(context)),
-        content: Text('Are you sure you want to log out of Pitch Coach?', style: AppTextStyles.bodyMOf(context)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryOf(context))),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              Provider.of<UserProvider>(context, listen: false).logout();
-              context.go('/');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.dangerRed,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            child: const Text('Log Out'),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-  /// Manage practice reminder: change time or disable (Unit 2).
-  Future<void> _handleReminderTap() async {
-    if (_reminderTime != null) {
-      final action = await showModalBottomSheet<String>(
-        context: context,
-        backgroundColor: AppColors.cardOf(context),
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          side: BorderSide(color: AppColors.borderOf(context)),
-        ),
-        builder: (ctx) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Daily Practice Reminder',
-                  style: AppTextStyles.headingMOf(context).copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Currently set for ${_reminderTime!.format(context)} daily.',
-                  style: AppTextStyles.captionOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
-                ),
-                const SizedBox(height: 16),
-                ListTile(
-                  leading: const Icon(Icons.access_time_rounded, color: AppColors.primaryPurple),
-                  title: Text('Change Reminder Time', style: AppTextStyles.bodyMOf(context)),
-                  onTap: () => Navigator.pop(ctx, 'change'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.notifications_off_outlined, color: AppColors.dangerRed),
-                  title: const Text('Disable Reminder', style: TextStyle(color: AppColors.dangerRed)),
-                  onTap: () => Navigator.pop(ctx, 'disable'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      if (!mounted) return;
-      if (action == 'disable') {
-        await NotificationService.instance.cancelDailyReminder();
-        if (!mounted) return;
-        setState(() => _reminderTime = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Daily practice reminder disabled.'),
-            backgroundColor: AppColors.textSecondary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        return;
-      } else if (action != 'change') {
-        return;
-      }
-    }
-
-    await _pickReminderTime();
-  }
-
-  /// Show TimePicker and schedule daily practice reminder (Unit 2).
-  Future<void> _pickReminderTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _reminderTime ?? const TimeOfDay(hour: 9, minute: 0),
-      builder: (context, child) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: isDark
-                ? const ColorScheme.dark(
-                    primary: AppColors.primaryPurple,
-                    onPrimary: Colors.white,
-                    surface: AppColors.cardDark,
-                    onSurface: AppColors.textOnDark,
-                  )
-                : const ColorScheme.light(
-                    primary: AppColors.primaryPurple,
-                    onPrimary: Colors.white,
-                    surface: Colors.white,
-                    onSurface: AppColors.textPrimaryDark,
-                  ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (!mounted) return;
-    if (picked != null) {
-      final formattedTime = picked.format(context);
-      setState(() => _reminderTime = picked);
-      // Schedule the daily notification
-      await NotificationService.instance.scheduleDailyReminder(picked);
-      // Confirm to the user with an instant notification
-      await NotificationService.instance.showInstantNotification(
-        '🔔 Reminder Set!',
-        'You will be reminded to practice at $formattedTime daily.',
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Daily reminder set for $formattedTime ✅',
-              style: const TextStyle(color: Colors.white),
-            ),
-            backgroundColor: AppColors.primaryPurple,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-          ),
-        );
-      }
-    }
   }
 }

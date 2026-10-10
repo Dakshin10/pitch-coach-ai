@@ -69,6 +69,9 @@ class UserResponse(BaseModel):
     feedback_style: str
     is_guest: bool
     dark_mode: bool
+    avatar_url: Optional[str] = None
+    settings: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -92,6 +95,27 @@ class UpdateProfileRequest(BaseModel):
     experience_level: Optional[str] = None
     feedback_style: Optional[str] = None
     dark_mode: Optional[bool] = None
+    avatar_url: Optional[str] = None
+    settings: Optional[Dict[str, Any]] = None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Feedback & Support
+# ─────────────────────────────────────────────────────────────────────────────
+
+class FeedbackRequest(BaseModel):
+    category: str = Field(..., description="Bug, Idea, or Other")
+    message: str = Field(..., min_length=10, max_length=2000)
+    screenshot_base64: Optional[str] = None
+    app_version: Optional[str] = None
+    device_info: Optional[Dict[str, Any]] = None
+    include_device_info: bool = True
+
+
+class FeedbackResponse(BaseModel):
+    status: str
+    id: str
+    message: str
 
 
 # ─────────────────────────────────────────────────────────────────────────────

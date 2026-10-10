@@ -268,6 +268,80 @@ async def upload_deck(
 
 
 @router.get(
+    "",
+    response_model=List[SlideDeckResponse],
+    summary="List all saved presentation decks for the current user",
+)
+def list_user_decks(
+    current_user: User = Depends(get_current_user),
+):
+    decks = deck_store.list_user_decks(current_user.id)
+    results = []
+    for deck in decks:
+        summary_obj = DeckSummary.model_validate(deck.deck_summary) if deck.deck_summary else None
+        slides_objs = [SlideCoaching.model_validate(s) for s in deck.slides]
+        results.append(
+            SlideDeckResponse(
+                id=deck.id,
+                filename=deck.filename,
+                audience=deck.audience,
+                time_limit_seconds=deck.time_limit_seconds,
+                goal=deck.goal,
+                status=deck.status,
+                stage=deck.stage,
+                progress=deck.progress,
+                page_count=deck.page_count,
+                deck_summary=summary_obj,
+                slides=slides_objs,
+                created_at=deck.created_at.isoformat(),
+                updated_at=deck.updated_at.isoformat(),
+            )
+        )
+    return results
+
+
+@router.post(
+    "/{deck_id}/reanalyze",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Re-run AI coaching analysis on an existing deck",
+)
+def reanalyze_deck(
+    deck_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+):
+    deck = deck_store.get(deck_id)
+    if not deck or deck.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Deck not found")
+
+    pdf_path = os.path.join(deck_store.get_deck_dir(deck.id), "deck.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="Original deck PDF file not found on server")
+
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+
+    deck.status = "processing"
+    deck.stage = "rendering"
+    deck.progress = 0
+    deck.error = None
+    deck.failure_reason = None
+    deck_store.save(deck)
+
+    background_tasks.add_task(
+        _run_deck_pipeline,
+        deck_id=deck.id,
+        pdf_bytes=pdf_bytes,
+        audience=deck.audience,
+        time_limit_seconds=deck.time_limit_seconds,
+        goal=deck.goal,
+        user_id=current_user.id,
+    )
+
+    return {"status": "reanalyzing", "deck_id": deck.id}
+
+
+@router.get(
     "/{deck_id}/status",
     response_model=SlideDeckStatusResponse,
     summary="Poll processing status and progress for a deck",

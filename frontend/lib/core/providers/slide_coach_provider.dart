@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/slide_coach_models.dart';
 import '../repositories/slide_coach_repository.dart';
 import '../services/notification_service.dart';
+import 'settings_provider.dart';
 
 class SlideCoachProvider extends ChangeNotifier {
   final _repo = SlideCoachRepository.instance;
@@ -40,6 +41,41 @@ class SlideCoachProvider extends ChangeNotifier {
   void dismissCompletedAnnouncement() {
     _completedDeckToAnnounce = null;
     notifyListeners();
+  }
+
+  // ── Saved Decks / History State ──
+  List<SlideDeckModel> _savedDecks = [];
+  bool _isLoadingSavedDecks = false;
+  String? _savedDecksError;
+
+  List<SlideDeckModel> get savedDecks => _savedDecks;
+  bool get isLoadingSavedDecks => _isLoadingSavedDecks;
+  String? get savedDecksError => _savedDecksError;
+
+  Future<void> loadSavedDecks({bool forceRefresh = false}) async {
+    _isLoadingSavedDecks = true;
+    _savedDecksError = null;
+    notifyListeners();
+
+    try {
+      _savedDecks = await _repo.listDecks();
+      _isLoadingSavedDecks = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoadingSavedDecks = false;
+      _savedDecksError = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> triggerReanalysis(String deckId) async {
+    try {
+      await _repo.reanalyzeDeck(deckId);
+      startPolling(deckId);
+    } catch (e) {
+      _pollError = e.toString();
+      notifyListeners();
+    }
   }
 
   // ── Active Deck Review State ──
@@ -114,13 +150,16 @@ class SlideCoachProvider extends ChangeNotifier {
         await loadDeck(storedId);
         if (_deck != null) {
           _completedDeckToAnnounce = _deck;
-          try {
-            await NotificationService.instance.showInstantNotification(
-              'Slide Deck Ready! 📊',
-              'Your presentation "${_deck!.fileName}" has been analyzed and is ready for rehearsal.',
-            );
-          } catch (e) {
-            debugPrint('Failed to send instant notification: $e');
+          final alertEnabled = await SettingsProvider.isSlideDeckReadyAlertEnabled();
+          if (alertEnabled) {
+            try {
+              await NotificationService.instance.showInstantNotification(
+                'Slide Deck Ready',
+                'Your presentation "${_deck!.fileName}" has been analyzed and is ready for rehearsal.',
+              );
+            } catch (e) {
+              debugPrint('Failed to send instant notification: $e');
+            }
           }
         }
         notifyListeners();
@@ -206,13 +245,16 @@ class SlideCoachProvider extends ChangeNotifier {
           await loadDeck(deckId);
           if (_deck != null) {
             _completedDeckToAnnounce = _deck;
-            try {
-              await NotificationService.instance.showInstantNotification(
-                'Slide Deck Ready! 📊',
-                'Your presentation "${_deck!.fileName}" has been analyzed and is ready for rehearsal.',
-              );
-            } catch (e) {
-              debugPrint('Failed to send notification: $e');
+            final alertEnabled = await SettingsProvider.isSlideDeckReadyAlertEnabled();
+            if (alertEnabled) {
+              try {
+                await NotificationService.instance.showInstantNotification(
+                  'Slide Deck Ready',
+                  'Your presentation "${_deck!.fileName}" has been analyzed and is ready for rehearsal.',
+                );
+              } catch (e) {
+                debugPrint('Failed to send notification: $e');
+              }
             }
           }
           notifyListeners();

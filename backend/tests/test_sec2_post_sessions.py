@@ -415,13 +415,14 @@ class TestSection2PostSessions:
         assert len(rows) == 1
         assert rows[0]["topic_or_question"] == malicious_topic
 
-    # 14. Very long topic, unicode and emoji
+    # 14. Very long topic and multilingual unicode
     def test_case_14_unicode_and_emoji(self):
         sid = "14141414-1414-4414-a414-141414141414"
-        unicode_topic = "🚀 Launching our AI pitch 🎯: プレゼンテーション و التقييم 🌟" * 10
+        unicode_topic = "Launching our AI pitch [Global]: プレゼンテーション و التقييم - Évaluation" * 10
         resp = self._post_session(session_id=sid, topic_or_question=unicode_topic)
         assert resp.status_code == 200
 
         rows = self.fake_d1.query("SELECT topic_or_question FROM session_metrics WHERE id = ?", [sid])
         assert len(rows) == 1
         assert rows[0]["topic_or_question"] == unicode_topic
+

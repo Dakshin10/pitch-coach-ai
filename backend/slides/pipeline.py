@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import os
+import random
 import re
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -13,6 +14,7 @@ import concurrent.futures
 import pymupdf  # PyMuPDF
 from groq import Groq
 from pydantic import ValidationError
+from utils.sanitizer import sanitize_obj
 
 from config import get_settings
 from slides.schemas import (
@@ -30,7 +32,7 @@ GROQ_MAX_VISION_BATCH = 5
 # Concurrent batch semaphore to respect rate limits
 VISION_SEMAPHORE_LIMIT = 2
 # Max retries for API calls
-MAX_API_RETRIES = 3
+MAX_API_RETRIES = 10
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -102,7 +104,7 @@ def _call_groq_with_backoff(
     response_format: Optional[Dict[str, str]] = None,
     max_retries: int = MAX_API_RETRIES,
 ) -> str:
-    """Invokes Groq API with exponential backoff on 429 / 5xx."""
+    """Invokes Groq API with header/message-aware dynamic backoff on 429 / 5xx."""
     last_err = None
     for attempt in range(max_retries):
         try:
@@ -118,9 +120,25 @@ def _call_groq_with_backoff(
         except Exception as e:
             last_err = e
             err_msg = str(e).lower()
-            if "429" in err_msg or "rate limit" in err_msg or "500" in err_msg or "503" in err_msg:
-                backoff = (2 ** attempt) + 1.0
-                logger.warning("Groq call attempt %d failed (%s). Retrying in %.1fs...", attempt + 1, e, backoff)
+            if "429" in err_msg or "rate limit" in err_msg or "500" in err_msg or "503" in err_msg or "overloaded" in err_msg:
+                # Dynamic extraction of requested retry duration from Groq response
+                # Groq returns messages like: "Please try again in 18.137142857s." or "Please try again in 531.428571ms."
+                match_s = re.search(r"try again in (\d+(?:\.\d+)?)\s*s", str(e), re.IGNORECASE)
+                match_ms = re.search(r"try again in (\d+(?:\.\d+)?)\s*ms", str(e), re.IGNORECASE)
+                if match_s:
+                    backoff = float(match_s.group(1)) + 1.5
+                elif match_ms:
+                    backoff = (float(match_ms.group(1)) / 1000.0) + 1.0
+                else:
+                    backoff = min(60.0, max(4.0, (2.0 ** attempt) * 1.5 + random.uniform(0.5, 2.0)))
+
+                logger.warning(
+                    "Groq rate limit / transient error on attempt %d/%d (%s). Waiting %.2fs before retrying...",
+                    attempt + 1,
+                    max_retries,
+                    e,
+                    backoff,
+                )
                 time.sleep(backoff)
             else:
                 # Fatal request error (e.g. 400 Bad Request)
@@ -139,7 +157,7 @@ def _extract_single_slide_vision(
     Sending 1 image per request respects Groq's 3-image ceiling and delivers deep per-slide analysis.
     """
     system_prompt = (
-        "You are an expert presentation visual analyst. Describe what is visible on this slide accurately.\n"
+        "You are an expert presentation visual analyst. Describe what is visible on this slide accurately. Do not use emojis in your response.\n"
         "Return ONLY a JSON object with this exact schema:\n"
         "{\n"
         '  "slide_number": int,\n'
@@ -175,7 +193,7 @@ def _extract_single_slide_vision(
             messages=messages,
             response_format={"type": "json_object"},
         )
-        data = json.loads(raw)
+        data = sanitize_obj(json.loads(raw))
         if "slides" in data and isinstance(data["slides"], list) and len(data["slides"]) > 0:
             matched = next((s for s in data["slides"] if isinstance(s, dict) and s.get("slide_number") == slide_num), None)
             if matched:
@@ -238,13 +256,15 @@ def extract_all_slides_vision(
     descriptions: List[SlideVisionDescription] = []
     completed_count = 0
 
-    # Parallel execution with bounded concurrency (3-4 workers to balance speed and rate limits)
-    max_workers = min(4, max(1, total_slides))
+    # Parallel execution with bounded concurrency (2 workers with gentle pacing to stay under 7000 ITPM limit)
+    max_workers = min(2, max(1, total_slides))
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_num = {
-            executor.submit(_extract_single_slide_vision, client, model, num, path): num
-            for num, path in all_slides_numbered
-        }
+        future_to_num = {}
+        for num, path in all_slides_numbered:
+            future = executor.submit(_extract_single_slide_vision, client, model, num, path)
+            future_to_num[future] = num
+            if total_slides > 1:
+                time.sleep(0.8)  # Gentle spacing to avoid burst TPM/ITPM limit spikes
 
         for future in concurrent.futures.as_completed(future_to_num):
             slide_num = future_to_num[future]
@@ -344,7 +364,7 @@ def synthesize_deck_coaching(
         formatted_slides = formatted_slides[:25000]
 
     system_prompt = (
-        "You are an elite pitch coach preparing a speaker for a high-stakes presentation.\n"
+        "You are an elite pitch coach preparing a speaker for a high-stakes presentation. Do not use emojis in your response.\n"
         f"AUDIENCE: {audience}\n"
         f"GOAL: {goal or 'Deliver a persuasive presentation'}\n"
         f"TOTAL TIME LIMIT: {time_limit_seconds} seconds ({math.ceil(time_limit_seconds / 60)} minutes)\n"
@@ -399,7 +419,7 @@ def synthesize_deck_coaching(
 
     result: Optional[DeckCoachingResult] = None
     try:
-        data = json.loads(raw)
+        data = sanitize_obj(json.loads(raw))
         result = DeckCoachingResult.model_validate(data)
     except Exception as exc:
         logger.warning("Stage C initial parse failed (%s). Retrying with repair...", exc)
@@ -414,7 +434,7 @@ def synthesize_deck_coaching(
                 messages=repair_messages,
                 response_format={"type": "json_object"},
             )
-            data = json.loads(raw_repair)
+            data = sanitize_obj(json.loads(raw_repair))
             result = DeckCoachingResult.model_validate(data)
         except Exception as repair_exc:
             logger.error("Stage C repair also failed (%s). Generating fallback coaching result.", repair_exc)
@@ -585,7 +605,7 @@ def check_talking_points_coverage(
             ],
             response_format={"type": "json_object"},
         )
-        data = json.loads(raw)
+        data = sanitize_obj(json.loads(raw))
         cov_list = data.get("coverage", [])
         if not cov_list:
             raise ValueError("Empty coverage list")
@@ -784,7 +804,7 @@ def generate_qa_questions(
             ],
             response_format={"type": "json_object"},
         )
-        data = json.loads(raw)
+        data = sanitize_obj(json.loads(raw))
         questions = data.get("questions", [])
         if isinstance(questions, list) and len(questions) > 0:
             return questions
@@ -851,7 +871,7 @@ def evaluate_qa_answer(
             ],
             response_format={"type": "json_object"},
         )
-        eval_data = json.loads(raw)
+        eval_data = sanitize_obj(json.loads(raw))
         eval_data["spoken_transcript"] = transcript
         return eval_data
     except Exception as exc:

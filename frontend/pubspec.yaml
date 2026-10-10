@@ -50,6 +50,13 @@ dependencies:
   # ── File Picking ──────────────────────────────────────────────────────────
   file_picker: ^8.1.7              # PDF document picking for Slide Coach
 
+  # ── Settings & Utilities ──────────────────────────────────────────────────
+  shared_preferences: ^2.3.2       # Non-secret local settings persistence
+  image_picker: ^1.1.2             # Profile avatar image selection
+  package_info_plus: ^8.1.0        # App version and build number
+  url_launcher: ^6.3.1             # Terms, Privacy, feedback mailto links
+  in_app_review: ^2.0.9            # App store rating dialog
+
   # ── Backend / Networking ──────────────────────────────────────────────────
   dio: ^5.7.0                      # HTTP client with interceptors for JWT auth
   flutter_secure_storage: ^9.2.4   # Secure token storage (Keystore / Keychain)
@@ -101,6 +108,8 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/icons/
+    - assets/illustrations/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

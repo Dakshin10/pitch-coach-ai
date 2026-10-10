@@ -125,7 +125,7 @@ class Achievement {
   factory Achievement.fromJson(Map<String, dynamic> j) => Achievement(
         key: j['key'] as String? ?? '',
         title: j['title'] as String? ?? '',
-        icon: j['icon'] as String? ?? '🏆',
+        icon: j['icon'] as String? ?? 'trophy',
         isUnlocked: j['is_unlocked'] as bool? ?? false,
         unlockedAt: j['unlocked_at'] != null
             ? DateTime.parse(j['unlocked_at'] as String)

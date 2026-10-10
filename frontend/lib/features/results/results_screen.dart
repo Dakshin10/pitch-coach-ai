@@ -11,6 +11,7 @@ import '../../core/repositories/demo_repository.dart';
 import '../../core/repositories/session_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/app_icon.dart';
 import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
 import '../../core/widgets/theme_toggle_button.dart';
@@ -90,13 +91,16 @@ class _ResultsScreenState extends State<ResultsScreen>
       ),
     );
 
-    // Start polling if we have a session_id
+    // Start polling or load from cache if we have a session_id
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final sessionId = widget.sessionId;
       if (sessionId != null && sessionId.isNotEmpty) {
         final provider = context.read<SessionResultsProvider>();
-        provider.loadSession(sessionId);
         provider.addListener(_onResultsUpdate);
+        provider.loadSession(sessionId);
+        if (provider.state == ResultsLoadState.ready && provider.result != null) {
+          _onResultsUpdate();
+        }
       } else {
         // No session id (e.g. navigated directly) — just run the animation
         _mainController.forward();
@@ -176,7 +180,7 @@ class _ResultsScreenState extends State<ResultsScreen>
             _buildTopAppBar(context),
 
             // Analyzing banner
-            if (isAnalyzing && widget.sessionId != null)
+            if (isAnalyzing && widget.sessionId != null && result != null)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -191,12 +195,19 @@ class _ResultsScreenState extends State<ResultsScreen>
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      'Analyzing your speech with AI…',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primaryPurple,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        'Updating speech analysis in background…',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primaryPurple,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => context.go('/home'),
+                      icon: const Icon(Icons.downloading_rounded, size: 16, color: AppColors.primaryPurple),
+                      label: const Text('Minimize', style: TextStyle(color: AppColors.primaryPurple, fontSize: 12)),
                     ),
                   ],
                 ),
@@ -209,6 +220,8 @@ class _ResultsScreenState extends State<ResultsScreen>
                 (resultsProvider.state == ResultsLoadState.failed ||
                     resultsProvider.state == ResultsLoadState.error))
               Expanded(child: _buildFailureState(context, resultsProvider))
+            else if (widget.sessionId != null && isAnalyzing && result == null)
+              Expanded(child: _buildAnalyzingProgressCard(context, resultsProvider))
             else
             Expanded(
               child: SingleChildScrollView(
@@ -383,6 +396,75 @@ class _ResultsScreenState extends State<ResultsScreen>
               label: Text(timedOut ? 'Check again' : 'Retry analysis'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnalyzingProgressCard(BuildContext context, SessionResultsProvider provider) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: AppColors.cardOf(context),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.borderOf(context)),
+            boxShadow: AppColors.softShadowOf(context),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  const SizedBox(
+                    width: 76,
+                    height: 76,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 5,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.graphic_eq_rounded,
+                    color: AppColors.primaryPurple,
+                    size: 34,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              Text(
+                'AI Speech Analysis in Progress',
+                style: AppTextStyles.headingMOf(context),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Transcribing audio, detecting filler words, calculating speech pacing, and evaluating answer clarity with AI...',
+                style: AppTextStyles.bodyMOf(context).copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/home'),
+                icon: const Icon(Icons.downloading_rounded, size: 18),
+                label: const Text('Minimize & Run in Background'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryPurple,
+                  side: BorderSide(color: AppColors.primaryPurple.withValues(alpha: 0.4)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -678,15 +760,24 @@ class _ResultsScreenState extends State<ResultsScreen>
             ],
           ),
 
-          // Party Popper Emoji Icon (Top-Right)
-          const Positioned(
-            top: 4,
-            right: 4,
-            child: Text(
-              '🎉',
-              style: TextStyle(fontSize: 24),
+          // Celebration Vector Icon (Top-Right)
+          if (score >= 70)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.successGreen.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const AppIcon(
+                  AppIcons.celebration,
+                  size: 20,
+                  color: AppColors.successGreen,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -149,11 +149,18 @@ class LocalDatabaseService {
     // Seed achievement_catalog
     batch.execute('''
       INSERT OR IGNORE INTO achievement_catalog (key, title, description, icon_name, category) VALUES
-      ('first_session', 'First Step', 'Complete your first practice session.', '🎤', 'milestone'),
-      ('7_day_streak', '7-Day Streak', 'Practice 7 days in a row.', '🔥', 'streak'),
-      ('50_sessions', '50 Sessions', 'Complete 50 practice sessions.', '🎯', 'milestone'),
-      ('clarity_master', 'Clarity Master', 'Achieve a clarity score ≥ 85% in any session.', '💎', 'skill'),
-      ('early_bird', 'Early Bird', 'Complete a session before 8:00 AM.', '🌅', 'habit');
+      ('first_session', 'First Step', 'Complete your first practice session.', 'mic', 'milestone'),
+      ('7_day_streak', '7-Day Streak', 'Practice 7 days in a row.', 'fire', 'streak'),
+      ('50_sessions', '50 Sessions', 'Complete 50 practice sessions.', 'target', 'milestone'),
+      ('clarity_master', 'Clarity Master', 'Achieve a clarity score ≥ 85% in any session.', 'diamond', 'skill'),
+      ('early_bird', 'Early Bird', 'Complete a session before 8:00 AM.', 'sunrise', 'habit');
+    ''');
+    batch.execute('''
+      UPDATE achievement_catalog SET icon_name = 'mic' WHERE key = 'first_session';
+      UPDATE achievement_catalog SET icon_name = 'fire' WHERE key = '7_day_streak';
+      UPDATE achievement_catalog SET icon_name = 'target' WHERE key = '50_sessions';
+      UPDATE achievement_catalog SET icon_name = 'diamond' WHERE key = 'clarity_master';
+      UPDATE achievement_catalog SET icon_name = 'sunrise' WHERE key = 'early_bird';
     ''');
 
     // 4. user_achievements
@@ -379,7 +386,7 @@ class LocalDatabaseService {
       return Achievement(
         key: r['key'] as String? ?? '',
         title: r['title'] as String? ?? '',
-        icon: r['icon_name'] as String? ?? '🏆',
+        icon: r['icon_name'] as String? ?? 'trophy',
         isUnlocked: unlocked,
         unlockedAt: (unlocked && unlockedStr != null) ? DateTime.tryParse(unlockedStr) : null,
         description: r['description'] as String? ?? '',

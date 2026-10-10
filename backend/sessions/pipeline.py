@@ -361,6 +361,8 @@ _FALLBACK_FEEDBACK = [
 ]
 
 
+from utils.sanitizer import remove_emojis
+
 def _to_feedback_items(items) -> List[FeedbackItem]:
     """Validates raw LLM output into FeedbackItems (max 3). Empty list if unusable."""
     if not isinstance(items, list):
@@ -369,11 +371,13 @@ def _to_feedback_items(items) -> List[FeedbackItem]:
     for item in items[:3]:
         if not isinstance(item, dict) or not str(item.get("message", "")).strip():
             continue
+        msg = remove_emojis(str(item.get("message", "")))
+        ex = remove_emojis(str(item.get("example"))) if item.get("example") else None
         result.append(FeedbackItem(
             category=str(item.get("category", "clarity")),
-            message=str(item.get("message", "")),
+            message=msg,
             severity=str(item.get("severity", "tip")),
-            example=item.get("example") or None,
+            example=ex,
         ))
     return result
 
@@ -445,7 +449,7 @@ METRICS:
 
 COACHING STYLE: {feedback_style}
 
-Return a JSON object with key "feedback" whose value is an array of exactly 3 items.
+Return a JSON object with key "feedback" whose value is an array of exactly 3 items. Do not use emojis in your response.
 Each item must have:
   "category": one of [filler_words, pacing, clarity, structure, confidence]
   "message": one concise sentence (≤ 20 words) — the actionable tip

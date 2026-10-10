@@ -17,6 +17,7 @@ from stats.router import router as stats_router
 from achievements.router import router as achievements_router
 from slides.router import router as slides_router
 from metrics.router import router as metrics_router
+from feedback.router import router as feedback_router
 from slides.store import deck_store
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ app.include_router(stats_router)
 app.include_router(achievements_router)
 app.include_router(slides_router)
 app.include_router(metrics_router)
+app.include_router(feedback_router)
 
 
 @app.get("/health", tags=["health"])

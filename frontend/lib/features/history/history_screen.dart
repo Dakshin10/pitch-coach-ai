@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/models/slide_coach_models.dart';
+import '../../core/providers/slide_coach_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/repositories/demo_repository.dart';
 import '../../core/models/session_result.dart';
@@ -29,7 +31,7 @@ class _HistoryScreenState extends State<HistoryScreen>
   bool _isLoading = true;
   String? _errorMessage;
 
-  final List<String> _filterChips = ['All', 'Interview', 'Presentation', 'Free Talk'];
+  final List<String> _filterChips = ['All', 'Interview', 'Presentation', 'Free Talk', 'Slide Decks'];
 
   @override
   bool get wantKeepAlive => true;
@@ -43,6 +45,11 @@ class _HistoryScreenState extends State<HistoryScreen>
       _isLoading = false;
     }
     _loadSessions(isInitial: cached == null || cached.isEmpty);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<SlideCoachProvider>().loadSavedDecks();
+      }
+    });
   }
 
   @override
@@ -52,6 +59,12 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Future<void> _loadSessions({bool isInitial = false, bool force = false}) async {
+    if (_selectedFilter == 'Slide Decks') {
+      if (mounted) setState(() => _isLoading = false);
+      await context.read<SlideCoachProvider>().loadSavedDecks(forceRefresh: force);
+      return;
+    }
+
     if (isInitial && _sessions.isEmpty) {
       setState(() {
         _isLoading = true;
@@ -266,7 +279,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedFilter = chip);
-                            _loadSessions();
+                            if (chip == 'Slide Decks') {
+                              context.read<SlideCoachProvider>().loadSavedDecks();
+                            } else {
+                              _loadSessions();
+                            }
                           }
                         },
                       ),
@@ -279,53 +296,55 @@ class _HistoryScreenState extends State<HistoryScreen>
 
               // 4. Session List / Loading / Error / Empty State
               Expanded(
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
-                        ),
-                      )
-                    : _errorMessage != null
-                        ? _buildErrorState()
-                        : _sessions.isEmpty
-                            ? _buildEmptyState()
-                            : RefreshIndicator(
-                                onRefresh: () => _loadSessions(force: true),
-                                color: AppColors.primaryPurple,
-                                child: ListView.builder(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  itemCount: _groupedSessions.keys.length,
-                                  itemBuilder: (context, index) {
-                                    final groupKey =
-                                        _groupedSessions.keys.elementAt(index);
-                                    final sessionsInGroup =
-                                        _groupedSessions[groupKey]!;
-                                    return Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 8.0),
-                                          child: Text(
-                                            groupKey,
-                                            style: AppTextStyles.headingMOf(context).copyWith(
-                                              fontSize: 15,
-                                              color: AppColors.textSecondaryOf(context),
+                child: _selectedFilter == 'Slide Decks'
+                    ? _buildSlideDeckSection(context)
+                    : _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                            ),
+                          )
+                        : _errorMessage != null
+                            ? _buildErrorState()
+                            : _sessions.isEmpty
+                                ? _buildEmptyState()
+                                : RefreshIndicator(
+                                    onRefresh: () => _loadSessions(force: true),
+                                    color: AppColors.primaryPurple,
+                                    child: ListView.builder(
+                                      physics: const AlwaysScrollableScrollPhysics(),
+                                      itemCount: _groupedSessions.keys.length,
+                                      itemBuilder: (context, index) {
+                                        final groupKey =
+                                            _groupedSessions.keys.elementAt(index);
+                                        final sessionsInGroup =
+                                            _groupedSessions[groupKey]!;
+                                        return Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(
+                                                  vertical: 8.0),
+                                              child: Text(
+                                                groupKey,
+                                                style: AppTextStyles.headingMOf(context).copyWith(
+                                                  fontSize: 15,
+                                                  color: AppColors.textSecondaryOf(context),
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                        ...sessionsInGroup.map(
-                                          (s) => Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 12.0),
-                                            child: _buildSessionCard(context, s),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                              ),
+                                            ...sessionsInGroup.map(
+                                              (s) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 12.0),
+                                                child: _buildSessionCard(context, s),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
               ),
             ],
           ),
@@ -533,5 +552,359 @@ class _HistoryScreenState extends State<HistoryScreen>
       setState(() => _selectedDate = picked);
       _loadSessions();
     }
+  }
+
+  Widget _buildSlideDeckSection(BuildContext context) {
+    final slideProvider = context.watch<SlideCoachProvider>();
+    if (slideProvider.isLoadingSavedDecks && slideProvider.savedDecks.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+        ),
+      );
+    }
+
+    if (slideProvider.savedDecksError != null && slideProvider.savedDecks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSecondaryOf(context)),
+            const SizedBox(height: 16),
+            Text(slideProvider.savedDecksError ?? 'Could not load slide decks.', style: AppTextStyles.bodyMOf(context), textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => context.read<SlideCoachProvider>().loadSavedDecks(forceRefresh: true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple, foregroundColor: Colors.white),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final query = _searchQuery.toLowerCase().trim();
+    var decks = slideProvider.savedDecks;
+    if (query.isNotEmpty) {
+      decks = decks.where((d) =>
+        d.filename.toLowerCase().contains(query) ||
+        d.goal.toLowerCase().contains(query) ||
+        d.audience.toLowerCase().contains(query)
+      ).toList();
+    }
+    if (_selectedDate != null) {
+      decks = decks.where((d) {
+        final dt = d.createdDateTime;
+        if (dt == null) return false;
+        return dt.year == _selectedDate!.year &&
+               dt.month == _selectedDate!.month &&
+               dt.day == _selectedDate!.day;
+      }).toList();
+    }
+
+    if (decks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.primaryPurple.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.picture_as_pdf_rounded,
+                size: 54,
+                color: AppColors.primaryPurple,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('No slide decks found', style: AppTextStyles.headingLOf(context)),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                _searchQuery.isNotEmpty
+                    ? 'No presentations matching "$_searchQuery".'
+                    : _selectedDate != null
+                        ? 'No presentation decks found on selected date.'
+                        : 'Upload a PDF presentation to generate instant visual coaching, talking points, and pitch scripts.',
+                style: AppTextStyles.bodyMOf(context).copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/slide-coach'),
+              icon: const Icon(Icons.cloud_upload_rounded),
+              label: const Text('Upload Presentation'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryPurple,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => context.read<SlideCoachProvider>().loadSavedDecks(forceRefresh: true),
+      color: AppColors.primaryPurple,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: decks.length,
+        itemBuilder: (context, index) {
+          final deck = decks[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: _buildSlideDeckCard(context, deck),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSlideDeckCard(BuildContext context, SlideDeckModel deck) {
+    final score = deck.deckSummary?.overallScore ?? 0;
+    final scoreColor = score >= 80
+        ? AppColors.successGreen
+        : score >= 60
+            ? AppColors.warningAmber
+            : AppColors.dangerRed;
+
+    final isDone = deck.status == 'done';
+    final isProcessing = deck.status == 'processing';
+
+    final slideCount = deck.slides.isNotEmpty ? deck.slides.length : deck.pageCount;
+    final timeMin = (deck.timeLimitSeconds / 60).round();
+    final audienceFormatted = deck.audience.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ');
+
+    return InkWell(
+      onTap: () async {
+        final provider = context.read<SlideCoachProvider>();
+        if (isDone) {
+          await provider.loadDeck(deck.id);
+          if (context.mounted) context.push('/slide-coach/review');
+        } else if (isProcessing) {
+          provider.startPolling(deck.id);
+          context.push('/slide-coach/processing');
+        } else {
+          _showReanalyzePrompt(context, deck);
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.cardOf(context),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderOf(context)),
+          boxShadow: AppColors.softShadowOf(context),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          leading: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primaryPurple.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.primaryPurple, size: 24),
+          ),
+          title: Text(
+            deck.filename,
+            style: AppTextStyles.headingMOf(context).copyWith(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 2),
+              Text(
+                '$slideCount slides · $timeMin min · $audienceFormatted',
+                style: AppTextStyles.captionOf(context).copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${deck.timeFormatted} · ${deck.dateFormatted}',
+                style: AppTextStyles.captionOf(context).copyWith(
+                  color: AppColors.textSecondaryOf(context).withValues(alpha: 0.7),
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isDone)
+                CircularGauge(
+                  value: score.toDouble(),
+                  size: 46,
+                  strokeWidth: 4.5,
+                  centerBigText: '$score%',
+                  gradientColors: [scoreColor, scoreColor],
+                )
+              else if (isProcessing)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryPurple),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${deck.progress}%',
+                        style: AppTextStyles.caption.copyWith(color: AppColors.primaryPurple, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                const Tooltip(
+                  message: 'Analysis failed — tap to re-analyze',
+                  child: Icon(Icons.error_outline_rounded, color: AppColors.dangerRed, size: 28),
+                ),
+              const SizedBox(width: 4),
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondaryOf(context), size: 20),
+                color: AppColors.cardOf(context),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: AppColors.borderOf(context)),
+                ),
+                onSelected: (value) async {
+                  final provider = context.read<SlideCoachProvider>();
+                  if (value == 'review') {
+                    await provider.loadDeck(deck.id);
+                    if (context.mounted) context.push('/slide-coach/review');
+                  } else if (value == 'rehearsal') {
+                    await provider.loadDeck(deck.id);
+                    if (context.mounted) context.push('/slide-coach/rehearsal');
+                  } else if (value == 'qa') {
+                    await provider.loadDeck(deck.id);
+                    if (context.mounted) context.push('/slide-coach/qa');
+                  } else if (value == 'reanalyze') {
+                    _showReanalyzePrompt(context, deck);
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (isDone) ...[
+                    const PopupMenuItem(
+                      value: 'review',
+                      child: Row(
+                        children: [
+                          Icon(Icons.dashboard_outlined, size: 18, color: AppColors.primaryPurple),
+                          SizedBox(width: 10),
+                          Text('Open Review & Script'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'rehearsal',
+                      child: Row(
+                        children: [
+                          Icon(Icons.mic_outlined, size: 18, color: AppColors.accentBlue),
+                          SizedBox(width: 10),
+                          Text('Practice Rehearsal'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'qa',
+                      child: Row(
+                        children: [
+                          Icon(Icons.question_answer_outlined, size: 18, color: AppColors.auroraCyan),
+                          SizedBox(width: 10),
+                          Text('Audience Q&A Prep'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const PopupMenuItem(
+                    value: 'reanalyze',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh_rounded, size: 18, color: AppColors.warningAmber),
+                        SizedBox(width: 10),
+                        Text('Re-analyze with AI'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          isThreeLine: true,
+        ),
+      ),
+    );
+  }
+
+  void _showReanalyzePrompt(BuildContext context, SlideDeckModel deck) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardOf(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppColors.borderOf(context)),
+        ),
+        title: Text('Re-compute with AI?', style: AppTextStyles.headingMOf(context)),
+        content: Text(
+          'This will re-run the vision and speech coaching pipeline on "${deck.filename}". Any saved scripts will be regenerated.',
+          style: AppTextStyles.bodyTextOf(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryOf(context))),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final provider = context.read<SlideCoachProvider>();
+              await provider.triggerReanalysis(deck.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Re-analysis started in background...')),
+                );
+                context.push('/slide-coach/processing');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryPurple,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Re-analyze'),
+          ),
+        ],
+      ),
+    );
   }
 }

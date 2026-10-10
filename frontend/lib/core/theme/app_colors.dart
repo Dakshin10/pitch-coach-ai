@@ -23,6 +23,8 @@ abstract class AppColors {
   static const Color gradientPurpleStart = Color(0xFF8B7CFF);
   static const Color gradientPurpleEnd = Color(0xFFC084FC);
   static const Color auroraCyan = Color(0xFF22D3EE);
+  static const Color secondaryCyan = auroraCyan;
+  static const Color cardLight = surfaceLightElevated;
   static const Color auroraPink = Color(0xFFF472B6);
   static const Color auroraIndigo = Color(0xFF6366F1);
 
@@ -37,6 +39,8 @@ abstract class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static const LinearGradient accentGradient = auroraGradient;
 
   static const LinearGradient heroDarkGradient = LinearGradient(
     colors: [Color(0xFF07070F), Color(0xFF12101F), Color(0xFF0A1020)],
@@ -75,6 +79,7 @@ abstract class AppColors {
   static const Color successGreen = Color(0xFF34D399);
   static const Color warningAmber = Color(0xFFFBBF24);
   static const Color dangerRed = Color(0xFFF87171);
+  static const Color errorRed = dangerRed;
 
   // UI chrome
   static const Color divider = Color(0xFFE7E5F0);

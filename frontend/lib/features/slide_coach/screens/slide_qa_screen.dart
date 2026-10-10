@@ -101,13 +101,13 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
         ],
       ),
       body: provider.isLoadingQuestions
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: AppColors.primaryPurple),
-                  SizedBox(height: 16),
-                  Text('Generating tough audience questions...'),
+                  const CircularProgressIndicator(color: AppColors.primaryPurple),
+                  const SizedBox(height: 16),
+                  Text('Generating tough audience questions...', style: AppTextStyles.bodyTextOf(context)),
                 ],
               ),
             )
@@ -116,11 +116,12 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('No questions available'),
+                      Text('No questions available', style: AppTextStyles.headingMOf(context)),
                       const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: () => provider.loadQaQuestions(),
-                        child: const Text('Generate Questions'),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple),
+                        child: const Text('Generate Questions', style: TextStyle(color: Colors.white)),
                       ),
                     ],
                   ),
@@ -140,7 +141,7 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
                           ),
                           Text(
                             'Audience: ${provider.deck?.audience ?? "Judges"}',
-                            style: AppTextStyles.caption,
+                            style: AppTextStyles.captionOf(context),
                           ),
                         ],
                       ),
@@ -197,12 +198,12 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
 
                       // Recording Controls
                       if (provider.isEvaluatingAnswer) ...[
-                        const Center(
+                        Center(
                           child: Column(
                             children: [
-                              CircularProgressIndicator(color: AppColors.primaryPurple),
-                              SizedBox(height: 12),
-                              Text('Transcribing and evaluating your spoken response...'),
+                              const CircularProgressIndicator(color: AppColors.primaryPurple),
+                              const SizedBox(height: 12),
+                              Text('Transcribing and evaluating your spoken response...', style: AppTextStyles.bodyTextOf(context)),
                             ],
                           ),
                         ),
@@ -239,7 +240,7 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
                                 _isRecording
                                     ? 'Recording answer... Tap stop to grade'
                                     : 'Tap microphone to speak your answer',
-                                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold),
+                                style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
@@ -321,12 +322,12 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
           ),
 
           const SizedBox(height: 14),
-          Text('Your Spoken Answer:', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+          Text('Your Spoken Answer:', style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
-          Text('"${eval.spokenTranscript}"', style: AppTextStyles.caption.copyWith(fontStyle: FontStyle.italic)),
+          Text('"${eval.spokenTranscript}"', style: AppTextStyles.bodyTextOf(context).copyWith(fontStyle: FontStyle.italic, fontSize: 13)),
 
           const SizedBox(height: 12),
-          Text('Coach Critique:', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+          Text('Coach Critique:', style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
           Text(eval.critique, style: AppTextStyles.bodyTextOf(context)),
 
@@ -381,7 +382,7 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
         child: Column(
           children: [
             Text('$score', style: TextStyle(color: col, fontWeight: FontWeight.bold, fontSize: 13)),
-            Text(label, style: const TextStyle(fontSize: 9, color: Colors.white70)),
+            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondaryOf(context))),
           ],
         ),
       ),

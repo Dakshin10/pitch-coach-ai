@@ -18,6 +18,7 @@ import re
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from groq import Groq
+from utils.sanitizer import sanitize_obj
 
 Word = Tuple[str, float, float]
 
@@ -32,7 +33,7 @@ before giving advice. Then reply with ONLY a JSON object:
                 "message": one concise actionable sentence (<= 20 words),
                 "severity": one of [positive, warning, tip],
                 "example": a short quoted phrase from the transcript, or null } x exactly 3 ]}
-Be specific, never invent quotes, and match the requested coaching style."""
+Be specific, never invent quotes, and match the requested coaching style. Do not use emojis in your response."""
 
 _TOOLS = [
     {
@@ -211,7 +212,9 @@ def _parse_feedback(raw: str) -> Optional[List[dict]]:
         items = json.loads(match.group(0)).get("feedback")
     except (json.JSONDecodeError, AttributeError):
         return None
-    return items if isinstance(items, list) and items else None
+    if isinstance(items, list) and items:
+        return sanitize_obj(items)
+    return None
 
 
 def run_feedback_agent(
@@ -258,7 +261,7 @@ def run_feedback_agent(
                     args = json.loads(call.function.arguments or "{}")
                     items = args.get("feedback")
                     if isinstance(items, list) and items:
-                        return items
+                        return sanitize_obj(items)
                 except Exception:
                     pass
 

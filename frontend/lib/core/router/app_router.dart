@@ -13,6 +13,10 @@ import '../../features/learn/lessons_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/profile_setup_screen.dart';
+import '../../features/profile/screens/notification_preferences_screen.dart';
+import '../../features/profile/screens/pro_upgrade_screen.dart';
+import '../../features/profile/screens/help_center_screen.dart';
+import '../../features/profile/screens/send_feedback_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/results/results_screen.dart';
 import '../../features/slide_coach/screens/slide_upload_screen.dart';
@@ -32,6 +36,10 @@ abstract class AppRouter {
   static const String results = '/results';
   static const String progress = '/progress';
   static const String profile = '/profile';
+  static const String profileNotifications = '/profile/notifications';
+  static const String profilePro = '/profile/pro';
+  static const String profileHelp = '/profile/help';
+  static const String profileFeedback = '/profile/feedback';
   static const String demo = '/demo';
   static const String lessons = '/lessons';
   static const String lessonDetail = '/lessons/detail';
@@ -177,7 +185,14 @@ abstract class AppRouter {
       GoRoute(
         path: results,
         pageBuilder: (context, state) {
-          final sessionId = state.extra as String?;
+          String? sessionId;
+          if (state.extra is String) {
+            sessionId = state.extra as String;
+          } else if (state.extra is Map<String, dynamic>) {
+            final map = state.extra as Map<String, dynamic>;
+            sessionId = (map['session_id'] as String?) ?? (map['id'] as String?);
+          }
+          sessionId ??= state.uri.queryParameters['session_id'];
           return _buildPage(
             context: context,
             state: state,
@@ -200,6 +215,38 @@ abstract class AppRouter {
           context: context,
           state: state,
           child: const LessonsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: profileNotifications,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const NotificationPreferencesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: profilePro,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const ProUpgradeScreen(),
+        ),
+      ),
+      GoRoute(
+        path: profileHelp,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const HelpCenterScreen(),
+        ),
+      ),
+      GoRoute(
+        path: profileFeedback,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const SendFeedbackScreen(),
         ),
       ),
       GoRoute(

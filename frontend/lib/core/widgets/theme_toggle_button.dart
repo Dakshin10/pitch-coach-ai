@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_colors.dart';
+import 'app_icon.dart';
 
-/// Animated sun/moon control that flips light and dark themes.
+/// Animated sun/moon control that flips light and dark themes via SettingsProvider.
 class ThemeToggleButton extends StatelessWidget {
   final double size;
   final bool compact;
@@ -16,8 +17,8 @@ class ThemeToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = context.watch<UserProvider>();
-    final isDark = userProvider.user.darkMode;
+    final settings = context.watch<SettingsProvider>();
+    final isDark = settings.isDarkMode(context);
     final border = AppColors.borderOf(context);
     final iconColor = AppColors.textPrimaryOf(context);
 
@@ -26,7 +27,7 @@ class ThemeToggleButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => userProvider.setDarkMode(!isDark),
+          onTap: () => settings.toggleDarkMode(context),
           borderRadius: BorderRadius.circular(size),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 280),
@@ -66,11 +67,13 @@ class ThemeToggleButton extends StatelessWidget {
                   ),
                 );
               },
-              child: Icon(
-                isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              child: Center(
                 key: ValueKey(isDark),
-                size: size * 0.48,
-                color: isDark ? const Color(0xFFFFD56A) : iconColor,
+                child: AppIcon(
+                  isDark ? AppIcons.sunrise : AppIcons.moon,
+                  size: size * 0.48,
+                  color: isDark ? const Color(0xFFFFD56A) : iconColor,
+                ),
               ),
             ),
           ),

@@ -229,7 +229,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
           Text(summary.storyArc, style: AppTextStyles.bodyTextOf(context)),
           if (summary.missingSections.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('Missing Pitch Elements:', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+            Text('Missing Pitch Elements:', style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Wrap(
               spacing: 6,
@@ -242,14 +242,14 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: AppColors.dangerRed.withValues(alpha: 0.4)),
                         ),
-                        child: Text(sec, style: const TextStyle(color: AppColors.dangerRed, fontSize: 11)),
+                        child: Text(sec, style: const TextStyle(color: AppColors.dangerRed, fontSize: 11, fontWeight: FontWeight.w600)),
                       ))
                   .toList(),
             ),
           ],
           if (summary.top3Fixes.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('Top 3 Fixes:', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+            Text('Top 3 Fixes:', style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             ...summary.top3Fixes.map((fix) => Padding(
                   padding: const EdgeInsets.only(top: 2),
@@ -257,7 +257,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('• ', style: TextStyle(color: AppColors.primaryPurple, fontWeight: FontWeight.bold)),
-                      Expanded(child: Text(fix, style: AppTextStyles.caption)),
+                      Expanded(child: Text(fix, style: AppTextStyles.bodyTextOf(context).copyWith(fontSize: 12))),
                     ],
                   ),
                 )),
@@ -405,7 +405,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Key Audience Takeaway', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+                Text('Key Audience Takeaway', style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
                 Text(slide.keyTakeaway, style: AppTextStyles.bodyTextOf(context)),
               ],
@@ -462,11 +462,13 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
                   Expanded(
                     child: TextFormField(
                       initialValue: pt,
-                      style: const TextStyle(fontSize: 14),
-                      decoration: const InputDecoration(
+                      style: AppTextStyles.bodyTextOf(context).copyWith(fontSize: 14, color: AppColors.textPrimaryOf(context)),
+                      decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 4),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
                         border: InputBorder.none,
+                        hintText: 'Talking point...',
+                        hintStyle: TextStyle(color: AppColors.textSecondaryOf(context).withValues(alpha: 0.6)),
                       ),
                       onChanged: (newVal) {
                         final updated = List<String>.from(slide.talkingPoints);
@@ -502,18 +504,26 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
       ),
       leading: const Icon(Icons.record_voice_over, color: AppColors.primaryPurple, size: 20),
       title: Text('Word-for-Word Pitch Script', style: AppTextStyles.bodyBoldOf(context)),
-      subtitle: const Text('Expand to view or edit full speech', style: TextStyle(fontSize: 11)),
+      subtitle: Text('Expand to view or edit full speech', style: AppTextStyles.captionOf(context).copyWith(fontSize: 11)),
       childrenPadding: const EdgeInsets.all(14),
       children: [
         TextField(
           controller: _scriptController,
           maxLines: 5,
-          style: const TextStyle(fontSize: 14, height: 1.4),
+          style: AppTextStyles.bodyTextOf(context).copyWith(fontSize: 14, height: 1.4, color: AppColors.textPrimaryOf(context)),
           decoration: InputDecoration(
             hintText: 'Suggested word-for-word spoken speech...',
+            hintStyle: TextStyle(color: AppColors.textSecondaryOf(context).withValues(alpha: 0.6)),
             filled: true,
             fillColor: AppColors.scaffoldOf(context),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.borderOf(context)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.borderOf(context)),
+            ),
           ),
           onChanged: (newScript) => provider.updateCurrentSlideScript(newScript),
         ),
@@ -538,7 +548,7 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Slide Transition Hook', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+                Text('Slide Transition Hook', style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
                 Text('"${slide.transitionToNext}"', style: AppTextStyles.bodyTextOf(context).copyWith(fontStyle: FontStyle.italic)),
               ],
@@ -579,13 +589,13 @@ class _DeckReviewScreenState extends State<DeckReviewScreen> {
           ),
           if (slide.visuals != null && slide.visuals!.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('Visuals Detected: ${slide.visuals}', style: AppTextStyles.caption),
+            Text('Visuals Detected: ${slide.visuals}', style: AppTextStyles.bodyTextOf(context).copyWith(fontSize: 12)),
           ],
           if (slide.slideCritique.isNotEmpty) ...[
             const SizedBox(height: 8),
             ...slide.slideCritique.map((crit) => Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text('• $crit', style: AppTextStyles.caption.copyWith(color: AppColors.warningAmber)),
+                  child: Text('• $crit', style: AppTextStyles.captionOf(context).copyWith(color: AppColors.warningAmber, fontSize: 12)),
                 )),
           ],
         ],

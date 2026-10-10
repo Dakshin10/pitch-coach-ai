@@ -1,9 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pitch_coach/core/models/practice_mode.dart';
+import 'package:pitch_coach/core/models/session_result.dart';
+import 'package:pitch_coach/core/providers/session_results_provider.dart';
+import 'package:pitch_coach/core/repositories/session_repository.dart';
 import 'package:pitch_coach/core/services/upload_queue_service.dart';
 import 'package:pitch_coach/features/interview/interview_practice_screen.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Practice Modes and Question Bank', () {
     test('All 3 core modes exist with rich question banks', () {
       expect(PracticeMode.allModes.length, 3);
@@ -122,4 +127,84 @@ void main() {
       expect(recovered.lastError, item.lastError);
     });
   });
+
+  group('SessionResult Caching and Background Architecture', () {
+    test('SessionResult getters format metrics cleanly', () {
+      final result = SessionResult(
+        id: 'sess-abc-123',
+        mode: 'interview',
+        topicOrQuestion: 'Tell me about yourself',
+        durationSeconds: 125.0,
+        wpm: 142.0,
+        fillerWordCount: 4,
+        fillerWordBreakdown: {'like': 2, 'um': 2},
+        pauseCount: 3,
+        avgPauseLength: 1.2,
+        clarityScore: 88.0,
+        confidenceScore: 92.0,
+        overallScore: 90.0,
+        aiFeedback: const [],
+        createdAt: DateTime.now(),
+        isAnalyzed: true,
+      );
+
+      expect(result.sessionId, 'sess-abc-123');
+      expect(result.modeLabel, 'Interview');
+      expect(result.totalFillerCount, 4);
+      expect(result.durationFormatted, '02:05');
+    });
+
+    test('SessionRepository in-memory cache stores and retrieves instantaneously', () {
+      final repo = SessionRepository.instance;
+      final result = SessionResult(
+        id: 'sess-cache-test-1',
+        mode: 'presentation',
+        topicOrQuestion: 'Product Launch',
+        durationSeconds: 60.0,
+        wpm: 130.0,
+        fillerWordCount: 1,
+        fillerWordBreakdown: {'uh': 1},
+        pauseCount: 2,
+        avgPauseLength: 1.0,
+        clarityScore: 95.0,
+        confidenceScore: 90.0,
+        overallScore: 93.0,
+        aiFeedback: const [],
+        createdAt: DateTime.now(),
+        isAnalyzed: true,
+      );
+
+      repo.cacheSession(result);
+      final cached = repo.getCachedSession('sess-cache-test-1');
+      expect(cached, isNotNull);
+      expect(cached!.id, 'sess-cache-test-1');
+      expect(cached.overallScore, 93.0);
+
+      repo.invalidateSessionResult('sess-cache-test-1');
+      expect(repo.getCachedSession('sess-cache-test-1'), isNull);
+    });
+
+    test('SessionResultsProvider background tracking and announcement dismissal', () {
+      final provider = SessionResultsProvider();
+      expect(provider.hasActiveBackgroundProcessing, false);
+      expect(provider.completedSessionToAnnounce, isNull);
+
+      // Start background processing
+      provider.startBackgroundProcessing(
+        sessionId: 'bg-sess-456',
+        topic: 'Tell me about a challenging project',
+        mode: 'interview',
+      );
+
+      expect(provider.hasActiveBackgroundProcessing, true);
+      expect(provider.activeSessionId, 'bg-sess-456');
+      expect(provider.activeTopic, 'Tell me about a challenging project');
+      expect(provider.activeMode, 'interview');
+
+      // Dismiss announcement
+      provider.dismissCompletedAnnouncement();
+      expect(provider.completedSessionToAnnounce, isNull);
+    });
+  });
 }
+

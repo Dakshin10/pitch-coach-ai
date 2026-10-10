@@ -182,6 +182,24 @@ class SlideDeckModel {
 
   String get fileName => filename;
   int get targetTotalDurationSeconds => timeLimitSeconds;
+
+  DateTime? get createdDateTime => DateTime.tryParse(createdAt)?.toLocal();
+
+  String get dateFormatted {
+    final d = createdDateTime;
+    if (d == null) return '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return '${days[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}';
+  }
+
+  String get timeFormatted {
+    final d = createdDateTime;
+    if (d == null) return '';
+    final h = d.hour.toString().padLeft(2, '0');
+    final m = d.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
 }
 
 class SlideDeckStatusModel {

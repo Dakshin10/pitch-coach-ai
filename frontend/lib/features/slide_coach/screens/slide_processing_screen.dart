@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/slide_coach_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 
 class SlideProcessingScreen extends StatefulWidget {
   const SlideProcessingScreen({super.key});
@@ -69,6 +70,12 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
           tooltip: 'Minimize & Run in Background',
           onPressed: () => context.go('/home'),
         ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: ThemeToggleButton(size: 38, compact: true),
+          ),
+        ],
       ),
       body: Center(
         child: Padding(

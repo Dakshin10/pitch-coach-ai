@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/session_result.dart';
 import '../../core/models/slide_coach_models.dart';
+import '../../core/providers/session_results_provider.dart';
 import '../../core/providers/slide_coach_provider.dart';
 import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
@@ -11,6 +12,7 @@ import '../../core/repositories/demo_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_atmosphere.dart';
+import '../../core/widgets/app_illustration.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
 import '../../core/widgets/theme_toggle_button.dart';
 
@@ -110,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen>
     // (e.g. dark mode toggle in ThemeToggleButton) do not rebuild this Scaffold.
     final user = context.select<UserProvider, UserProfile>((p) => p.user);
     final slideCoach = context.watch<SlideCoachProvider>();
+    final sessionResults = context.watch<SessionResultsProvider>();
 
     if (slideCoach.completedDeckToAnnounce != null) {
       final deck = slideCoach.completedDeckToAnnounce!;
@@ -117,6 +120,15 @@ class _HomeScreenState extends State<HomeScreen>
         if (!mounted) return;
         slideCoach.dismissCompletedAnnouncement();
         _showDeckReadyPopup(context, deck);
+      });
+    }
+
+    if (sessionResults.completedSessionToAnnounce != null) {
+      final session = sessionResults.completedSessionToAnnounce!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        sessionResults.dismissCompletedAnnouncement();
+        _showSessionReadyPopup(context, session);
       });
     }
 
@@ -139,6 +151,11 @@ class _HomeScreenState extends State<HomeScreen>
                 if (slideCoach.hasActiveBackgroundProcessing) ...[
                   const SizedBox(height: 16),
                   _buildSlideProcessingBanner(context, slideCoach),
+                ],
+
+                if (sessionResults.hasActiveBackgroundProcessing) ...[
+                  const SizedBox(height: 16),
+                  _buildSpeechProcessingBanner(context, sessionResults),
                 ],
 
                 const SizedBox(height: 24),
@@ -552,35 +569,40 @@ class _HomeScreenState extends State<HomeScreen>
           : '+${(-pct).toStringAsFixed(0)}%';
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: _buildSmallStatCard(
-            label: 'Sessions',
-            value: isLoading ? '...' : '${s.totalSessions}',
-            valueColor: AppColors.textPrimaryOf(context),
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _buildSmallStatCard(
+              label: 'Sessions',
+              value: isLoading ? '...' : '${s.totalSessions}',
+              valueColor: AppColors.textPrimaryOf(context),
+              subCaption: isLoading ? null : 'completed',
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildSmallStatCard(
-            label: 'Avg. Confidence',
-            value: isLoading ? '...' : '${s.avgConfidence.toStringAsFixed(0)}%',
-            valueColor: AppColors.successGreen,
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildSmallStatCard(
+              label: 'Avg. Confidence',
+              value: isLoading ? '...' : '${s.avgConfidence.toStringAsFixed(0)}%',
+              valueColor: AppColors.successGreen,
+              subCaption: isLoading ? null : 'overall',
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildSmallStatCard(
-            label: 'Filler Words',
-            value: fillerLabel,
-            valueColor: !isLoading && s.fillerReductionPct >= 0
-                ? AppColors.accentGreen
-                : AppColors.warningAmber,
-            subCaption: isLoading ? null : 'vs last week',
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildSmallStatCard(
+              label: 'Filler Words',
+              value: fillerLabel,
+              valueColor: !isLoading && s.fillerReductionPct >= 0
+                  ? AppColors.accentGreen
+                  : AppColors.warningAmber,
+              subCaption: isLoading ? null : 'vs last week',
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -591,43 +613,47 @@ class _HomeScreenState extends State<HomeScreen>
     String? subCaption,
   }) {
     return GlassSurface(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       borderRadius: BorderRadius.circular(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondaryOf(context),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: AppTextStyles.headingXL.copyWith(
+                  fontSize: 22,
+                  color: valueColor,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           Text(
-            label,
+            (subCaption != null && subCaption.isNotEmpty) ? subCaption : ' ',
             style: AppTextStyles.caption.copyWith(
+              fontSize: 10,
               color: AppColors.textSecondaryOf(context),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: AppTextStyles.headingXL.copyWith(
-              fontSize: 22,
-              color: valueColor,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          if (subCaption != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              subCaption,
-              style: AppTextStyles.caption.copyWith(
-                fontSize: 10,
-                color: AppColors.textSecondaryOf(context),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
         ],
       ),
     );
@@ -902,6 +928,245 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _buildSpeechProcessingBanner(
+      BuildContext context, SessionResultsProvider provider) {
+    final topic = provider.activeTopic ?? 'Interview Practice Session';
+    final mode = provider.activeMode ?? 'interview';
+    final modeLabel = mode == 'presentation'
+        ? 'Presentation'
+        : mode == 'free_talk'
+            ? 'Free Talk'
+            : 'Interview';
+    final sessionId = provider.activeSessionId;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardOf(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.accentBlue.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.accentBlue.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () {
+          if (sessionId != null && sessionId.isNotEmpty) {
+            context.push('/results', extra: sessionId);
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.accentBlue.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: AppColors.accentBlue,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '$modeLabel Processing in Background',
+                            style: AppTextStyles.bodyBold.copyWith(
+                              color: AppColors.textPrimaryOf(context),
+                              fontSize: 13,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentBlue.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'ANALYZING',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.accentBlue,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 9,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        topic,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondaryOf(context),
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: AppColors.accentBlue,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                minHeight: 6,
+                color: AppColors.accentBlue,
+                backgroundColor: AppColors.borderOf(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSessionReadyPopup(BuildContext context, SessionResult session) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        backgroundColor: AppColors.cardOf(dialogCtx),
+        child: Padding(
+          padding: const EdgeInsets.all(22.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const AppIllustration.sessionReady(size: 72),
+              const SizedBox(height: 16),
+              Text(
+                'Practice Session Ready',
+                style: AppTextStyles.headingMOf(dialogCtx),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                session.topicOrQuestion,
+                style: AppTextStyles.bodyBold.copyWith(
+                  color: AppColors.primaryPurple,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'AI speech and pacing analysis complete. Your scores, filler breakdown, and tailored coaching are ready.',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondaryOf(dialogCtx),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.scaffoldOf(dialogCtx),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.borderOf(dialogCtx)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildPopupStatItem(
+                      dialogCtx,
+                      icon: Icons.speed_rounded,
+                      label: 'Overall',
+                      value: '${session.overallScore.round()}%',
+                    ),
+                    Container(width: 1, height: 26, color: AppColors.borderOf(dialogCtx)),
+                    _buildPopupStatItem(
+                      dialogCtx,
+                      icon: Icons.record_voice_over_rounded,
+                      label: 'Pacing',
+                      value: '${session.wpm.round()} WPM',
+                    ),
+                    Container(width: 1, height: 26, color: AppColors.borderOf(dialogCtx)),
+                    _buildPopupStatItem(
+                      dialogCtx,
+                      icon: Icons.warning_amber_rounded,
+                      label: 'Fillers',
+                      value: '${session.totalFillerCount}',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(dialogCtx).pop(),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('Later'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(dialogCtx).pop();
+                        context.push('/results', extra: session.sessionId);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryPurple,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('View Results'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showDeckReadyPopup(BuildContext context, SlideDeckModel deck) {
     showDialog(
       context: context,
@@ -914,29 +1179,10 @@ class _HomeScreenState extends State<HomeScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryPurple.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.auto_awesome,
-                  color: Colors.white,
-                  size: 30,
-                ),
-              ),
+              const AppIllustration.deckReady(size: 72),
               const SizedBox(height: 16),
               Text(
-                'Slide Deck Ready! 📊',
+                'Slide Deck Ready',
                 style: AppTextStyles.headingMOf(dialogCtx),
                 textAlign: TextAlign.center,
               ),
