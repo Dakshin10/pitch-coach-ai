@@ -14,8 +14,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('PitchCoachApp smoke test - initializes MaterialApp',
-      (WidgetTester tester) async {
+  testWidgets('PitchCoachApp smoke test - initializes MaterialApp', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [

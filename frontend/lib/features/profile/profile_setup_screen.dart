@@ -79,12 +79,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _roleController = TextEditingController(text: _initialRole);
     _emailController = TextEditingController(text: _initialEmail);
 
-    if (_goals.contains(user.targetGoal)) _selectedGoal = user.targetGoal;
-    if (_levels.contains(user.experienceLevel)) _selectedLevel = user.experienceLevel;
+    if (_goals.contains(user.targetGoal)) {
+      _selectedGoal = user.targetGoal;
+    }
+    if (_levels.contains(user.experienceLevel)) {
+      _selectedLevel = user.experienceLevel;
+    }
     if (_industries.contains(user.targetIndustry)) {
       _selectedIndustry = user.targetIndustry;
     }
-    if (_tones.contains(user.feedbackTone)) _selectedTone = user.feedbackTone;
+    if (_tones.contains(user.feedbackTone)) {
+      _selectedTone = user.feedbackTone;
+    }
 
     _initialGoal = _selectedGoal;
     _initialLevel = _selectedLevel;
@@ -257,7 +263,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20.0, vertical: 8.0),
+                      horizontal: 20.0,
+                      vertical: 8.0,
+                    ),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -269,17 +277,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             gradient: isDark
                                 ? LinearGradient(
                                     colors: [
-                                      AppColors.primaryPurple
-                                          .withValues(alpha: 0.22),
+                                      AppColors.primaryPurple.withValues(
+                                        alpha: 0.22,
+                                      ),
                                       AppColors.cardDark,
                                     ],
                                   )
                                 : LinearGradient(
                                     colors: [
-                                      AppColors.primaryPurple
-                                          .withValues(alpha: 0.1),
-                                      AppColors.primaryPurpleLight
-                                          .withValues(alpha: 0.05),
+                                      AppColors.primaryPurple.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      AppColors.primaryPurpleLight.withValues(
+                                        alpha: 0.05,
+                                      ),
                                     ],
                                   ),
                             child: Row(
@@ -307,7 +318,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                         style: AppTextStyles.bodyM.copyWith(
                                           fontWeight: FontWeight.bold,
                                           color: AppColors.textPrimaryOf(
-                                              context),
+                                            context,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(height: 2),
@@ -315,7 +327,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                         'Tailor speech prompts, metrics, and coaching AI.',
                                         style: AppTextStyles.caption.copyWith(
                                           color: AppColors.textSecondaryOf(
-                                              context),
+                                            context,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -337,15 +350,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           TextFormField(
                             controller: _nameController,
                             style: TextStyle(
-                                color: AppColors.textPrimaryOf(context)),
+                              color: AppColors.textPrimaryOf(context),
+                            ),
                             decoration: _buildInputDecoration(
                               'e.g. Dakshin',
                               AppIcons.person,
                             ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty)
-                                    ? 'Name is required'
-                                    : null,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Name is required'
+                                : null,
                           ),
 
                           const SizedBox(height: 14),
@@ -355,7 +368,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             controller: _roleController,
                             maxLength: 80,
                             style: TextStyle(
-                                color: AppColors.textPrimaryOf(context)),
+                              color: AppColors.textPrimaryOf(context),
+                            ),
                             decoration: _buildInputDecoration(
                               'e.g. Computer Science Student',
                               AppIcons.star,
@@ -375,7 +389,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             style: TextStyle(
-                                color: AppColors.textPrimaryOf(context)),
+                              color: AppColors.textPrimaryOf(context),
+                            ),
                             decoration: _buildInputDecoration(
                               'e.g. dakshin@example.com',
                               AppIcons.chat,
@@ -385,7 +400,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                 return 'Email is required';
                               }
                               final emailRegex = RegExp(
-                                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                              );
                               if (!emailRegex.hasMatch(v.trim())) {
                                 return 'Please enter a valid email address';
                               }
@@ -474,8 +490,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                 margin: const EdgeInsets.only(bottom: 8),
                                 decoration: BoxDecoration(
                                   color: selected
-                                      ? AppColors.primaryPurple
-                                          .withValues(alpha: isDark ? 0.18 : 0.08)
+                                      ? AppColors.primaryPurple.withValues(
+                                          alpha: isDark ? 0.18 : 0.08,
+                                        )
                                       : AppColors.cardOf(context),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
@@ -505,18 +522,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                               color: selected
                                                   ? AppColors.primaryPurpleLight
                                                   : AppColors.textSecondaryOf(
-                                                      context),
+                                                      context,
+                                                    ),
                                               width: 2,
                                             ),
                                           ),
                                           padding: const EdgeInsets.all(3),
                                           child: selected
                                               ? Container(
-                                                  decoration: const BoxDecoration(
-                                                    color: AppColors
-                                                        .primaryPurpleLight,
-                                                    shape: BoxShape.circle,
-                                                  ),
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: AppColors
+                                                            .primaryPurpleLight,
+                                                        shape: BoxShape.circle,
+                                                      ),
                                                 )
                                               : null,
                                         ),
@@ -526,7 +545,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                             tone,
                                             style: AppTextStyles.bodyM.copyWith(
                                               color: AppColors.textPrimaryOf(
-                                                  context),
+                                                context,
+                                              ),
                                               fontWeight: selected
                                                   ? FontWeight.w700
                                                   : FontWeight.w500,
@@ -544,7 +564,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           const SizedBox(height: 28),
 
                           GradientButton(
-                            text: _isSaving ? 'Saving Changes...' : 'Save Profile Details',
+                            text: _isSaving
+                                ? 'Saving Changes...'
+                                : 'Save Profile Details',
                             variant: GradientButtonVariant.primary,
                             height: 54,
                             onPressed: _isSaving ? null : _saveProfile,
@@ -618,7 +640,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.primaryPurple, width: 1.5),
+        borderSide: const BorderSide(
+          color: AppColors.primaryPurple,
+          width: 1.5,
+        ),
       ),
     );
   }
@@ -652,10 +677,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             color: AppColors.textPrimaryOf(context),
           ),
           items: items.map((item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Text(item),
-            );
+            return DropdownMenuItem<String>(value: item, child: Text(item));
           }).toList(),
           onChanged: onChanged,
         ),

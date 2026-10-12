@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
-enum GradientButtonVariant {
-  primary,
-  secondary,
-  tertiary,
-}
+enum GradientButtonVariant { primary, secondary, tertiary }
 
 class GradientButton extends StatefulWidget {
   final String text;
@@ -57,13 +53,13 @@ class _GradientButtonState extends State<GradientButton> {
           gradient: widget.backgroundColor != null
               ? null
               : (isDisabled
-                  ? LinearGradient(
-                      colors: [
-                        AppColors.gradientPurpleStart.withValues(alpha: 0.5),
-                        AppColors.gradientPurpleEnd.withValues(alpha: 0.5),
-                      ],
-                    )
-                  : AppColors.primaryGradient),
+                    ? LinearGradient(
+                        colors: [
+                          AppColors.gradientPurpleStart.withValues(alpha: 0.5),
+                          AppColors.gradientPurpleEnd.withValues(alpha: 0.5),
+                        ],
+                      )
+                    : AppColors.primaryGradient),
           borderRadius: BorderRadius.circular(28),
           boxShadow: isDisabled
               ? []
@@ -85,20 +81,24 @@ class _GradientButtonState extends State<GradientButton> {
         final Color defaultBg = isDark
             ? AppColors.cardDark
             : (widget.textColor == Colors.white
-                ? Colors.white.withValues(alpha: 0.08)
-                : AppColors.surfaceLightElevated);
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : AppColors.surfaceLightElevated);
 
         decoration = BoxDecoration(
           color: widget.backgroundColor ?? defaultBg,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: widget.borderColor ??
+            color:
+                widget.borderColor ??
                 (isDark
                     ? Colors.white.withValues(alpha: 0.14)
                     : AppColors.cardLightBorder),
             width: 1.2,
           ),
-          boxShadow: (isDark || widget.backgroundColor != null || widget.textColor == Colors.white)
+          boxShadow:
+              (isDark ||
+                  widget.backgroundColor != null ||
+                  widget.textColor == Colors.white)
               ? null
               : [
                   BoxShadow(
@@ -118,7 +118,8 @@ class _GradientButtonState extends State<GradientButton> {
           color: widget.backgroundColor ?? Colors.transparent,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: widget.borderColor ??
+            color:
+                widget.borderColor ??
                 AppColors.textSecondary.withValues(alpha: 0.35),
             width: 1.2,
           ),
@@ -169,17 +170,10 @@ class _GradientButtonState extends State<GradientButton> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (widget.icon != null) ...[
-                        Icon(
-                          widget.icon,
-                          size: 20,
-                          color: textStyle.color,
-                        ),
+                        Icon(widget.icon, size: 20, color: textStyle.color),
                         const SizedBox(width: 8),
                       ],
-                      Text(
-                        widget.text,
-                        style: textStyle,
-                      ),
+                      Text(widget.text, style: textStyle),
                     ],
                   ),
           ),

@@ -59,12 +59,16 @@ class UserProfile {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  bool get isPro => settings?['is_pro'] == true || role.toLowerCase().contains('pro');
+  bool get isPro =>
+      settings?['is_pro'] == true || role.toLowerCase().contains('pro');
 
   String? get fullAvatarUrl {
     if (avatarUrl == null || avatarUrl!.isEmpty) return null;
     if (avatarUrl!.startsWith('http')) return avatarUrl;
-    final base = ApiClient.instance.dio.options.baseUrl.replaceAll(RegExp(r'/+$'), '');
+    final base = ApiClient.instance.dio.options.baseUrl.replaceAll(
+      RegExp(r'/+$'),
+      '',
+    );
     final path = avatarUrl!.startsWith('/') ? avatarUrl! : '/$avatarUrl';
     return '$base$path';
   }
@@ -79,8 +83,18 @@ class UserProfile {
     String formattedMemberSince = '';
     if (created != null) {
       const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       formattedMemberSince = '${months[created.month - 1]} ${created.year}';
     } else {
@@ -95,7 +109,8 @@ class UserProfile {
       targetGoal: j['primary_objective'] as String? ?? '',
       experienceLevel: j['experience_level'] as String? ?? 'Intermediate',
       targetIndustry: j['target_industry'] as String? ?? '',
-      feedbackTone: j['feedback_style'] as String? ?? 'Encouraging & Constructive',
+      feedbackTone:
+          j['feedback_style'] as String? ?? 'Encouraging & Constructive',
       isGuest: j['is_guest'] as bool? ?? false,
       darkMode: j['dark_mode'] as bool? ?? false,
       avatarUrl: j['avatar_url'] as String?,
@@ -135,10 +150,12 @@ class UserProvider extends ChangeNotifier {
   AuthState get authState => _isLoading
       ? AuthState.loading
       : _error != null
-          ? AuthState.error
-          : !_isLoggedIn
-              ? AuthState.unauthenticated
-              : _user.isGuest ? AuthState.guest : AuthState.authenticated;
+      ? AuthState.error
+      : !_isLoggedIn
+      ? AuthState.unauthenticated
+      : _user.isGuest
+      ? AuthState.guest
+      : AuthState.authenticated;
   bool get isLoading => _isLoading;
   String? get error => _error;
   ThemeMode get themeMode => _user.darkMode ? ThemeMode.dark : ThemeMode.light;
@@ -152,9 +169,12 @@ class UserProvider extends ChangeNotifier {
 
     // Switch local SQLite database to the authenticated user and trigger background pull sync
     if (_user.id.isNotEmpty && !_user.isGuest) {
-      LocalDatabaseService.instance.initForUser(_user.id).then((_) {
-        SyncService.instance.pull(userId: _user.id);
-      }).catchError((_) {});
+      LocalDatabaseService.instance
+          .initForUser(_user.id)
+          .then((_) {
+            SyncService.instance.pull(userId: _user.id);
+          })
+          .catchError((_) {});
     }
   }
 
@@ -376,10 +396,17 @@ class UserProvider extends ChangeNotifier {
     await LocalDatabaseService.instance.close();
     final keptDark = _user.darkMode;
     _user = UserProfile(
-      id: 'demo-guest', name: 'Guest', email: '', role: 'Student',
-      targetGoal: 'Build confidence', experienceLevel: 'Beginner',
-      targetIndustry: '', feedbackTone: 'Encouraging & Constructive',
-      isGuest: true, sessionsCompleted: 5, avgScore: 82,
+      id: 'demo-guest',
+      name: 'Guest',
+      email: '',
+      role: 'Student',
+      targetGoal: 'Build confidence',
+      experienceLevel: 'Beginner',
+      targetIndustry: '',
+      feedbackTone: 'Encouraging & Constructive',
+      isGuest: true,
+      sessionsCompleted: 5,
+      avgScore: 82,
       darkMode: keptDark,
     );
     _isLoggedIn = true;
@@ -467,7 +494,10 @@ class UserProvider extends ChangeNotifier {
 
   // ── Avatar Upload & Remove ────────────────────────────────────────────────
 
-  Future<bool> uploadAvatar(String filePath, {void Function(double)? onProgress}) async {
+  Future<bool> uploadAvatar(
+    String filePath, {
+    void Function(double)? onProgress,
+  }) async {
     _setLoading(true);
     try {
       final updated = await _auth.uploadAvatar(
@@ -573,7 +603,6 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-
   // ── Internal helpers ──────────────────────────────────────────────────────
 
   void clearError() {
@@ -589,13 +618,21 @@ class UserProvider extends ChangeNotifier {
   String _extractErrorMessage(Object e) {
     if (e is DioException) {
       final detail = (e.response?.data as Map?)?['detail'];
-      if (detail is String && detail.isNotEmpty) return detail;
+      if (detail is String && detail.isNotEmpty) {
+        return detail;
+      }
       if (detail is List && detail.isNotEmpty) {
         return 'Please check the highlighted registration details.';
       }
-      if (e.response?.statusCode == 409) return 'An account with this email already exists.';
-      if (e.response?.statusCode == 400) return 'Please check your details and try again.';
-      if (e.response?.statusCode != null) return 'The server could not complete your request. Please try again.';
+      if (e.response?.statusCode == 409) {
+        return 'An account with this email already exists.';
+      }
+      if (e.response?.statusCode == 400) {
+        return 'Please check your details and try again.';
+      }
+      if (e.response?.statusCode != null) {
+        return 'The server could not complete your request. Please try again.';
+      }
     }
     final str = e.toString();
     // Dio DioException message often contains the backend detail string

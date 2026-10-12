@@ -40,8 +40,12 @@ class _SettingsSkeletonState extends State<SettingsSkeleton>
   @override
   Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
-    final baseColor = isDark ? const Color(0xFF232038) : const Color(0xFFE4E4EC);
-    final highlightColor = isDark ? const Color(0xFF332D52) : const Color(0xFFF3F3FA);
+    final baseColor = isDark
+        ? const Color(0xFF232038)
+        : const Color(0xFFE4E4EC);
+    final highlightColor = isDark
+        ? const Color(0xFF332D52)
+        : const Color(0xFFF3F3FA);
 
     return AnimatedBuilder(
       animation: _controller,

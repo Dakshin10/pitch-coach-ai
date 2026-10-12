@@ -72,10 +72,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isSignUp ? 'Account created successfully!' : 'Welcome back!'),
+          content: Text(
+            _isSignUp ? 'Account created successfully!' : 'Welcome back!',
+          ),
           backgroundColor: AppColors.primaryPurple,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       if (_isSignUp) {
@@ -87,10 +91,14 @@ class _LoginScreenState extends State<LoginScreen> {
       // Show error from provider
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(userProvider.error ?? 'Authentication failed. Please try again.'),
+          content: Text(
+            userProvider.error ?? 'Authentication failed. Please try again.',
+          ),
           backgroundColor: AppColors.dangerRed,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       userProvider.clearError();
@@ -113,7 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
           content: const Text('Signed in with Google!'),
           backgroundColor: AppColors.primaryPurple,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       context.go('/home');
@@ -124,7 +134,9 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text(userProvider.error!),
           backgroundColor: AppColors.dangerRed,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       userProvider.clearError();
@@ -181,7 +193,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primaryPurple.withValues(alpha: isDark ? 0.4 : 0.25),
+                              color: AppColors.primaryPurple.withValues(
+                                alpha: isDark ? 0.4 : 0.25,
+                              ),
                               blurRadius: 20,
                               offset: const Offset(0, 6),
                             ),
@@ -207,7 +221,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextSpan(
                               text: 'Coach',
                               style: AppTextStyles.headingXL.copyWith(
-                                color: isDark ? AppColors.primaryPurpleLight : AppColors.primaryPurple,
+                                color: isDark
+                                    ? AppColors.primaryPurpleLight
+                                    : AppColors.primaryPurple,
                                 fontSize: 28,
                               ),
                             ),
@@ -238,7 +254,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: !_isSignUp ? AppColors.primaryPurple : Colors.transparent,
+                              color: !_isSignUp
+                                  ? AppColors.primaryPurple
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             alignment: Alignment.center,
@@ -260,7 +278,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: _isSignUp ? AppColors.primaryPurple : Colors.transparent,
+                              color: _isSignUp
+                                  ? AppColors.primaryPurple
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             alignment: Alignment.center,
@@ -285,7 +305,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (_isSignUp) ...[
                   Text(
                     'Full Name',
-                    style: AppTextStyles.label.copyWith(color: AppColors.textPrimaryOf(context)),
+                    style: AppTextStyles.label.copyWith(
+                      color: AppColors.textPrimaryOf(context),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   _buildInputField(
@@ -304,7 +326,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 Text(
                   'Email Address',
-                  style: AppTextStyles.label.copyWith(color: AppColors.textPrimaryOf(context)),
+                  style: AppTextStyles.label.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 _buildInputField(
@@ -327,7 +351,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 Text(
                   'Password',
-                  style: AppTextStyles.label.copyWith(color: AppColors.textPrimaryOf(context)),
+                  style: AppTextStyles.label.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 _buildInputField(
@@ -337,11 +363,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: _obscurePassword,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
                       color: AppColors.textSecondaryOf(context),
                       size: 20,
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   validator: (val) {
                     if (val == null || val.length < 6) {
@@ -361,7 +390,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Text(
                         'Forgot Password?',
                         style: AppTextStyles.caption.copyWith(
-                          color: isDark ? AppColors.primaryPurpleLight : AppColors.primaryPurple,
+                          color: isDark
+                              ? AppColors.primaryPurpleLight
+                              : AppColors.primaryPurple,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -389,7 +420,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 // OR divider
                 Row(
                   children: [
-                    Expanded(child: Divider(color: AppColors.dividerOf(context))),
+                    Expanded(
+                      child: Divider(color: AppColors.dividerOf(context)),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
@@ -401,7 +434,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    Expanded(child: Divider(color: AppColors.dividerOf(context))),
+                    Expanded(
+                      child: Divider(color: AppColors.dividerOf(context)),
+                    ),
                   ],
                 ),
 
@@ -427,7 +462,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderColor: AppColors.borderOf(context),
                   textColor: AppColors.textPrimaryOf(context),
                   onPressed: () async {
-                    await Provider.of<UserProvider>(context, listen: false).loginAsGuest();
+                    await Provider.of<UserProvider>(
+                      context,
+                      listen: false,
+                    ).loginAsGuest();
                     if (!context.mounted) return;
                     context.go('/home');
                   },
@@ -468,13 +506,18 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         prefixIcon: Icon(
           icon,
-          color: isDark ? AppColors.primaryPurpleLight : AppColors.primaryPurple,
+          color: isDark
+              ? AppColors.primaryPurpleLight
+              : AppColors.primaryPurple,
           size: 20,
         ),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: AppColors.cardOf(context),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: border),
@@ -485,7 +528,10 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.primaryPurple, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppColors.primaryPurple,
+            width: 1.5,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -502,10 +548,7 @@ class _GoogleSignInButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;
 
-  const _GoogleSignInButton({
-    required this.onPressed,
-    this.isLoading = false,
-  });
+  const _GoogleSignInButton({required this.onPressed, this.isLoading = false});
 
   @override
   Widget build(BuildContext context) {
@@ -516,10 +559,10 @@ class _GoogleSignInButton extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: AppColors.cardOf(context),
-          side: BorderSide(
-            color: AppColors.borderOf(context),
+          side: BorderSide(color: AppColors.borderOf(context)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         ),
         child: isLoading
             ? const SizedBox(

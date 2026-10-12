@@ -98,7 +98,8 @@ class _ResultsScreenState extends State<ResultsScreen>
         final provider = context.read<SessionResultsProvider>();
         provider.addListener(_onResultsUpdate);
         provider.loadSession(sessionId);
-        if (provider.state == ResultsLoadState.ready && provider.result != null) {
+        if (provider.state == ResultsLoadState.ready &&
+            provider.result != null) {
           _onResultsUpdate();
         }
       } else {
@@ -166,9 +167,13 @@ class _ResultsScreenState extends State<ResultsScreen>
   Widget build(BuildContext context) {
     final resultsProvider = context.watch<SessionResultsProvider>();
     final isGuest = context.watch<UserProvider>().isGuest;
-    final result = resultsProvider.result ??
-        (isGuest && widget.sessionId == null ? DemoRepository.instance.result : null);
-    final isAnalyzing = resultsProvider.state == ResultsLoadState.analyzing ||
+    final result =
+        resultsProvider.result ??
+        (isGuest && widget.sessionId == null
+            ? DemoRepository.instance.result
+            : null);
+    final isAnalyzing =
+        resultsProvider.state == ResultsLoadState.analyzing ||
         resultsProvider.state == ResultsLoadState.loading;
 
     return Scaffold(
@@ -183,15 +188,21 @@ class _ResultsScreenState extends State<ResultsScreen>
             if (isAnalyzing && widget.sessionId != null && result != null)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 color: AppColors.primaryPurple.withValues(alpha: 0.08),
                 child: Row(
                   children: [
                     const SizedBox(
-                      width: 14, height: 14,
+                      width: 14,
+                      height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primaryPurple,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -206,8 +217,18 @@ class _ResultsScreenState extends State<ResultsScreen>
                     ),
                     TextButton.icon(
                       onPressed: () => context.go('/home'),
-                      icon: const Icon(Icons.downloading_rounded, size: 16, color: AppColors.primaryPurple),
-                      label: const Text('Minimize', style: TextStyle(color: AppColors.primaryPurple, fontSize: 12)),
+                      icon: const Icon(
+                        Icons.downloading_rounded,
+                        size: 16,
+                        color: AppColors.primaryPurple,
+                      ),
+                      label: const Text(
+                        'Minimize',
+                        style: TextStyle(
+                          color: AppColors.primaryPurple,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -221,115 +242,126 @@ class _ResultsScreenState extends State<ResultsScreen>
                     resultsProvider.state == ResultsLoadState.error))
               Expanded(child: _buildFailureState(context, resultsProvider))
             else if (widget.sessionId != null && isAnalyzing && result == null)
-              Expanded(child: _buildAnalyzingProgressCard(context, resultsProvider))
+              Expanded(
+                child: _buildAnalyzingProgressCard(context, resultsProvider),
+              )
             else
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Section 0: Overall Score Card
-                    _buildAnimatedSection(
-                      animation: _card0Anim,
-                      child: _buildOverallScoreCard(result),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Section 0.5: Audio Playback Card (Unit 2)
-                    _buildAnimatedSection(
-                      animation: _card0Anim,
-                      child: _buildAudioPlaybackCard(result),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Section 1: Performance Summary Grid
-                    _buildAnimatedSection(
-                      animation: _card1Anim,
-                      child: _buildPerformanceSummary(result),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Section 2: Session Comparison Line Chart
-                    _buildAnimatedSection(
-                      animation: _card2Anim,
-                      child: _buildSessionComparison(),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Section 3: Suggestions List
-                    _buildAnimatedSection(
-                      animation: _card3Anim,
-                      child: _buildSuggestionsSection(result),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Section 4: Primary Actions (Practice Again & Back to Home)
-                    _buildAnimatedSection(
-                      animation: _card3Anim,
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryPurple,
-                                foregroundColor: Colors.white,
-                                elevation: 4,
-                                shadowColor: AppColors.primaryPurple.withValues(alpha: 0.35),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              onPressed: () => context.push('/interview'),
-                              icon: const Icon(Icons.mic_rounded, size: 20),
-                              label: Text(
-                                'Practice Again',
-                                style: AppTextStyles.bodyM.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textPrimaryOf(context),
-                                side: BorderSide(color: AppColors.borderOf(context), width: 1.2),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              onPressed: () => context.go('/home'),
-                              icon: const Icon(Icons.home_outlined, size: 20),
-                              label: Text(
-                                'Back to Home',
-                                style: AppTextStyles.bodyMOf(context).copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 12.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Section 0: Overall Score Card
+                      _buildAnimatedSection(
+                        animation: _card0Anim,
+                        child: _buildOverallScoreCard(result),
                       ),
-                    ),
 
-                    const SizedBox(height: 28),
-                  ],
+                      const SizedBox(height: 20),
+
+                      // Section 0.5: Audio Playback Card (Unit 2)
+                      _buildAnimatedSection(
+                        animation: _card0Anim,
+                        child: _buildAudioPlaybackCard(result),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Section 1: Performance Summary Grid
+                      _buildAnimatedSection(
+                        animation: _card1Anim,
+                        child: _buildPerformanceSummary(result),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Section 2: Session Comparison Line Chart
+                      _buildAnimatedSection(
+                        animation: _card2Anim,
+                        child: _buildSessionComparison(),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Section 3: Suggestions List
+                      _buildAnimatedSection(
+                        animation: _card3Anim,
+                        child: _buildSuggestionsSection(result),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Section 4: Primary Actions (Practice Again & Back to Home)
+                      _buildAnimatedSection(
+                        animation: _card3Anim,
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryPurple,
+                                  foregroundColor: Colors.white,
+                                  elevation: 4,
+                                  shadowColor: AppColors.primaryPurple
+                                      .withValues(alpha: 0.35),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                onPressed: () => context.push('/interview'),
+                                icon: const Icon(Icons.mic_rounded, size: 20),
+                                label: Text(
+                                  'Practice Again',
+                                  style: AppTextStyles.bodyM.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.textPrimaryOf(
+                                    context,
+                                  ),
+                                  side: BorderSide(
+                                    color: AppColors.borderOf(context),
+                                    width: 1.2,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                onPressed: () => context.go('/home'),
+                                icon: const Icon(Icons.home_outlined, size: 20),
+                                label: Text(
+                                  'Back to Home',
+                                  style: AppTextStyles.bodyMOf(
+                                    context,
+                                  ).copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -362,7 +394,10 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
-  Widget _buildFailureState(BuildContext context, SessionResultsProvider provider) {
+  Widget _buildFailureState(
+    BuildContext context,
+    SessionResultsProvider provider,
+  ) {
     final timedOut = provider.state == ResultsLoadState.error;
     return Center(
       child: Padding(
@@ -370,14 +405,19 @@ class _ResultsScreenState extends State<ResultsScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 56, color: AppColors.warningAmber),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 56,
+              color: AppColors.warningAmber,
+            ),
             const SizedBox(height: 16),
             Text(
               timedOut
                   ? 'Still waiting on your results'
                   : "We couldn't analyze this session",
-              style: AppTextStyles.headingM.copyWith(fontWeight: FontWeight.w700),
+              style: AppTextStyles.headingM.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -386,7 +426,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                   (timedOut
                       ? 'The analysis is taking longer than expected.'
                       : 'Your recording is saved. Retry to run the AI analysis again.'),
-              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -401,7 +443,10 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
-  Widget _buildAnalyzingProgressCard(BuildContext context, SessionResultsProvider provider) {
+  Widget _buildAnalyzingProgressCard(
+    BuildContext context,
+    SessionResultsProvider provider,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -425,7 +470,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                     height: 76,
                     child: CircularProgressIndicator(
                       strokeWidth: 5,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primaryPurple,
+                      ),
                     ),
                   ),
                   const Icon(
@@ -444,9 +491,9 @@ class _ResultsScreenState extends State<ResultsScreen>
               const SizedBox(height: 10),
               Text(
                 'Transcribing audio, detecting filler words, calculating speech pacing, and evaluating answer clarity with AI...',
-                style: AppTextStyles.bodyMOf(context).copyWith(
-                  color: AppColors.textSecondaryOf(context),
-                ),
+                style: AppTextStyles.bodyMOf(
+                  context,
+                ).copyWith(color: AppColors.textSecondaryOf(context)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -456,11 +503,16 @@ class _ResultsScreenState extends State<ResultsScreen>
                 label: const Text('Minimize & Run in Background'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primaryPurple,
-                  side: BorderSide(color: AppColors.primaryPurple.withValues(alpha: 0.4)),
+                  side: BorderSide(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.4),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -504,9 +556,9 @@ class _ResultsScreenState extends State<ResultsScreen>
           // Title
           Text(
             'Session Results',
-            style: AppTextStyles.headingMOf(context).copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTextStyles.headingMOf(
+              context,
+            ).copyWith(fontWeight: FontWeight.w700),
           ),
 
           const ThemeToggleButton(size: 38, compact: true),
@@ -547,20 +599,31 @@ class _ResultsScreenState extends State<ResultsScreen>
                   color: AppColors.primaryPurple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.headphones_rounded,
-                    color: AppColors.primaryPurple, size: 20),
+                child: const Icon(
+                  Icons.headphones_rounded,
+                  color: AppColors.primaryPurple,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Listen to Your Recording',
-                        style: AppTextStyles.headingMOf(context).copyWith(fontSize: 14)),
                     Text(
-                      hasAudio ? 'Tap play to review your speech' : 'No recording available',
+                      'Listen to Your Recording',
+                      style: AppTextStyles.headingMOf(
+                        context,
+                      ).copyWith(fontSize: 14),
+                    ),
+                    Text(
+                      hasAudio
+                          ? 'Tap play to review your speech'
+                          : 'No recording available',
                       style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary, fontSize: 11),
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -583,8 +646,9 @@ class _ResultsScreenState extends State<ResultsScreen>
               ),
               child: Slider(
                 value: _audioDuration.inMilliseconds > 0
-                    ? (_audioPosition.inMilliseconds / _audioDuration.inMilliseconds)
-                        .clamp(0.0, 1.0)
+                    ? (_audioPosition.inMilliseconds /
+                              _audioDuration.inMilliseconds)
+                          .clamp(0.0, 1.0)
                     : 0.0,
                 onChanged: (val) {
                   final seek = Duration(
@@ -606,11 +670,14 @@ class _ResultsScreenState extends State<ResultsScreen>
                       if (_isPlaying) {
                         await _audioPlayer.pause();
                       } else {
-                        if (_audioPosition >= _audioDuration && _audioDuration > Duration.zero) {
+                        if (_audioPosition >= _audioDuration &&
+                            _audioDuration > Duration.zero) {
                           await _audioPlayer.seek(Duration.zero);
                           await _audioPlayer.resume();
                         } else if (_audioDuration == Duration.zero) {
-                          final isRemote = audioUri.startsWith('http://') || audioUri.startsWith('https://');
+                          final isRemote =
+                              audioUri.startsWith('http://') ||
+                              audioUri.startsWith('https://');
                           final Source source = isRemote
                               ? UrlSource(audioUri)
                               : DeviceFileSource(audioUri);
@@ -628,7 +695,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        _isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         color: Colors.white,
                         size: 24,
                       ),
@@ -677,8 +746,8 @@ class _ResultsScreenState extends State<ResultsScreen>
     final headline = score >= 80
         ? 'Great Job!'
         : score >= 60
-            ? 'Good Effort!'
-            : 'Keep Practicing!';
+        ? 'Good Effort!'
+        : 'Keep Practicing!';
     final summary = result != null
         ? '${result.wpm.round()} WPM · ${result.fillerWordCount} fillers · ${result.pauseCount} pauses'
         : 'You spoke clearly and confidently. Keep practicing to get even better.';
@@ -716,7 +785,8 @@ class _ResultsScreenState extends State<ResultsScreen>
                         size: 92,
                         strokeWidth: 9,
                         centerBigText: '${_scoreGaugeAnimation.value.round()}%',
-                        trackColor: Theme.of(context).brightness == Brightness.dark
+                        trackColor:
+                            Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFF282548)
                             : const Color(0xFFEDEDF5),
                         gradientColors: const [
@@ -736,7 +806,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                         Text(
                           headline,
                           style: AppTextStyles.headingM.copyWith(
-                            color: score >= 70 ? AppColors.successGreen : AppColors.warningAmber,
+                            color: score >= 70
+                                ? AppColors.successGreen
+                                : AppColors.warningAmber,
                             fontWeight: FontWeight.w700,
                             fontSize: 19,
                           ),
@@ -796,7 +868,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                 label: 'Filler Words',
                 targetValue: result?.fillerWordCount ?? 5,
                 suffix: '',
-                status: (result?.fillerWordCount ?? 5) <= 5 ? 'Great' : 'Needs Work',
+                status: (result?.fillerWordCount ?? 5) <= 5
+                    ? 'Great'
+                    : 'Needs Work',
                 delayMs: 0,
               ),
             ),
@@ -878,10 +952,9 @@ class _ResultsScreenState extends State<ResultsScreen>
             builder: (context, val, child) {
               return Text(
                 '${val.round()}$suffix',
-                style: AppTextStyles.headingXLOf(context).copyWith(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: AppTextStyles.headingXLOf(
+                  context,
+                ).copyWith(fontSize: 22, fontWeight: FontWeight.w700),
               );
             },
           ),
@@ -914,7 +987,10 @@ class _ResultsScreenState extends State<ResultsScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Session Comparison', style: AppTextStyles.headingMOf(context)),
+            Text(
+              'Session Comparison',
+              style: AppTextStyles.headingMOf(context),
+            ),
             Row(
               children: [
                 Text(
@@ -956,7 +1032,15 @@ class _ResultsScreenState extends State<ResultsScreen>
 
                     // Data points: Mon..Sun
                     final youData = [65.0, 72.0, 78.0, 75.0, 80.0, 82.0, 85.0];
-                    final lastWeekData = [58.0, 62.0, 68.0, 66.0, 70.0, 72.0, 75.0];
+                    final lastWeekData = [
+                      58.0,
+                      62.0,
+                      68.0,
+                      66.0,
+                      70.0,
+                      72.0,
+                      75.0,
+                    ];
 
                     return LineChart(
                       LineChartData(
@@ -967,7 +1051,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                           drawVerticalLine: false,
                           horizontalInterval: 25,
                           getDrawingHorizontalLine: (value) => FlLine(
-                            color: AppColors.dividerOf(context).withValues(alpha: 0.7),
+                            color: AppColors.dividerOf(
+                              context,
+                            ).withValues(alpha: 0.7),
                             strokeWidth: 1,
                           ),
                         ),
@@ -998,7 +1084,15 @@ class _ResultsScreenState extends State<ResultsScreen>
                             sideTitles: SideTitles(
                               showTitles: true,
                               getTitlesWidget: (val, meta) {
-                                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                const days = [
+                                  'Mon',
+                                  'Tue',
+                                  'Wed',
+                                  'Thu',
+                                  'Fri',
+                                  'Sat',
+                                  'Sun',
+                                ];
                                 final idx = val.toInt();
                                 if (idx >= 0 && idx < days.length) {
                                   return Padding(
@@ -1030,14 +1124,17 @@ class _ResultsScreenState extends State<ResultsScreen>
                               show: true,
                               getDotPainter: (spot, percent, barData, index) =>
                                   FlDotCirclePainter(
-                                radius: 4,
-                                color: AppColors.primaryPurple,
-                                strokeWidth: 1.5,
-                                strokeColor: AppColors.cardOf(context),
-                              ),
+                                    radius: 4,
+                                    color: AppColors.primaryPurple,
+                                    strokeWidth: 1.5,
+                                    strokeColor: AppColors.cardOf(context),
+                                  ),
                             ),
                             spots: List.generate(youData.length, (i) {
-                              return FlSpot(i.toDouble(), youData[i] * progress);
+                              return FlSpot(
+                                i.toDouble(),
+                                youData[i] * progress,
+                              );
                             }),
                           ),
 
@@ -1045,7 +1142,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                           LineChartBarData(
                             isCurved: true,
                             curveSmoothness: 0.25,
-                            color: AppColors.textSecondary.withValues(alpha: 0.45),
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.45,
+                            ),
                             barWidth: 2,
                             dashArray: [5, 5],
                             isStrokeCapRound: true,
@@ -1053,14 +1152,19 @@ class _ResultsScreenState extends State<ResultsScreen>
                               show: true,
                               getDotPainter: (spot, percent, barData, index) =>
                                   FlDotCirclePainter(
-                                radius: 3,
-                                color: AppColors.textSecondary.withValues(alpha: 0.6),
-                                strokeWidth: 1,
-                                strokeColor: AppColors.cardOf(context),
-                              ),
+                                    radius: 3,
+                                    color: AppColors.textSecondary.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                    strokeWidth: 1,
+                                    strokeColor: AppColors.cardOf(context),
+                                  ),
                             ),
                             spots: List.generate(lastWeekData.length, (i) {
-                              return FlSpot(i.toDouble(), lastWeekData[i] * progress);
+                              return FlSpot(
+                                i.toDouble(),
+                                lastWeekData[i] * progress,
+                              );
                             }),
                           ),
                         ],
@@ -1078,7 +1182,10 @@ class _ResultsScreenState extends State<ResultsScreen>
                 children: [
                   _buildLegendItem('You', AppColors.primaryPurple),
                   const SizedBox(width: 24),
-                  _buildLegendItem('Last Week', AppColors.textSecondary.withValues(alpha: 0.5)),
+                  _buildLegendItem(
+                    'Last Week',
+                    AppColors.textSecondary.withValues(alpha: 0.5),
+                  ),
                 ],
               ),
             ],
@@ -1094,10 +1201,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
         Text(
@@ -1172,19 +1276,27 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   IconData _iconForCategory(String category) {
     switch (category) {
-      case 'filler_words': return Icons.record_voice_over_rounded;
-      case 'pacing': return Icons.speed_rounded;
-      case 'structure': return Icons.list_alt_rounded;
-      case 'confidence': return Icons.emoji_emotions_rounded;
-      default: return Icons.lightbulb_outline_rounded;
+      case 'filler_words':
+        return Icons.record_voice_over_rounded;
+      case 'pacing':
+        return Icons.speed_rounded;
+      case 'structure':
+        return Icons.list_alt_rounded;
+      case 'confidence':
+        return Icons.emoji_emotions_rounded;
+      default:
+        return Icons.lightbulb_outline_rounded;
     }
   }
 
   Color _colorForSeverity(String severity) {
     switch (severity) {
-      case 'positive': return AppColors.successGreen;
-      case 'warning': return AppColors.warningAmber;
-      default: return AppColors.accentBlue;
+      case 'positive':
+        return AppColors.successGreen;
+      case 'warning':
+        return AppColors.warningAmber;
+      default:
+        return AppColors.accentBlue;
     }
   }
 
@@ -1204,20 +1316,15 @@ class _ResultsScreenState extends State<ResultsScreen>
               color: iconColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 20,
-            ),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               text,
-              style: AppTextStyles.bodyMOf(context).copyWith(
-                fontWeight: FontWeight.w500,
-                fontSize: 13.5,
-              ),
+              style: AppTextStyles.bodyMOf(
+                context,
+              ).copyWith(fontWeight: FontWeight.w500, fontSize: 13.5),
             ),
           ),
         ],
@@ -1225,5 +1332,3 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 }
-
-

@@ -32,10 +32,7 @@ class PendingUploadItem {
     this.lastError,
   });
 
-  PendingUploadItem copyWith({
-    int? retryCount,
-    String? lastError,
-  }) {
+  PendingUploadItem copyWith({int? retryCount, String? lastError}) {
     return PendingUploadItem(
       id: id,
       sessionId: sessionId,
@@ -50,16 +47,16 @@ class PendingUploadItem {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'session_id': sessionId,
-        'audio_path': audioPath,
-        'duration_seconds': durationSeconds,
-        'mode': mode,
-        'topic_or_question': topicOrQuestion,
-        'created_at': createdAt.toIso8601String(),
-        'retry_count': retryCount,
-        'last_error': lastError,
-      };
+    'id': id,
+    'session_id': sessionId,
+    'audio_path': audioPath,
+    'duration_seconds': durationSeconds,
+    'mode': mode,
+    'topic_or_question': topicOrQuestion,
+    'created_at': createdAt.toIso8601String(),
+    'retry_count': retryCount,
+    'last_error': lastError,
+  };
 
   factory PendingUploadItem.fromJson(Map<String, dynamic> json) =>
       PendingUploadItem(
@@ -69,7 +66,8 @@ class PendingUploadItem {
         durationSeconds: (json['duration_seconds'] as num?)?.toDouble() ?? 0.0,
         mode: json['mode'] as String? ?? 'interview',
         topicOrQuestion: json['topic_or_question'] as String? ?? '',
-        createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
+        createdAt:
+            DateTime.tryParse(json['created_at'] as String? ?? '') ??
             DateTime.now(),
         retryCount: json['retry_count'] as int? ?? 0,
         lastError: json['last_error'] as String?,
@@ -103,7 +101,9 @@ class UploadQueueService {
       if (content.trim().isEmpty) return [];
       final list = jsonDecode(content) as List<dynamic>;
       return list
-          .map((item) => PendingUploadItem.fromJson(item as Map<String, dynamic>))
+          .map(
+            (item) => PendingUploadItem.fromJson(item as Map<String, dynamic>),
+          )
           .toList();
     } catch (e) {
       debugPrint('[UploadQueueService] Error reading pending uploads: $e');
@@ -137,16 +137,18 @@ class UploadQueueService {
 
     // Remove existing with same id if already present
     items.removeWhere((i) => i.id == id);
-    items.add(PendingUploadItem(
-      id: id,
-      sessionId: sessionId,
-      audioPath: audioPath,
-      durationSeconds: durationSeconds,
-      mode: mode,
-      topicOrQuestion: topicOrQuestion,
-      createdAt: DateTime.now(),
-      lastError: error,
-    ));
+    items.add(
+      PendingUploadItem(
+        id: id,
+        sessionId: sessionId,
+        audioPath: audioPath,
+        durationSeconds: durationSeconds,
+        mode: mode,
+        topicOrQuestion: topicOrQuestion,
+        createdAt: DateTime.now(),
+        lastError: error,
+      ),
+    );
 
     await _saveAll(items);
   }
@@ -168,7 +170,9 @@ class UploadQueueService {
   Future<SessionResult> retryUpload(PendingUploadItem item) async {
     if (!await localFileExistsAndNonEmpty(item.audioPath)) {
       await remove(item.id, deleteAudio: false);
-      throw StateError('The saved recording file is no longer available on this device.');
+      throw StateError(
+        'The saved recording file is no longer available on this device.',
+      );
     }
 
     final api = ApiClient.instance;
@@ -181,13 +185,18 @@ class UploadQueueService {
       final localDate =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final tzOffsetMinutes = now.timeZoneOffset.inMinutes;
-      final startData = await api.post('/sessions/start', data: {
-        'session_id': generatedId,
-        'mode': item.mode,
-        'topic_or_question': item.topicOrQuestion,
-        'local_date': localDate,
-        'tz_offset_minutes': tzOffsetMinutes,
-      }) as Map<String, dynamic>;
+      final startData =
+          await api.post(
+                '/sessions/start',
+                data: {
+                  'session_id': generatedId,
+                  'mode': item.mode,
+                  'topic_or_question': item.topicOrQuestion,
+                  'local_date': localDate,
+                  'tz_offset_minutes': tzOffsetMinutes,
+                },
+              )
+              as Map<String, dynamic>;
       targetSessionId = (startData['session_id'] as String?) ?? generatedId;
     }
 
@@ -201,10 +210,9 @@ class UploadQueueService {
       'duration_seconds': item.durationSeconds.toString(),
     });
 
-    final raw = await api.postMultipart(
-      '/sessions/$targetSessionId/finish',
-      formData,
-    ) as Map<String, dynamic>;
+    final raw =
+        await api.postMultipart('/sessions/$targetSessionId/finish', formData)
+            as Map<String, dynamic>;
 
     // Upload succeeded! Remove from queue and clean up local audio file
     await remove(item.id, deleteAudio: true);

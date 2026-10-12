@@ -46,15 +46,14 @@ class ApiClient {
     String path,
     FormData formData, {
     void Function(int, int)? onSendProgress,
-  }) =>
-      dio
-          .post(
-            path,
-            data: formData,
-            onSendProgress: onSendProgress,
-            options: Options(contentType: 'multipart/form-data'),
-          )
-          .then((r) => r.data);
+  }) => dio
+      .post(
+        path,
+        data: formData,
+        onSendProgress: onSendProgress,
+        options: Options(contentType: 'multipart/form-data'),
+      )
+      .then((r) => r.data);
 
   // ── Token helpers ─────────────────────────────────────────────────────────
 
@@ -73,8 +72,7 @@ class ApiClient {
     await _storage.delete(key: 'refresh_token');
   }
 
-  static Future<String?> getAccessToken() =>
-      _storage.read(key: 'access_token');
+  static Future<String?> getAccessToken() => _storage.read(key: 'access_token');
 
   static Future<String?> getRefreshToken() =>
       _storage.read(key: 'refresh_token');
@@ -84,8 +82,10 @@ class ApiClient {
 class _SafeNetworkLogger extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    debugPrint('API ${err.requestOptions.method} ${err.requestOptions.path} '
-        'failed with HTTP ${err.response?.statusCode ?? 'network'}');
+    debugPrint(
+      'API ${err.requestOptions.method} ${err.requestOptions.path} '
+      'failed with HTTP ${err.response?.statusCode ?? 'network'}',
+    );
     handler.next(err);
   }
 }

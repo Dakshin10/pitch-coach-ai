@@ -19,23 +19,28 @@ void main() {
   });
 
   group('Phase 3: Local SQLite & DAOs', () {
-    test('Initializes DB with PRAGMA user_version = 1 and seeds achievements', () async {
-      final service = LocalDatabaseService.instance;
-      final db = await service.initForUser(testId);
+    test(
+      'Initializes DB with PRAGMA user_version = 1 and seeds achievements',
+      () async {
+        final service = LocalDatabaseService.instance;
+        final db = await service.initForUser(testId);
 
-      final versionResult = await db.rawQuery('PRAGMA user_version;');
-      final version = versionResult.first.values.first as int;
-      expect(version, 1);
+        final versionResult = await db.rawQuery('PRAGMA user_version;');
+        final version = versionResult.first.values.first as int;
+        expect(version, 1);
 
-      // Check achievement catalog seeded
-      final catalogRows = await db.rawQuery('SELECT * FROM achievement_catalog ORDER BY key ASC;');
-      expect(catalogRows.length, 5);
-      expect(catalogRows.any((r) => r['key'] == 'first_session'), isTrue);
-      expect(catalogRows.any((r) => r['key'] == '7_day_streak'), isTrue);
-      expect(catalogRows.any((r) => r['key'] == '50_sessions'), isTrue);
-      expect(catalogRows.any((r) => r['key'] == 'clarity_master'), isTrue);
-      expect(catalogRows.any((r) => r['key'] == 'early_bird'), isTrue);
-    });
+        // Check achievement catalog seeded
+        final catalogRows = await db.rawQuery(
+          'SELECT * FROM achievement_catalog ORDER BY key ASC;',
+        );
+        expect(catalogRows.length, 5);
+        expect(catalogRows.any((r) => r['key'] == 'first_session'), isTrue);
+        expect(catalogRows.any((r) => r['key'] == '7_day_streak'), isTrue);
+        expect(catalogRows.any((r) => r['key'] == '50_sessions'), isTrue);
+        expect(catalogRows.any((r) => r['key'] == 'clarity_master'), isTrue);
+        expect(catalogRows.any((r) => r['key'] == 'early_bird'), isTrue);
+      },
+    );
 
     test('Upserts session_metrics and replaces fillers idempotently', () async {
       final service = LocalDatabaseService.instance;
@@ -88,67 +93,77 @@ void main() {
       expect(topFillers.first['total_count'], 2);
     });
 
-    test('Computes summary, 30-day trend, and streak strictly from local SQLite', () async {
-      final service = LocalDatabaseService.instance;
-      await service.initForUser(testId);
+    test(
+      'Computes summary, 30-day trend, and streak strictly from local SQLite',
+      () async {
+        final service = LocalDatabaseService.instance;
+        await service.initForUser(testId);
 
-      // Insert 2 sessions on consecutive days
-      await service.upsertSessionMetric({
-        'id': 'sess-day1',
-        'user_id': testId,
-        'mode': 'interview',
-        'topic_or_question': 'Q1',
-        'duration_seconds': 60.0,
-        'wpm': 120.0,
-        'filler_word_count': 4,
-        'pause_count': 1,
-        'avg_pause_length': 1.0,
-        'clarity_score': 80.0,
-        'confidence_score': 75.0,
-        'overall_score': 78.0,
-        'status': 'analyzed',
-        'created_at': '2026-10-08T09:00:00Z',
-        'local_date': '2026-10-08',
-        'tz_offset_minutes': 330,
-        'updated_at': '2026-10-08T09:05:00Z',
-      });
+        // Insert 2 sessions on consecutive days
+        await service.upsertSessionMetric({
+          'id': 'sess-day1',
+          'user_id': testId,
+          'mode': 'interview',
+          'topic_or_question': 'Q1',
+          'duration_seconds': 60.0,
+          'wpm': 120.0,
+          'filler_word_count': 4,
+          'pause_count': 1,
+          'avg_pause_length': 1.0,
+          'clarity_score': 80.0,
+          'confidence_score': 75.0,
+          'overall_score': 78.0,
+          'status': 'analyzed',
+          'created_at': '2026-10-08T09:00:00Z',
+          'local_date': '2026-10-08',
+          'tz_offset_minutes': 330,
+          'updated_at': '2026-10-08T09:05:00Z',
+        });
 
-      await service.upsertSessionMetric({
-        'id': 'sess-day2',
-        'user_id': testId,
-        'mode': 'presentation',
-        'topic_or_question': 'Q2',
-        'duration_seconds': 120.0,
-        'wpm': 140.0,
-        'filler_word_count': 2,
-        'pause_count': 2,
-        'avg_pause_length': 0.8,
-        'clarity_score': 90.0,
-        'confidence_score': 85.0,
-        'overall_score': 88.0,
-        'status': 'analyzed',
-        'created_at': '2026-10-09T09:00:00Z',
-        'local_date': '2026-10-09',
-        'tz_offset_minutes': 330,
-        'updated_at': '2026-10-09T09:05:00Z',
-      });
+        await service.upsertSessionMetric({
+          'id': 'sess-day2',
+          'user_id': testId,
+          'mode': 'presentation',
+          'topic_or_question': 'Q2',
+          'duration_seconds': 120.0,
+          'wpm': 140.0,
+          'filler_word_count': 2,
+          'pause_count': 2,
+          'avg_pause_length': 0.8,
+          'clarity_score': 90.0,
+          'confidence_score': 85.0,
+          'overall_score': 88.0,
+          'status': 'analyzed',
+          'created_at': '2026-10-09T09:00:00Z',
+          'local_date': '2026-10-09',
+          'tz_offset_minutes': 330,
+          'updated_at': '2026-10-09T09:05:00Z',
+        });
 
-      // Test Summary
-      final summary = await service.getSummary(testId);
-      expect(summary.totalSessions, 2);
-      expect(summary.avgConfidence, 80.0);
-      expect(summary.fillerReductionPct, 50.0); // from 4 to 2 => (4 - 2)/4 = 50%
+        // Test Summary
+        final summary = await service.getSummary(testId);
+        expect(summary.totalSessions, 2);
+        expect(summary.avgConfidence, 80.0);
+        expect(
+          summary.fillerReductionPct,
+          50.0,
+        ); // from 4 to 2 => (4 - 2)/4 = 50%
 
-      // Test Trend
-      final trend = await service.getTrend(testId, days: 7);
-      expect(trend.length, 2);
-      expect(trend[0].date, '2026-10-08');
-      expect(trend[1].date, '2026-10-09');
+        // Test Trend
+        final trend = await service.getTrend(testId, days: 7);
+        expect(trend.length, 2);
+        expect(trend[0].date, '2026-10-08');
+        expect(trend[1].date, '2026-10-09');
 
-      // Test Streak (yesterday is 2026-10-08, today is 2026-10-09)
-      final streak = await service.getStreak(testId, '2026-10-09', '2026-10-08');
-      expect(streak, 2);
-    });
+        // Test Streak (yesterday is 2026-10-08, today is 2026-10-09)
+        final streak = await service.getStreak(
+          testId,
+          '2026-10-09',
+          '2026-10-08',
+        );
+        expect(streak, 2);
+      },
+    );
 
     test('Sync outbox and sync state DAOs operate correctly', () async {
       final service = LocalDatabaseService.instance;

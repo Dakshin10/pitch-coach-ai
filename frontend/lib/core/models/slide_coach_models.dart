@@ -16,12 +16,14 @@ class DeckSummaryModel {
   factory DeckSummaryModel.fromJson(Map<String, dynamic> json) {
     return DeckSummaryModel(
       storyArc: json['story_arc'] as String? ?? '',
-      missingSections: (json['missing_sections'] as List<dynamic>?)
+      missingSections:
+          (json['missing_sections'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       overallScore: (json['overall_score'] as num?)?.toInt() ?? 0,
-      top3Fixes: (json['top_3_fixes'] as List<dynamic>?)
+      top3Fixes:
+          (json['top_3_fixes'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -29,11 +31,11 @@ class DeckSummaryModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'story_arc': storyArc,
-        'missing_sections': missingSections,
-        'overall_score': overallScore,
-        'top_3_fixes': top3Fixes,
-      };
+    'story_arc': storyArc,
+    'missing_sections': missingSections,
+    'overall_score': overallScore,
+    'top_3_fixes': top3Fixes,
+  };
 }
 
 class SlideCoachingModel {
@@ -72,20 +74,23 @@ class SlideCoachingModel {
       targetDurationSeconds:
           (json['target_duration_seconds'] as num?)?.toInt() ?? 30,
       keyTakeaway: json['key_takeaway'] as String? ?? '',
-      talkingPoints: (json['talking_points'] as List<dynamic>?)
+      talkingPoints:
+          (json['talking_points'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       suggestedScript: json['suggested_script'] as String?,
       transitionToNext: json['transition_to_next'] as String? ?? '',
-      slideCritique: (json['slide_critique'] as List<dynamic>?)
+      slideCritique:
+          (json['slide_critique'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       imageUrl: json['image_url'] as String?,
       visuals: json['visuals'] as String?,
       textDensity: json['text_density'] as String?,
-      readabilityIssues: (json['readability_issues'] as List<dynamic>?)
+      readabilityIssues:
+          (json['readability_issues'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -93,19 +98,19 @@ class SlideCoachingModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'slide_number': slideNumber,
-        'slide_title': slideTitle,
-        'target_duration_seconds': targetDurationSeconds,
-        'key_takeaway': keyTakeaway,
-        'talking_points': talkingPoints,
-        'suggested_script': suggestedScript,
-        'transition_to_next': transitionToNext,
-        'slide_critique': slideCritique,
-        'image_url': imageUrl,
-        'visuals': visuals,
-        'text_density': textDensity,
-        'readability_issues': readabilityIssues,
-      };
+    'slide_number': slideNumber,
+    'slide_title': slideTitle,
+    'target_duration_seconds': targetDurationSeconds,
+    'key_takeaway': keyTakeaway,
+    'talking_points': talkingPoints,
+    'suggested_script': suggestedScript,
+    'transition_to_next': transitionToNext,
+    'slide_critique': slideCritique,
+    'image_url': imageUrl,
+    'visuals': visuals,
+    'text_density': textDensity,
+    'readability_issues': readabilityIssues,
+  };
 }
 
 class SlideDeckModel {
@@ -152,11 +157,14 @@ class SlideDeckModel {
       pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
       deckSummary: json['deck_summary'] != null
           ? DeckSummaryModel.fromJson(
-              json['deck_summary'] as Map<String, dynamic>)
+              json['deck_summary'] as Map<String, dynamic>,
+            )
           : null,
-      slides: (json['slides'] as List<dynamic>?)
+      slides:
+          (json['slides'] as List<dynamic>?)
               ?.map(
-                  (e) => SlideCoachingModel.fromJson(e as Map<String, dynamic>))
+                (e) => SlideCoachingModel.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
       createdAt: json['created_at'] as String? ?? '',
@@ -165,20 +173,20 @@ class SlideDeckModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'filename': filename,
-        'audience': audience,
-        'time_limit_seconds': timeLimitSeconds,
-        'goal': goal,
-        'status': status,
-        'stage': stage,
-        'progress': progress,
-        'page_count': pageCount,
-        'deck_summary': deckSummary?.toJson(),
-        'slides': slides.map((s) => s.toJson()).toList(),
-        'created_at': createdAt,
-        'updated_at': updatedAt,
-      };
+    'id': id,
+    'filename': filename,
+    'audience': audience,
+    'time_limit_seconds': timeLimitSeconds,
+    'goal': goal,
+    'status': status,
+    'stage': stage,
+    'progress': progress,
+    'page_count': pageCount,
+    'deck_summary': deckSummary?.toJson(),
+    'slides': slides.map((s) => s.toJson()).toList(),
+    'created_at': createdAt,
+    'updated_at': updatedAt,
+  };
 
   String get fileName => filename;
   int get targetTotalDurationSeconds => timeLimitSeconds;
@@ -188,7 +196,20 @@ class SlideDeckModel {
   String get dateFormatted {
     final d = createdDateTime;
     if (d == null) return '';
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return '${days[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}';
   }
@@ -302,18 +323,25 @@ class SlideRehearsalReportModel {
           (json['actual_duration_seconds'] as num?)?.toDouble() ?? 0.0,
       wpm: (json['wpm'] as num?)?.toDouble() ?? 0.0,
       fillerCount: (json['filler_count'] as num?)?.toInt() ?? 0,
-      fillerBreakdown: (json['filler_breakdown'] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(k, (v as num).toInt())) ??
+      fillerBreakdown:
+          (json['filler_breakdown'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, (v as num).toInt()),
+          ) ??
           {},
       transcript: json['transcript'] as String? ?? '',
-      talkingPointsCoverage: (json['talking_points_coverage'] as List<dynamic>?)
-              ?.map((e) => SlideTalkingPointCoverageModel.fromJson(
-                  e as Map<String, dynamic>))
+      talkingPointsCoverage:
+          (json['talking_points_coverage'] as List<dynamic>?)
+              ?.map(
+                (e) => SlideTalkingPointCoverageModel.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
               .toList() ??
           [],
       coveragePercentage:
           (json['coverage_percentage'] as num?)?.toDouble() ?? 0.0,
-      aiFeedback: (json['ai_feedback'] as List<dynamic>?)
+      aiFeedback:
+          (json['ai_feedback'] as List<dynamic>?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           [],
@@ -354,17 +382,21 @@ class DeckRehearsalResponseModel {
           (json['total_duration_seconds'] as num?)?.toDouble() ?? 0.0,
       timeLimitSeconds: (json['time_limit_seconds'] as num?)?.toInt() ?? 180,
       overallWpm: (json['overall_wpm'] as num?)?.toDouble() ?? 0.0,
-      overallFillerCount:
-          (json['overall_filler_count'] as num?)?.toInt() ?? 0,
+      overallFillerCount: (json['overall_filler_count'] as num?)?.toInt() ?? 0,
       overallCoveragePercentage:
           (json['overall_coverage_percentage'] as num?)?.toDouble() ?? 0.0,
-      overallFeedback: (json['overall_feedback'] as List<dynamic>?)
+      overallFeedback:
+          (json['overall_feedback'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      slideReports: (json['slide_reports'] as List<dynamic>?)
-              ?.map((e) => SlideRehearsalReportModel.fromJson(
-                  e as Map<String, dynamic>))
+      slideReports:
+          (json['slide_reports'] as List<dynamic>?)
+              ?.map(
+                (e) => SlideRehearsalReportModel.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
               .toList() ??
           [],
       createdAt: json['created_at'] as String? ?? '',

@@ -37,18 +37,18 @@ class AppConfig {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
     if (kIsWeb) return 'http://localhost:8000';
 
-    final candidates = [
-      'http://127.0.0.1:8000',
-      'http://10.0.2.2:8000',
-    ];
+    final candidates = ['http://127.0.0.1:8000', 'http://10.0.2.2:8000'];
 
     for (final candidate in candidates) {
       try {
-        final client = HttpClient()..connectionTimeout = const Duration(milliseconds: 400);
+        final client = HttpClient()
+          ..connectionTimeout = const Duration(milliseconds: 400);
         final request = await client
             .getUrl(Uri.parse('$candidate/health'))
             .timeout(const Duration(milliseconds: 400));
-        final response = await request.close().timeout(const Duration(milliseconds: 400));
+        final response = await request.close().timeout(
+          const Duration(milliseconds: 400),
+        );
         client.close(force: true);
         if (response.statusCode == 200) {
           _discoveredBaseUrl = candidate;

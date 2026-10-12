@@ -2,4 +2,3 @@
 Future<bool> localFileExistsAndNonEmpty(String path) async => path.isNotEmpty;
 
 Future<void> deleteLocalFile(String? path) async {}
-

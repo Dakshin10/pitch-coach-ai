@@ -8,10 +8,7 @@ import 'bottom_nav_bar.dart';
 class MainShellScaffold extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
-  const MainShellScaffold({
-    super.key,
-    required this.navigationShell,
-  });
+  const MainShellScaffold({super.key, required this.navigationShell});
 
   @override
   Widget build(BuildContext context) {

@@ -63,18 +63,16 @@ class StatCard extends StatelessWidget {
                   ),
                 ),
                 if (icon != null)
-                  Icon(
-                    icon,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
+                  Icon(icon, size: 16, color: AppColors.textSecondary),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               value,
               style: AppTextStyles.headingXL.copyWith(
-                color: isDark ? AppColors.textOnDark : AppColors.textPrimaryDark,
+                color: isDark
+                    ? AppColors.textOnDark
+                    : AppColors.textPrimaryDark,
               ),
             ),
             const SizedBox(height: 8),

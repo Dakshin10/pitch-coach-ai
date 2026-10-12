@@ -39,8 +39,9 @@ class NotificationService {
       // If timezone not found, use UTC
     }
 
-    const androidSettings =
-        AndroidInitializationSettings('@drawable/ic_notification');
+    const androidSettings = AndroidInitializationSettings(
+      '@drawable/ic_notification',
+    );
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -66,13 +67,15 @@ class NotificationService {
       );
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(channel);
 
       // Request POST_NOTIFICATIONS permission (Android 13+)
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
     }
 
@@ -146,13 +149,17 @@ class NotificationService {
     await initialize();
     try {
       if (defaultTargetPlatform == TargetPlatform.android) {
-        final android = _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+        final android = _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
         final granted = await android?.requestNotificationsPermission();
         return granted ?? false;
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-        final ios = _plugin.resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
+        final ios = _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
         final granted = await ios?.requestPermissions(
           alert: true,
           badge: true,
@@ -213,7 +220,8 @@ class NotificationService {
       await _scheduleZonedWithFallback(
         id: _dailyReminderId,
         title: 'Pitch Coach',
-        body: 'Time to practice! Spend 5 minutes improving your communication skills.',
+        body:
+            'Time to practice! Spend 5 minutes improving your communication skills.',
         scheduledDate: scheduledDate,
         details: details,
         matchComponents: DateTimeComponents.time,
@@ -240,7 +248,8 @@ class NotificationService {
       await _scheduleZonedWithFallback(
         id: reminderId,
         title: 'Pitch Coach',
-        body: 'Time to practice! Spend 5 minutes improving your communication skills.',
+        body:
+            'Time to practice! Spend 5 minutes improving your communication skills.',
         scheduledDate: targetDate,
         details: details,
         matchComponents: DateTimeComponents.dayOfWeekAndTime,
@@ -303,7 +312,11 @@ class NotificationService {
   }
 
   /// Show a one-shot instant notification (e.g., slide processing completion or setup).
-  Future<void> showInstantNotification(String title, String body, {int? id}) async {
+  Future<void> showInstantNotification(
+    String title,
+    String body, {
+    int? id,
+  }) async {
     if (kIsWeb) return;
     await initialize();
 
@@ -325,7 +338,8 @@ class NotificationService {
       iOS: darwinDetails,
     );
 
-    final notificationId = id ?? (DateTime.now().millisecondsSinceEpoch % 100000);
+    final notificationId =
+        id ?? (DateTime.now().millisecondsSinceEpoch % 100000);
     await _plugin.show(notificationId, title, body, details);
   }
 }

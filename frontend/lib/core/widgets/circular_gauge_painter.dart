@@ -90,9 +90,11 @@ class CircularGauge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final defaultTrackColor = trackColor ??
+    final defaultTrackColor =
+        trackColor ??
         (isDark ? const Color(0xFF262343) : const Color(0xFFEFEFF8));
-    final defaultGradient = gradientColors ??
+    final defaultGradient =
+        gradientColors ??
         [AppColors.primaryPurpleLight, AppColors.primaryPurple];
 
     final displayValueText = centerBigText ?? '${value.round()}%';
@@ -119,7 +121,9 @@ class CircularGauge extends StatelessWidget {
                 displayValueText,
                 style: AppTextStyles.displayLarge.copyWith(
                   fontSize: size * 0.24,
-                  color: isDark ? AppColors.textOnDark : AppColors.textPrimaryDark,
+                  color: isDark
+                      ? AppColors.textOnDark
+                      : AppColors.textPrimaryDark,
                 ),
               ),
               if (centerSmallLabel != null) ...[

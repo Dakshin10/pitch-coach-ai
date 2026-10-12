@@ -20,11 +20,10 @@ class AuthRepository {
     required String password,
     required String fullName,
   }) async {
-    final data = await _api.post('/auth/signup', data: {
-      'email': email,
-      'password': password,
-      'full_name': fullName,
-    });
+    final data = await _api.post(
+      '/auth/signup',
+      data: {'email': email, 'password': password, 'full_name': fullName},
+    );
     await _persistAuth(data);
     return data['user'] as Map<String, dynamic>;
   }
@@ -35,10 +34,10 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    final data = await _api.post('/auth/login', data: {
-      'email': email,
-      'password': password,
-    });
+    final data = await _api.post(
+      '/auth/login',
+      data: {'email': email, 'password': password},
+    );
     await _persistAuth(data);
     return data['user'] as Map<String, dynamic>;
   }
@@ -67,11 +66,10 @@ class AuthRepository {
     required String password,
     required String fullName,
   }) async {
-    final data = await _api.post('/auth/upgrade-guest', data: {
-      'email': email,
-      'password': password,
-      'full_name': fullName,
-    });
+    final data = await _api.post(
+      '/auth/upgrade-guest',
+      data: {'email': email, 'password': password, 'full_name': fullName},
+    );
     await _persistAuth(data);
     return data['user'] as Map<String, dynamic>;
   }
@@ -91,7 +89,8 @@ class AuthRepository {
   // ── Update profile ────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> updateMe(Map<String, dynamic> fields) async {
-    final data = await _api.patch('/users/me', data: fields) as Map<String, dynamic>;
+    final data =
+        await _api.patch('/users/me', data: fields) as Map<String, dynamic>;
     await _cacheUser(data);
     return data;
   }
@@ -120,7 +119,10 @@ class AuthRepository {
   }
 
   /// Upload an avatar image file to backend
-  Future<Map<String, dynamic>> uploadAvatar(String filePath, {void Function(int, int)? onProgress}) async {
+  Future<Map<String, dynamic>> uploadAvatar(
+    String filePath, {
+    void Function(int, int)? onProgress,
+  }) async {
     final fileName = p.basename(filePath);
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath, filename: fileName),
@@ -147,11 +149,14 @@ class AuthRepository {
     required String message,
     Map<String, dynamic>? metadata,
   }) async {
-    final data = await _api.post('/feedback', data: {
-      'category': category,
-      'message': message,
-      'metadata': metadata ?? {},
-    });
+    final data = await _api.post(
+      '/feedback',
+      data: {
+        'category': category,
+        'message': message,
+        'metadata': metadata ?? {},
+      },
+    );
     return data as Map<String, dynamic>;
   }
 

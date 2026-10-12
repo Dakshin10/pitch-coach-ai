@@ -44,9 +44,15 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Text('Typography & Theme', style: AppTextStyles.headingXLOf(context)),
+            Text(
+              'Typography & Theme',
+              style: AppTextStyles.headingXLOf(context),
+            ),
             const SizedBox(height: 8),
-            Text('Dark Indigo/Violet palette preview and design tokens.', style: AppTextStyles.bodyM),
+            Text(
+              'Dark Indigo/Violet palette preview and design tokens.',
+              style: AppTextStyles.bodyM,
+            ),
             const SizedBox(height: 20),
 
             // Color Palette Swatches
@@ -69,7 +75,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             const SizedBox(height: 32),
 
             // 1. GradientButton Component
-            Text('1. GradientButton Variants', style: AppTextStyles.headingLOf(context)),
+            Text(
+              '1. GradientButton Variants',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 12),
             GradientButton(
               text: 'Primary CTA Button',
@@ -93,7 +102,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             const SizedBox(height: 32),
 
             // 2. StatCard Component
-            Text('2. StatCard Component', style: AppTextStyles.headingLOf(context)),
+            Text(
+              '2. StatCard Component',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 12),
             const Row(
               children: [
@@ -145,7 +157,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             const SizedBox(height: 32),
 
             // 3. CircularGaugePainter Component
-            Text('3. CircularGaugePainter Component', style: AppTextStyles.headingLOf(context)),
+            Text(
+              '3. CircularGaugePainter Component',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 16),
             Center(
               child: Column(
@@ -175,7 +190,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             const SizedBox(height: 32),
 
             // 4. Route Navigation Shortcuts
-            Text('4. Screen Navigation Routes', style: AppTextStyles.headingLOf(context)),
+            Text(
+              '4. Screen Navigation Routes',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,

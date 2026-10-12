@@ -52,10 +52,16 @@ class StatsProvider extends ChangeNotifier {
   bool get isLoading => _state == StatsLoadState.loading;
   bool get hasData => _state == StatsLoadState.ready;
 
-  Future<void> _reloadFromLocalDb(String userId, {String trendRange = 'week'}) async {
+  Future<void> _reloadFromLocalDb(
+    String userId, {
+    String trendRange = 'week',
+  }) async {
     try {
       final summary = await _localDb.getSummary(userId);
-      final trend = await _localDb.getTrend(userId, days: trendRange == 'week' ? 7 : 30);
+      final trend = await _localDb.getTrend(
+        userId,
+        days: trendRange == 'week' ? 7 : 30,
+      );
       final achievements = await _localDb.getUserAchievements(userId);
 
       _summary = summary;
@@ -69,11 +75,17 @@ class StatsProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> loadAll({String trendRange = 'week', bool force = false, String? userId}) async {
+  Future<void> loadAll({
+    String trendRange = 'week',
+    bool force = false,
+    String? userId,
+  }) async {
     final effectiveUserId = userId ?? _localDb.currentUserId;
 
     // Guest mode
-    if (effectiveUserId == null || effectiveUserId == 'guest' || effectiveUserId == 'demo-guest') {
+    if (effectiveUserId == null ||
+        effectiveUserId == 'guest' ||
+        effectiveUserId == 'demo-guest') {
       loadDemo();
       return;
     }
@@ -82,8 +94,13 @@ class StatsProvider extends ChangeNotifier {
     if (_localDb.isOpen && _localDb.currentUserId == effectiveUserId) {
       try {
         final localSummary = await _localDb.getSummary(effectiveUserId);
-        final localTrend = await _localDb.getTrend(effectiveUserId, days: trendRange == 'week' ? 7 : 30);
-        final localAchievements = await _localDb.getUserAchievements(effectiveUserId);
+        final localTrend = await _localDb.getTrend(
+          effectiveUserId,
+          days: trendRange == 'week' ? 7 : 30,
+        );
+        final localAchievements = await _localDb.getUserAchievements(
+          effectiveUserId,
+        );
 
         if (localSummary.totalSessions > 0 || localAchievements.isNotEmpty) {
           _summary = localSummary;
@@ -106,11 +123,14 @@ class StatsProvider extends ChangeNotifier {
     // 2. Refresh via pull sync and fetch remote skills breakdown
     try {
       // Trigger background pull sync
-      _sync.pull(userId: effectiveUserId).then((_) {
-        if (_localDb.isOpen && _localDb.currentUserId == effectiveUserId) {
-          _reloadFromLocalDb(effectiveUserId, trendRange: trendRange);
-        }
-      }).catchError((_) {});
+      _sync
+          .pull(userId: effectiveUserId)
+          .then((_) {
+            if (_localDb.isOpen && _localDb.currentUserId == effectiveUserId) {
+              _reloadFromLocalDb(effectiveUserId, trendRange: trendRange);
+            }
+          })
+          .catchError((_) {});
 
       // Fetch skills from API (as skills are computed on backend)
       final skills = await _repo.getSkills();
@@ -128,7 +148,9 @@ class StatsProvider extends ChangeNotifier {
 
   Future<void> loadSummaryOnly({bool force = false, String? userId}) async {
     final effectiveUserId = userId ?? _localDb.currentUserId;
-    if (effectiveUserId == null || effectiveUserId == 'guest' || effectiveUserId == 'demo-guest') {
+    if (effectiveUserId == null ||
+        effectiveUserId == 'guest' ||
+        effectiveUserId == 'demo-guest') {
       return;
     }
 
@@ -145,14 +167,17 @@ class StatsProvider extends ChangeNotifier {
     }
 
     // 2. Trigger pull sync in background
-    _sync.pull(userId: effectiveUserId).then((_) async {
-      if (_localDb.isOpen && _localDb.currentUserId == effectiveUserId) {
-        final refreshed = await _localDb.getSummary(effectiveUserId);
-        _summary = refreshed;
-        _lastLoaded = DateTime.now();
-        notifyListeners();
-      }
-    }).catchError((_) {});
+    _sync
+        .pull(userId: effectiveUserId)
+        .then((_) async {
+          if (_localDb.isOpen && _localDb.currentUserId == effectiveUserId) {
+            final refreshed = await _localDb.getSummary(effectiveUserId);
+            _summary = refreshed;
+            _lastLoaded = DateTime.now();
+            notifyListeners();
+          }
+        })
+        .catchError((_) {});
   }
 
   void loadDemo() {

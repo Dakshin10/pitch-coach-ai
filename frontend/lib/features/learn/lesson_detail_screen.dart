@@ -41,9 +41,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
     for (final url in candidateUrls) {
       if (!mounted) return;
       try {
-        final controller = VideoPlayerController.networkUrl(
-          Uri.parse(url),
-        );
+        final controller = VideoPlayerController.networkUrl(Uri.parse(url));
         await controller.initialize();
         if (!mounted) {
           controller.dispose();
@@ -121,13 +119,18 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.borderOf(context)),
                       ),
-                      child: Icon(Icons.chevron_left_rounded,
-                          size: 26, color: AppColors.textPrimaryOf(context)),
+                      child: Icon(
+                        Icons.chevron_left_rounded,
+                        size: 26,
+                        color: AppColors.textPrimaryOf(context),
+                      ),
                     ),
                   ),
                   Text(
                     'Lesson',
-                    style: AppTextStyles.headingMOf(context).copyWith(fontWeight: FontWeight.w700),
+                    style: AppTextStyles.headingMOf(
+                      context,
+                    ).copyWith(fontWeight: FontWeight.w700),
                   ),
                   const ThemeToggleButton(size: 38, compact: true),
                 ],
@@ -137,7 +140,10 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             // Scrollable Body
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
                 physics: const BouncingScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +156,9 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                     // ── Lesson Title ─────────────────────────────────────
                     Text(
                       widget.lesson.title,
-                      style: AppTextStyles.headingXLOf(context).copyWith(fontSize: 22),
+                      style: AppTextStyles.headingXLOf(
+                        context,
+                      ).copyWith(fontSize: 22),
                     ),
 
                     const SizedBox(height: 4),
@@ -159,9 +167,14 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryPurple.withValues(alpha: 0.1),
+                            color: AppColors.primaryPurple.withValues(
+                              alpha: 0.1,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -173,8 +186,11 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Icon(Icons.access_time_rounded,
-                            size: 14, color: AppColors.textSecondary),
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           widget.lesson.duration,
@@ -213,36 +229,47 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.lightbulb_rounded,
-                                  color: AppColors.warningAmber, size: 20),
+                              const Icon(
+                                Icons.lightbulb_rounded,
+                                color: AppColors.warningAmber,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Key Takeaways',
-                                style: AppTextStyles.headingMOf(context).copyWith(fontSize: 15),
+                                style: AppTextStyles.headingMOf(
+                                  context,
+                                ).copyWith(fontSize: 15),
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          ...widget.lesson.takeaways.map((t) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.check_circle_rounded,
-                                    size: 16, color: AppColors.successGreen),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    t,
-                                    style: AppTextStyles.bodyMOf(context).copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 13.5,
+                          ...widget.lesson.takeaways.map(
+                            (t) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 16,
+                                    color: AppColors.successGreen,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      t,
+                                      style: AppTextStyles.bodyMOf(context)
+                                          .copyWith(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 13.5,
+                                          ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          )),
+                          ),
                         ],
                       ),
                     ),
@@ -275,7 +302,11 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
         color: Colors.black,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 14, offset: Offset(0, 4)),
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
@@ -298,7 +329,9 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             _buildVideoError()
           else
             const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.primaryPurple,
+              ),
             ),
 
           // Play/Pause overlay
@@ -318,8 +351,11 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                         color: Colors.black.withValues(alpha: 0.6),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white, size: 32),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
                     ),
                   ),
                 ),
@@ -367,7 +403,9 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 2.5,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6,
+                      ),
                       activeTrackColor: AppColors.primaryPurple,
                       inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
                       thumbColor: Colors.white,
@@ -391,7 +429,9 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                         GestureDetector(
                           onTap: _togglePlay,
                           child: Icon(
-                            _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            _isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
                             color: Colors.white,
                             size: 22,
                           ),
@@ -435,7 +475,10 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             });
             _initVideo();
           },
-          child: const Text('Retry', style: TextStyle(color: AppColors.primaryPurple)),
+          child: const Text(
+            'Retry',
+            style: TextStyle(color: AppColors.primaryPurple),
+          ),
         ),
       ],
     );

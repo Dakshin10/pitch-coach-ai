@@ -98,12 +98,18 @@ abstract class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.cardDarkElevated,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        titleTextStyle: AppTextStyles.headingL.copyWith(color: AppColors.textOnDark),
-        contentTextStyle: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondaryOnDark),
+        titleTextStyle: AppTextStyles.headingL.copyWith(
+          color: AppColors.textOnDark,
+        ),
+        contentTextStyle: AppTextStyles.bodyM.copyWith(
+          color: AppColors.textSecondaryOnDark,
+        ),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.primaryPurpleLight;
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primaryPurpleLight;
+          }
           return AppColors.textSecondaryOnDark;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
@@ -127,7 +133,9 @@ abstract class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.cardDark,
-        contentTextStyle: AppTextStyles.bodyM.copyWith(color: AppColors.textOnDark),
+        contentTextStyle: AppTextStyles.bodyM.copyWith(
+          color: AppColors.textOnDark,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
@@ -160,12 +168,14 @@ abstract class AppTheme {
   static InputDecorationTheme _inputTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final fill = isDark ? AppColors.backgroundElevated : Colors.white;
-    final border = isDark ? AppColors.cardDarkBorder : AppColors.cardLightBorder;
+    final border = isDark
+        ? AppColors.cardDarkBorder
+        : AppColors.cardLightBorder;
 
     OutlineInputBorder outline(Color color) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: color, width: 1.2),
-        );
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: color, width: 1.2),
+    );
 
     return InputDecorationTheme(
       filled: true,

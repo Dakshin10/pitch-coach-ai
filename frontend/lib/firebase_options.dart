@@ -60,8 +60,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '543963977112',
     projectId: 'flutter-prep-8834f',
     storageBucket: 'flutter-prep-8834f.firebasestorage.app',
-    androidClientId: '543963977112-hvbu37naehnppimnjheqkosshb7d814h.apps.googleusercontent.com',
-    iosClientId: '543963977112-q3rst49jnv9q2je41ot06vpbajqbjlnr.apps.googleusercontent.com',
+    androidClientId:
+        '543963977112-hvbu37naehnppimnjheqkosshb7d814h.apps.googleusercontent.com',
+    iosClientId:
+        '543963977112-q3rst49jnv9q2je41ot06vpbajqbjlnr.apps.googleusercontent.com',
     iosBundleId: 'com.pitchcoachai.app',
   );
 

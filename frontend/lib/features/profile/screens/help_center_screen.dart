@@ -115,16 +115,21 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   Widget build(BuildContext context) {
     final query = _searchQuery.trim().toLowerCase();
 
-    final filteredFaqs = _faqData.map((group) {
-      final topic = group['topic'] as String;
-      final items = (group['items'] as List<Map<String, String>>).where((item) {
-        if (query.isEmpty) return true;
-        return item['q']!.toLowerCase().contains(query) ||
-            item['a']!.toLowerCase().contains(query) ||
-            topic.toLowerCase().contains(query);
-      }).toList();
-      return {'topic': topic, 'items': items};
-    }).where((group) => (group['items'] as List).isNotEmpty).toList();
+    final filteredFaqs = _faqData
+        .map((group) {
+          final topic = group['topic'] as String;
+          final items = (group['items'] as List<Map<String, String>>).where((
+            item,
+          ) {
+            if (query.isEmpty) return true;
+            return item['q']!.toLowerCase().contains(query) ||
+                item['a']!.toLowerCase().contains(query) ||
+                topic.toLowerCase().contains(query);
+          }).toList();
+          return {'topic': topic, 'items': items};
+        })
+        .where((group) => (group['items'] as List).isNotEmpty)
+        .toList();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -134,7 +139,10 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     IconButton(
@@ -166,7 +174,10 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
               // Search Bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.cardOf(context),
@@ -180,8 +191,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                     decoration: InputDecoration(
                       hintText: 'Search answers (e.g. WPM, slides, audio)',
                       hintStyle: TextStyle(
-                        color: AppColors.textSecondaryOf(context)
-                            .withValues(alpha: 0.7),
+                        color: AppColors.textSecondaryOf(
+                          context,
+                        ).withValues(alpha: 0.7),
                         fontSize: 14,
                       ),
                       prefixIcon: const Padding(
@@ -232,7 +244,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
                         itemCount: filteredFaqs.length,
                         itemBuilder: (context, index) {
                           final group = filteredFaqs[index];
@@ -247,7 +261,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                               children: [
                                 Padding(
                                   padding: const EdgeInsets.only(
-                                      left: 4, bottom: 8),
+                                    left: 4,
+                                    bottom: 8,
+                                  ),
                                   child: Text(
                                     topic,
                                     style: AppTextStyles.headingM.copyWith(
@@ -268,27 +284,35 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                                         child: ExpansionTile(
                                           tilePadding:
                                               const EdgeInsets.symmetric(
-                                                  horizontal: 16, vertical: 2),
+                                                horizontal: 16,
+                                                vertical: 2,
+                                              ),
                                           childrenPadding:
                                               const EdgeInsets.fromLTRB(
-                                                  16, 0, 16, 16),
+                                                16,
+                                                0,
+                                                16,
+                                                16,
+                                              ),
                                           title: Text(
                                             item['q']!,
                                             style: AppTextStyles.bodyM.copyWith(
                                               fontWeight: FontWeight.w600,
                                               fontSize: 14,
                                               color: AppColors.textPrimaryOf(
-                                                  context),
+                                                context,
+                                              ),
                                             ),
                                           ),
                                           children: [
                                             Text(
                                               item['a']!,
-                                              style: AppTextStyles.bodyM
-                                                  .copyWith(
+                                              style: AppTextStyles.bodyM.copyWith(
                                                 fontSize: 13,
-                                                color: AppColors.textSecondaryOf(
-                                                    context),
+                                                color:
+                                                    AppColors.textSecondaryOf(
+                                                      context,
+                                                    ),
                                                 height: 1.45,
                                               ),
                                             ),
@@ -346,7 +370,8 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primaryPurpleLight,
                           side: const BorderSide(
-                              color: AppColors.primaryPurple),
+                            color: AppColors.primaryPurple,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),

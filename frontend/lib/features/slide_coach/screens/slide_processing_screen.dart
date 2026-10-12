@@ -84,13 +84,22 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (error != null) ...[
-                const Icon(Icons.error_outline, size: 64, color: AppColors.dangerRed),
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: AppColors.dangerRed,
+                ),
                 const SizedBox(height: 18),
-                Text('Analysis Error', style: AppTextStyles.headingMOf(context)),
+                Text(
+                  'Analysis Error',
+                  style: AppTextStyles.headingMOf(context),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   error,
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -102,8 +111,13 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
                       context.pop();
                     }
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple),
-                  child: const Text('Retry Analysis', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryPurple,
+                  ),
+                  child: const Text(
+                    'Retry Analysis',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => context.pop(),
@@ -126,7 +140,9 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
                     ),
                     Text(
                       '${(progress * 100).toInt()}%',
-                      style: AppTextStyles.headingL.copyWith(color: AppColors.primaryPurple),
+                      style: AppTextStyles.headingL.copyWith(
+                        color: AppColors.primaryPurple,
+                      ),
                     ),
                   ],
                 ),
@@ -181,9 +197,16 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
                   label: const Text('Minimize & Run in Background'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primaryPurple,
-                    side: BorderSide(color: AppColors.primaryPurple.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    side: BorderSide(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.5),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -220,7 +243,9 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
         color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? AppColors.primaryPurple.withValues(alpha: 0.5) : AppColors.borderOf(context),
+          color: isActive
+              ? AppColors.primaryPurple.withValues(alpha: 0.5)
+              : AppColors.borderOf(context),
         ),
       ),
       child: Row(
@@ -230,7 +255,9 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
           Text(
             title,
             style: AppTextStyles.bodyBold.copyWith(
-              color: isDone || isActive ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
+              color: isDone || isActive
+                  ? AppColors.textPrimaryOf(context)
+                  : AppColors.textSecondaryOf(context),
             ),
           ),
         ],

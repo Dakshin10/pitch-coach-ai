@@ -48,7 +48,8 @@ class SessionResultsProvider extends ChangeNotifier {
   bool get hasActiveBackgroundProcessing =>
       _isBackgroundProcessing &&
       _activeSessionId != null &&
-      (_state == ResultsLoadState.analyzing || _state == ResultsLoadState.loading);
+      (_state == ResultsLoadState.analyzing ||
+          _state == ResultsLoadState.loading);
 
   String? get activeSessionId => _activeSessionId;
   String? get activeTopic => _activeTopic;
@@ -140,7 +141,12 @@ class SessionResultsProvider extends ChangeNotifier {
 
   /// Called by ResultsScreen when it receives a session_id.
   /// If session is already analyzed in memory, loads instantly with 0ms delay!
-  void loadSession(String sessionId, {bool forceRefresh = false, String? topic, String? mode}) {
+  void loadSession(
+    String sessionId, {
+    bool forceRefresh = false,
+    String? topic,
+    String? mode,
+  }) {
     if (!forceRefresh) {
       final cached = _repo.getCachedSession(sessionId);
       if (cached != null && cached.isAnalyzed && !cached.analysisFailed) {
@@ -184,7 +190,8 @@ class SessionResultsProvider extends ChangeNotifier {
 
     // Check timeout
     if (_pollStartTime != null &&
-        DateTime.now().difference(_pollStartTime!) > AppConfig.resultsPollTimeout) {
+        DateTime.now().difference(_pollStartTime!) >
+            AppConfig.resultsPollTimeout) {
       _state = ResultsLoadState.error;
       _errorMessage = 'Analysis timed out. Tap retry to check again.';
       notifyListeners();
@@ -209,7 +216,8 @@ class SessionResultsProvider extends ChangeNotifier {
           // Update local SQLite db with full analyzed scores
           if (LocalDatabaseService.instance.isOpen) {
             try {
-              final userId = LocalDatabaseService.instance.currentUserId ?? 'user';
+              final userId =
+                  LocalDatabaseService.instance.currentUserId ?? 'user';
               await LocalDatabaseService.instance.upsertSessionMetric({
                 'id': session.id,
                 'user_id': userId,
@@ -225,7 +233,9 @@ class SessionResultsProvider extends ChangeNotifier {
                 'overall_score': session.overallScore,
                 'status': session.analysisFailed ? 'failed' : 'analyzed',
                 'created_at': session.createdAt.toUtc().toIso8601String(),
-                'local_date': session.localDate ?? DateTime.now().toIso8601String().substring(0, 10),
+                'local_date':
+                    session.localDate ??
+                    DateTime.now().toIso8601String().substring(0, 10),
                 'tz_offset_minutes': session.tzOffsetMinutes ?? 0,
                 'updated_at': DateTime.now().toUtc().toIso8601String(),
               });
@@ -236,7 +246,8 @@ class SessionResultsProvider extends ChangeNotifier {
 
           if (session.analysisFailed) {
             _state = ResultsLoadState.failed;
-            _errorMessage = session.failureReason ?? 'Analysis could not be completed.';
+            _errorMessage =
+                session.failureReason ?? 'Analysis could not be completed.';
           } else {
             _state = ResultsLoadState.ready;
             _completedSessionToAnnounce = session;

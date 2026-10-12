@@ -1,8 +1,15 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'core/blocs/app_bloc_observer.dart';
+import 'core/blocs/session_results_bloc.dart';
 import 'core/config/app_config.dart';
+import 'core/cubits/settings_cubit.dart';
+import 'core/cubits/slide_coach_cubit.dart';
+import 'core/cubits/stats_cubit.dart';
+import 'core/cubits/user_cubit.dart';
 import 'core/providers/session_results_provider.dart';
 import 'core/providers/settings_provider.dart';
 import 'core/providers/slide_coach_provider.dart';
@@ -18,6 +25,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Bloc.observer = const AppBlocObserver();
   AppConfig.validate();
 
   // Fast auto-discovery of backend (127.0.0.1 for adb reverse or 10.0.2.2 for emulator)
@@ -49,13 +57,31 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        // ── Blocs & Cubits (Enterprise State Management) ──────────────────────
+        BlocProvider(create: (_) => SettingsCubit()..initialize()),
+        BlocProvider(create: (_) => UserCubit()..tryRestoreSession()),
+        BlocProvider(create: (_) => StatsCubit()),
+        BlocProvider(
+          create: (_) =>
+              SessionResultsBloc()..add(const RestoreActiveSessionEvent()),
+        ),
+        BlocProvider(create: (_) => SlideCoachCubit()..loadSavedDecks()),
+
+        // ── Providers (Backwards compatibility & Shared State) ────────────────
         ChangeNotifierProvider(create: (_) => SettingsProvider()..initialize()),
-        ChangeNotifierProvider(create: (_) => UserProvider()..tryRestoreSession()),
+        ChangeNotifierProvider(
+          create: (_) => UserProvider()..tryRestoreSession(),
+        ),
         ChangeNotifierProvider(create: (_) => StatsProvider()),
         // SessionResultsProvider is created per-results-screen via ChangeNotifierProvider.value
         // but we expose one top-level instance for convenience
-        ChangeNotifierProvider(create: (_) => SessionResultsProvider()..restoreActiveSessionIfProcessing()),
-        ChangeNotifierProvider(create: (_) => SlideCoachProvider()..restoreActiveDeckIfProcessing()),
+        ChangeNotifierProvider(
+          create: (_) =>
+              SessionResultsProvider()..restoreActiveSessionIfProcessing(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => SlideCoachProvider()..restoreActiveDeckIfProcessing(),
+        ),
       ],
       child: const PitchCoachApp(),
     ),
@@ -81,7 +107,9 @@ class _PitchCoachAppState extends State<PitchCoachApp> {
         OutboxWorker.instance.process();
         try {
           context.read<SlideCoachProvider>().restoreActiveDeckIfProcessing();
-          context.read<SessionResultsProvider>().restoreActiveSessionIfProcessing();
+          context
+              .read<SessionResultsProvider>()
+              .restoreActiveSessionIfProcessing();
         } catch (_) {}
       },
     );

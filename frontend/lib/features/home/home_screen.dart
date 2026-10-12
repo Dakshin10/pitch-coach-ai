@@ -14,7 +14,6 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_atmosphere.dart';
 import '../../core/widgets/app_illustration.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
-import '../../core/widgets/theme_toggle_button.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -83,7 +82,9 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Load the most recent session (feeds the recent session card)
     try {
-      final session = await SessionRepository.instance.getRecentSession(forceRefresh: force);
+      final session = await SessionRepository.instance.getRecentSession(
+        forceRefresh: force,
+      );
       if (mounted) {
         setState(() {
           _recentSession = session;
@@ -141,7 +142,10 @@ class _HomeScreenState extends State<HomeScreen>
           backgroundColor: AppColors.cardOf(context),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 16.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -176,10 +180,7 @@ class _HomeScreenState extends State<HomeScreen>
                   subtitle: 'Upload PDF deck → AI speech notes & rehearsal',
                   icon: Icons.auto_awesome_rounded,
                   gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF7C3AED),
-                      Color(0xFFDB2777),
-                    ],
+                    colors: [Color(0xFF7C3AED), Color(0xFFDB2777)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -206,14 +207,12 @@ class _HomeScreenState extends State<HomeScreen>
                   subtitle: 'Rehearse your slides or speeches',
                   icon: Icons.bar_chart_rounded,
                   gradient: const LinearGradient(
-                    colors: [
-                      AppColors.accentBlue,
-                      AppColors.accentBlueDark,
-                    ],
+                    colors: [AppColors.accentBlue, AppColors.accentBlueDark],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  onTap: () => context.push('/interview', extra: 'presentation'),
+                  onTap: () =>
+                      context.push('/interview', extra: 'presentation'),
                 ),
                 const SizedBox(height: 12),
                 _PracticeModeCard(
@@ -221,10 +220,7 @@ class _HomeScreenState extends State<HomeScreen>
                   subtitle: 'Speak about any topic you like',
                   icon: Icons.mic_rounded,
                   gradient: const LinearGradient(
-                    colors: [
-                      AppColors.accentGreen,
-                      AppColors.accentGreenLight,
-                    ],
+                    colors: [AppColors.accentGreen, AppColors.accentGreenLight],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -362,15 +358,16 @@ class _HomeScreenState extends State<HomeScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PracticeModeSheet(onModeTap: (route) {
-        Navigator.pop(context);
-        context.push(route);
-      }),
+      builder: (_) => _PracticeModeSheet(
+        onModeTap: (route) {
+          Navigator.pop(context);
+          context.push(route);
+        },
+      ),
     );
   }
 
   Widget _buildHeaderRow(BuildContext context, UserProfile user) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final firstName = user.name.split(' ').first;
 
     return Row(
@@ -398,77 +395,56 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           ),
         ),
-        Row(
-          children: [
-            const ThemeToggleButton(size: 40, compact: true),
-            const SizedBox(width: 8),
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.9),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.borderOf(context)),
-              ),
-              child: Icon(
-                Icons.notifications_none_rounded,
-                size: 20,
-                color: AppColors.textPrimaryOf(context),
-              ),
+        const SizedBox(width: 12),
+        GestureDetector(
+          onTap: () => context.go('/profile'),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: AppColors.primaryGradient,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryPurple.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => context.go('/profile'),
-              child: Container(
+            child: ClipOval(
+              child: Image.network(
+                'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.name)}&background=7C6CF0&color=fff&size=128',
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: AppColors.primaryGradient,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryPurple.withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                cacheWidth:
+                    80, // 2x for HiDPI — avoids re-decode on rebuild
+                cacheHeight: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Center(
+                  child: Text(
+                    user.initials,
+                    style: AppTextStyles.bodySmallBold.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ],
-                ),
-                child: ClipOval(
-                   child: Image.network(
-                    'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.name)}&background=7C6CF0&color=fff&size=128',
-                    width: 40,
-                    height: 40,
-                    cacheWidth: 80,  // 2x for HiDPI — avoids re-decode on rebuild
-                    cacheHeight: 80,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Center(
-                      child: Text(
-                        user.initials,
-                        style: AppTextStyles.bodySmallBold.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    loadingBuilder: (_, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Center(
-                        child: Text(
-                          user.initials,
-                          style: AppTextStyles.bodySmallBold.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      );
-                    },
                   ),
                 ),
+                loadingBuilder: (_, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: Text(
+                      user.initials,
+                      style: AppTextStyles.bodySmallBold.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ],
+          ),
         ),
       ],
     );
@@ -516,7 +492,11 @@ class _HomeScreenState extends State<HomeScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: isDark ? color.withValues(alpha: 0.95) : color, size: 22),
+              Icon(
+                icon,
+                color: isDark ? color.withValues(alpha: 0.95) : color,
+                size: 22,
+              ),
               const SizedBox(height: 6),
               Text(
                 label,
@@ -585,7 +565,9 @@ class _HomeScreenState extends State<HomeScreen>
           Expanded(
             child: _buildSmallStatCard(
               label: 'Avg. Confidence',
-              value: isLoading ? '...' : '${s.avgConfidence.toStringAsFixed(0)}%',
+              value: isLoading
+                  ? '...'
+                  : '${s.avgConfidence.toStringAsFixed(0)}%',
               valueColor: AppColors.successGreen,
               subCaption: isLoading ? null : 'overall',
             ),
@@ -673,7 +655,9 @@ class _HomeScreenState extends State<HomeScreen>
               width: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppColors.primaryPurple,
+                ),
               ),
             ),
           ),
@@ -704,7 +688,11 @@ class _HomeScreenState extends State<HomeScreen>
                   color: AppColors.primaryPurple.withValues(alpha: 0.25),
                 ),
               ),
-              child: const Icon(Icons.add_rounded, color: AppColors.primaryPurpleLight, size: 24),
+              child: const Icon(
+                Icons.add_rounded,
+                color: AppColors.primaryPurpleLight,
+                size: 24,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -745,13 +733,13 @@ class _HomeScreenState extends State<HomeScreen>
     final scoreColor = session.overallScore >= 80
         ? AppColors.successGreen
         : session.overallScore >= 60
-            ? AppColors.warningAmber
-            : AppColors.dangerRed;
+        ? AppColors.warningAmber
+        : AppColors.dangerRed;
     final modeIcon = session.mode == 'presentation'
         ? Icons.bar_chart_rounded
         : session.mode == 'free_talk'
-            ? Icons.mic_rounded
-            : Icons.event_seat_rounded;
+        ? Icons.mic_rounded
+        : Icons.event_seat_rounded;
 
     return GlassSurface(
       onTap: () => context.push('/results', extra: session.id),
@@ -771,7 +759,11 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(modeIcon, color: AppColors.primaryPurpleLight, size: 24),
+            child: Icon(
+              modeIcon,
+              color: AppColors.primaryPurpleLight,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -800,7 +792,9 @@ class _HomeScreenState extends State<HomeScreen>
                 Text(
                   '${session.dateFormatted} · ${session.durationFormatted}',
                   style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondaryOf(context).withValues(alpha: 0.75),
+                    color: AppColors.textSecondaryOf(
+                      context,
+                    ).withValues(alpha: 0.75),
                     fontSize: 11,
                   ),
                 ),
@@ -818,7 +812,10 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildSlideProcessingBanner(BuildContext context, SlideCoachProvider provider) {
+  Widget _buildSlideProcessingBanner(
+    BuildContext context,
+    SlideCoachProvider provider,
+  ) {
     final st = provider.status;
     final progress = (st?.progress ?? 15) / 100.0;
     final stage = st?.stageLabel ?? 'Analyzing slide deck visuals & script...';
@@ -929,14 +926,16 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildSpeechProcessingBanner(
-      BuildContext context, SessionResultsProvider provider) {
+    BuildContext context,
+    SessionResultsProvider provider,
+  ) {
     final topic = provider.activeTopic ?? 'Interview Practice Session';
     final mode = provider.activeMode ?? 'interview';
     final modeLabel = mode == 'presentation'
         ? 'Presentation'
         : mode == 'free_talk'
-            ? 'Free Talk'
-            : 'Interview';
+        ? 'Free Talk'
+        : 'Interview';
     final sessionId = provider.activeSessionId;
 
     return Container(
@@ -1004,9 +1003,13 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: AppColors.accentBlue.withValues(alpha: 0.12),
+                              color: AppColors.accentBlue.withValues(
+                                alpha: 0.12,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -1097,7 +1100,10 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               const SizedBox(height: 18),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.scaffoldOf(dialogCtx),
                   borderRadius: BorderRadius.circular(14),
@@ -1112,14 +1118,22 @@ class _HomeScreenState extends State<HomeScreen>
                       label: 'Overall',
                       value: '${session.overallScore.round()}%',
                     ),
-                    Container(width: 1, height: 26, color: AppColors.borderOf(dialogCtx)),
+                    Container(
+                      width: 1,
+                      height: 26,
+                      color: AppColors.borderOf(dialogCtx),
+                    ),
                     _buildPopupStatItem(
                       dialogCtx,
                       icon: Icons.record_voice_over_rounded,
                       label: 'Pacing',
                       value: '${session.wpm.round()} WPM',
                     ),
-                    Container(width: 1, height: 26, color: AppColors.borderOf(dialogCtx)),
+                    Container(
+                      width: 1,
+                      height: 26,
+                      color: AppColors.borderOf(dialogCtx),
+                    ),
                     _buildPopupStatItem(
                       dialogCtx,
                       icon: Icons.warning_amber_rounded,
@@ -1136,7 +1150,9 @@ class _HomeScreenState extends State<HomeScreen>
                     child: OutlinedButton(
                       onPressed: () => Navigator.of(dialogCtx).pop(),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: const Text('Later'),
@@ -1152,7 +1168,9 @@ class _HomeScreenState extends State<HomeScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryPurple,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: const Text('View Results'),
@@ -1207,7 +1225,10 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               const SizedBox(height: 18),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.scaffoldOf(dialogCtx),
                   borderRadius: BorderRadius.circular(14),
@@ -1222,14 +1243,23 @@ class _HomeScreenState extends State<HomeScreen>
                       label: 'Slides',
                       value: '${deck.slides.length}',
                     ),
-                    Container(width: 1, height: 26, color: AppColors.borderOf(dialogCtx)),
+                    Container(
+                      width: 1,
+                      height: 26,
+                      color: AppColors.borderOf(dialogCtx),
+                    ),
                     _buildPopupStatItem(
                       dialogCtx,
                       icon: Icons.timer_outlined,
                       label: 'Target',
-                      value: '${(deck.targetTotalDurationSeconds / 60).toStringAsFixed(1)}m',
+                      value:
+                          '${(deck.targetTotalDurationSeconds / 60).toStringAsFixed(1)}m',
                     ),
-                    Container(width: 1, height: 26, color: AppColors.borderOf(dialogCtx)),
+                    Container(
+                      width: 1,
+                      height: 26,
+                      color: AppColors.borderOf(dialogCtx),
+                    ),
                     _buildPopupStatItem(
                       dialogCtx,
                       icon: Icons.people_outline_rounded,
@@ -1246,7 +1276,9 @@ class _HomeScreenState extends State<HomeScreen>
                     child: OutlinedButton(
                       onPressed: () => Navigator.of(dialogCtx).pop(),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: const Text('Later'),
@@ -1262,7 +1294,9 @@ class _HomeScreenState extends State<HomeScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryPurple,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: const Text('Review Now'),
@@ -1395,7 +1429,11 @@ class _PracticeModeCardState extends State<_PracticeModeCard> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 24),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ],
           ),
         ),
@@ -1459,7 +1497,11 @@ class _PracticeModeSheet extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+                child: const Icon(
+                  Icons.mic_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Column(
@@ -1539,7 +1581,9 @@ class _PracticeModeSheet extends StatelessWidget {
         decoration: BoxDecoration(
           color: color.withValues(alpha: isDark ? 0.14 : 0.06),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: isDark ? 0.35 : 0.2)),
+          border: Border.all(
+            color: color.withValues(alpha: isDark ? 0.35 : 0.2),
+          ),
         ),
         child: Row(
           children: [
@@ -1581,4 +1625,3 @@ class _PracticeModeSheet extends StatelessWidget {
     );
   }
 }
-

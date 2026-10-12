@@ -8,14 +8,9 @@ import '../../../core/repositories/session_repository.dart';
 import '../../../core/services/local_database_service.dart';
 import '../../../core/services/outbox_worker.dart';
 import '../../../core/services/upload_queue_service.dart';
+import '../bloc/practice_session_bloc.dart';
 
-enum RecordingPhase {
-  idle,
-  recording,
-  uploading,
-  failed,
-  permissionDenied,
-}
+enum RecordingPhase { idle, recording, uploading, failed, permissionDenied }
 
 /// State Controller managing practice modes, audio recording lifecycle,
 /// clip constraints, upload resilience, and mic permissions.
@@ -50,6 +45,16 @@ class InterviewSessionController extends ChangeNotifier {
   String? _failedSessionId;
   MicPermissionState _micPermissionState = MicPermissionState.granted;
   void Function(String? sessionId)? onAutoStop;
+  PracticeSessionBloc? _bloc;
+
+  /// Exposes the reactive PracticeSessionBloc for BLoC-driven UI components.
+  PracticeSessionBloc get bloc => _bloc ??= PracticeSessionBloc(
+    isGuest: isGuest,
+    initialConfig: PracticeSessionConfig(
+      modeId: _currentMode.id,
+      prompt: currentPrompt,
+    ),
+  );
 
   InterviewSessionController({
     required this.isGuest,
@@ -57,7 +62,9 @@ class InterviewSessionController extends ChangeNotifier {
   }) {
     if (initialConfig != null) {
       _currentMode = initialConfig.mode;
-      final idx = _currentMode.prompts.indexWhere((p) => p.id == initialConfig.prompt.id);
+      final idx = _currentMode.prompts.indexWhere(
+        (p) => p.id == initialConfig.prompt.id,
+      );
       _promptIndex = idx >= 0 ? idx : 0;
     } else {
       _currentMode = PracticeMode.allModes.first;
@@ -110,7 +117,9 @@ class InterviewSessionController extends ChangeNotifier {
 
   void previousPrompt() {
     if (isRecording || isUploading) return;
-    _promptIndex = (_promptIndex - 1 + _currentMode.prompts.length) % _currentMode.prompts.length;
+    _promptIndex =
+        (_promptIndex - 1 + _currentMode.prompts.length) %
+        _currentMode.prompts.length;
     notifyListeners();
   }
 
@@ -161,7 +170,8 @@ class InterviewSessionController extends ChangeNotifier {
 
         // Warning when approaching 5 minutes limit
         if (_elapsedSeconds >= maxRecordingSeconds) {
-          _durationWarning = 'Maximum 5 minute limit reached. Processing recording...';
+          _durationWarning =
+              'Maximum 5 minute limit reached. Processing recording...';
           notifyListeners();
           _autoStopAtMax();
         } else if (_elapsedSeconds >= warningThresholdSeconds) {
@@ -176,7 +186,8 @@ class InterviewSessionController extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _phase = RecordingPhase.failed;
-      _errorMessage = 'Could not start microphone recording. Please check audio permissions.';
+      _errorMessage =
+          'Could not start microphone recording. Please check audio permissions.';
       notifyListeners();
     }
   }
@@ -186,7 +197,9 @@ class InterviewSessionController extends ChangeNotifier {
   }
 
   /// Stops recording and uploads for AI coaching.
-  Future<void> stopRecording(void Function(String? sessionId) onComplete) async {
+  Future<void> stopRecording(
+    void Function(String? sessionId) onComplete,
+  ) async {
     if (!isRecording) return;
 
     // Enforce minimum clip length (5 seconds)
@@ -262,7 +275,9 @@ class InterviewSessionController extends ChangeNotifier {
           localAudioPath: audioPath,
         );
       } catch (e) {
-        debugPrint('[InterviewSessionController] Error saving pending session to SQLite: $e');
+        debugPrint(
+          '[InterviewSessionController] Error saving pending session to SQLite: $e',
+        );
       }
     }
 
@@ -284,7 +299,9 @@ class InterviewSessionController extends ChangeNotifier {
       // Check if outbox item succeeded
       bool isStillQueued = false;
       if (LocalDatabaseService.instance.isOpen) {
-        final pending = await LocalDatabaseService.instance.getPendingOutbox(userId);
+        final pending = await LocalDatabaseService.instance.getPendingOutbox(
+          userId,
+        );
         isStillQueued = pending.any((i) => i['id'] == effectiveSessionId);
       }
 
@@ -298,14 +315,16 @@ class InterviewSessionController extends ChangeNotifier {
         _phase = RecordingPhase.failed;
         _failedSessionId = effectiveSessionId;
         _failedAudioPath = audioPath;
-        _errorMessage = 'Waiting to sync. Your recording is safely saved and will upload automatically.';
+        _errorMessage =
+            'Waiting to sync. Your recording is safely saved and will upload automatically.';
         notifyListeners();
       }
     } catch (e) {
       _phase = RecordingPhase.failed;
       _failedSessionId = effectiveSessionId;
       _failedAudioPath = audioPath;
-      _errorMessage = 'Waiting to sync. Your recording is safely saved on this device.';
+      _errorMessage =
+          'Waiting to sync. Your recording is safely saved on this device.';
       notifyListeners();
     }
   }
@@ -322,7 +341,9 @@ class InterviewSessionController extends ChangeNotifier {
       if (_failedSessionId != null) {
         await OutboxWorker.instance.retry(_failedSessionId!);
         final userId = LocalDatabaseService.instance.currentUserId ?? 'user';
-        final pending = await LocalDatabaseService.instance.getPendingOutbox(userId);
+        final pending = await LocalDatabaseService.instance.getPendingOutbox(
+          userId,
+        );
         final isStillQueued = pending.any((i) => i['id'] == _failedSessionId);
 
         if (!isStillQueued) {
@@ -341,7 +362,9 @@ class InterviewSessionController extends ChangeNotifier {
         final item = queued.firstWhere(
           (i) => i.audioPath == _failedAudioPath,
           orElse: () => PendingUploadItem(
-            id: _failedSessionId ?? 'retry_${DateTime.now().millisecondsSinceEpoch}',
+            id:
+                _failedSessionId ??
+                'retry_${DateTime.now().millisecondsSinceEpoch}',
             sessionId: _failedSessionId,
             audioPath: _failedAudioPath!,
             durationSeconds: _elapsedSeconds.toDouble(),
@@ -359,7 +382,8 @@ class InterviewSessionController extends ChangeNotifier {
       }
     } catch (e) {
       _phase = RecordingPhase.failed;
-      _errorMessage = 'Retry failed: $e. You can try again or wait for network.';
+      _errorMessage =
+          'Retry failed: $e. You can try again or wait for network.';
       notifyListeners();
     }
   }
@@ -438,6 +462,7 @@ class InterviewSessionController extends ChangeNotifier {
   void dispose() {
     _timer?.cancel();
     _amplitudeSubscription?.cancel();
+    _bloc?.close();
     super.dispose();
   }
 }

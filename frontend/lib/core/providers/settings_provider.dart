@@ -135,10 +135,16 @@ class SettingsProvider extends ChangeNotifier {
       final t = data['theme_mode'] as String;
       _themeMode = t == 'dark'
           ? ThemeMode.dark
-          : t == 'light' ? ThemeMode.light : ThemeMode.system;
+          : t == 'light'
+          ? ThemeMode.light
+          : ThemeMode.system;
     }
-    if (data['locale'] != null) _locale = data['locale'] as String;
-    if (data['daily_reminder'] != null) _dailyReminder = data['daily_reminder'] as bool;
+    if (data['locale'] != null) {
+      _locale = data['locale'] as String;
+    }
+    if (data['daily_reminder'] != null) {
+      _dailyReminder = data['daily_reminder'] as bool;
+    }
     if (data['slide_deck_ready_alerts'] != null) {
       _slideDeckReadyAlerts = data['slide_deck_ready_alerts'] as bool;
     }
@@ -191,11 +197,13 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     await _saveToPrefs();
 
-    return _syncToBackend(rollback: () {
-      _themeMode = previous;
-      _saveToPrefs();
-      notifyListeners();
-    });
+    return _syncToBackend(
+      rollback: () {
+        _themeMode = previous;
+        _saveToPrefs();
+        notifyListeners();
+      },
+    );
   }
 
   /// Toggle dark mode helper (used by ThemeToggleButton)
@@ -211,11 +219,13 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     await _saveToPrefs();
 
-    return _syncToBackend(rollback: () {
-      _locale = previous;
-      _saveToPrefs();
-      notifyListeners();
-    });
+    return _syncToBackend(
+      rollback: () {
+        _locale = previous;
+        _saveToPrefs();
+        notifyListeners();
+      },
+    );
   }
 
   /// Optimistically update notification preferences
@@ -230,22 +240,32 @@ class SettingsProvider extends ChangeNotifier {
     final prevWeekly = _weeklyProgressSummary;
     final prevTips = _tipsAndLessons;
 
-    if (dailyReminder != null) _dailyReminder = dailyReminder;
-    if (slideDeckReadyAlerts != null) _slideDeckReadyAlerts = slideDeckReadyAlerts;
-    if (weeklyProgressSummary != null) _weeklyProgressSummary = weeklyProgressSummary;
-    if (tipsAndLessons != null) _tipsAndLessons = tipsAndLessons;
+    if (dailyReminder != null) {
+      _dailyReminder = dailyReminder;
+    }
+    if (slideDeckReadyAlerts != null) {
+      _slideDeckReadyAlerts = slideDeckReadyAlerts;
+    }
+    if (weeklyProgressSummary != null) {
+      _weeklyProgressSummary = weeklyProgressSummary;
+    }
+    if (tipsAndLessons != null) {
+      _tipsAndLessons = tipsAndLessons;
+    }
 
     notifyListeners();
     await _saveToPrefs();
 
-    return _syncToBackend(rollback: () {
-      _dailyReminder = prevDaily;
-      _slideDeckReadyAlerts = prevSlide;
-      _weeklyProgressSummary = prevWeekly;
-      _tipsAndLessons = prevTips;
-      _saveToPrefs();
-      notifyListeners();
-    });
+    return _syncToBackend(
+      rollback: () {
+        _dailyReminder = prevDaily;
+        _slideDeckReadyAlerts = prevSlide;
+        _weeklyProgressSummary = prevWeekly;
+        _tipsAndLessons = prevTips;
+        _saveToPrefs();
+        notifyListeners();
+      },
+    );
   }
 
   /// Optimistically update practice reminder schedule & goal
@@ -265,13 +285,15 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     await _saveToPrefs();
 
-    return _syncToBackend(rollback: () {
-      _reminderTime = prevTime;
-      _reminderDays = prevDays;
-      _weeklyGoal = prevGoal;
-      _saveToPrefs();
-      notifyListeners();
-    });
+    return _syncToBackend(
+      rollback: () {
+        _reminderTime = prevTime;
+        _reminderDays = prevDays;
+        _weeklyGoal = prevGoal;
+        _saveToPrefs();
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> setDailyReminder(bool enabled) async {
@@ -317,7 +339,10 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> recordReviewPrompt() async {
     if (_prefs == null) return;
-    await _prefs!.setInt(_keyLastReviewPrompt, DateTime.now().millisecondsSinceEpoch);
+    await _prefs!.setInt(
+      _keyLastReviewPrompt,
+      DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   /// Internal sync helper
@@ -339,9 +364,9 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     try {
-      await _auth.updateMe({'settings': toMap()}).timeout(
-        const Duration(seconds: 3),
-      );
+      await _auth
+          .updateMe({'settings': toMap()})
+          .timeout(const Duration(seconds: 3));
       return true;
     } catch (e) {
       _syncError = 'Could not sync settings to cloud. Changes kept locally.';

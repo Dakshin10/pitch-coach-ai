@@ -12,11 +12,7 @@ import '../services/api_client.dart';
 import '../services/local_database_service.dart';
 import '../utils/local_file.dart';
 
-enum MicPermissionState {
-  granted,
-  denied,
-  permanentlyDenied,
-}
+enum MicPermissionState { granted, denied, permanentlyDenied }
 
 /// Encapsulates recording and the session API lifecycle.
 /// Used by InterviewSessionController.
@@ -26,8 +22,6 @@ class SessionRepository {
 
   final _api = ApiClient.instance;
   final AudioRecorder _recorder = AudioRecorder();
-
-  
 
   String? _currentSessionId;
   String? _currentAudioPath;
@@ -42,8 +36,8 @@ class SessionRepository {
   List<SessionSummary>? get cachedSessions => _cachedSessions;
   SessionSummary? get cachedRecentSession =>
       (_cachedSessions != null && _cachedSessions!.isNotEmpty)
-          ? _cachedSessions!.first
-          : null;
+      ? _cachedSessions!.first
+      : null;
 
   void invalidateCache() {
     _cachedSessions = null;
@@ -59,12 +53,20 @@ class SessionRepository {
 
   Future<MicPermissionState> requestMicPermissionStatus() async {
     final current = await Permission.microphone.status;
-    if (current.isGranted) return MicPermissionState.granted;
-    if (current.isPermanentlyDenied) return MicPermissionState.permanentlyDenied;
+    if (current.isGranted) {
+      return MicPermissionState.granted;
+    }
+    if (current.isPermanentlyDenied) {
+      return MicPermissionState.permanentlyDenied;
+    }
 
     final result = await Permission.microphone.request();
-    if (result.isGranted) return MicPermissionState.granted;
-    if (result.isPermanentlyDenied) return MicPermissionState.permanentlyDenied;
+    if (result.isGranted) {
+      return MicPermissionState.granted;
+    }
+    if (result.isPermanentlyDenied) {
+      return MicPermissionState.permanentlyDenied;
+    }
     return MicPermissionState.denied;
   }
 
@@ -101,7 +103,9 @@ class SessionRepository {
     final path = await _recorder.stop() ?? _currentAudioPath;
     final recordedPath = path;
     _currentAudioPath = null;
-    if (recordedPath == null) throw StateError('Recording did not produce an audio file.');
+    if (recordedPath == null) {
+      throw StateError('Recording did not produce an audio file.');
+    }
     if (!await localFileExistsAndNonEmpty(recordedPath)) {
       throw StateError('The recording is missing or empty. Please try again.');
     }
@@ -174,26 +178,31 @@ class SessionRepository {
         '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final tzOffsetMinutes = now.timeZoneOffset.inMinutes;
 
-    _api.post('/sessions/start', data: {
-      'session_id': generatedSessionId,
-      'mode': mode,
-      'topic_or_question': topicOrQuestion,
-      'local_date': localDate,
-      'tz_offset_minutes': tzOffsetMinutes,
-    }).then((res) {
-      final data = res as Map<String, dynamic>;
-      final id = (data['session_id'] as String?) ?? generatedSessionId;
-      _currentSessionId = id;
-      if (!completer.isCompleted) completer.complete(id);
-    }).catchError((_) {
-      // In offline scenario, client generated ID remains authoritative
-      _currentSessionId = generatedSessionId;
-      if (!completer.isCompleted) completer.complete(generatedSessionId);
-    });
+    _api
+        .post(
+          '/sessions/start',
+          data: {
+            'session_id': generatedSessionId,
+            'mode': mode,
+            'topic_or_question': topicOrQuestion,
+            'local_date': localDate,
+            'tz_offset_minutes': tzOffsetMinutes,
+          },
+        )
+        .then((res) {
+          final data = res as Map<String, dynamic>;
+          final id = (data['session_id'] as String?) ?? generatedSessionId;
+          _currentSessionId = id;
+          if (!completer.isCompleted) completer.complete(id);
+        })
+        .catchError((_) {
+          // In offline scenario, client generated ID remains authoritative
+          _currentSessionId = generatedSessionId;
+          if (!completer.isCompleted) completer.complete(generatedSessionId);
+        });
 
     return _currentSessionId;
   }
-
 
   /// Stops recorder without uploading. Returns the local audio file path.
   Future<String?> stopAudioRecorder() async {
@@ -221,13 +230,18 @@ class SessionRepository {
         final localDate =
             '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
         final tzOffsetMinutes = now.timeZoneOffset.inMinutes;
-        final data = await _api.post('/sessions/start', data: {
-          'session_id': generatedId,
-          'mode': 'interview',
-          'topic_or_question': 'Practice session',
-          'local_date': localDate,
-          'tz_offset_minutes': tzOffsetMinutes,
-        }) as Map<String, dynamic>;
+        final data =
+            await _api.post(
+                  '/sessions/start',
+                  data: {
+                    'session_id': generatedId,
+                    'mode': 'interview',
+                    'topic_or_question': 'Practice session',
+                    'local_date': localDate,
+                    'tz_offset_minutes': tzOffsetMinutes,
+                  },
+                )
+                as Map<String, dynamic>;
         _currentSessionId = (data['session_id'] as String?) ?? generatedId;
       } catch (_) {
         // Still unreachable — return null so the controller handles it as a local-only session.
@@ -274,10 +288,9 @@ class SessionRepository {
     });
 
     final sessionId = _currentSessionId!;
-    final raw = await _api.postMultipart(
-      '/sessions/$sessionId/finish',
-      formData,
-    ) as Map<String, dynamic>;
+    final raw =
+        await _api.postMultipart('/sessions/$sessionId/finish', formData)
+            as Map<String, dynamic>;
 
     // Cache the audio path BEFORE deletion so ResultsScreen can play it back.
     // Actual file deletion is deferred to the next session start or an explicit
@@ -295,7 +308,8 @@ class SessionRepository {
   // ── Session Result In-Memory Cache (Instant Load, Zero Re-calculation) ───
   final Map<String, SessionResult> _sessionResultCache = {};
 
-  SessionResult? getCachedSession(String sessionId) => _sessionResultCache[sessionId];
+  SessionResult? getCachedSession(String sessionId) =>
+      _sessionResultCache[sessionId];
 
   void cacheSession(SessionResult result) {
     if (result.isAnalyzed && !result.analysisFailed) {
@@ -309,7 +323,10 @@ class SessionRepository {
 
   /// Step 3 (polling/retrieval): fetch session with local cache verification.
   /// If session is already analyzed and cached, returns instantly with 0ms delay.
-  Future<SessionResult> getSession(String sessionId, {bool forceRefresh = false}) async {
+  Future<SessionResult> getSession(
+    String sessionId, {
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh && _sessionResultCache.containsKey(sessionId)) {
       final cached = _sessionResultCache[sessionId]!;
       if (cached.isAnalyzed && !cached.analysisFailed) {
@@ -354,7 +371,8 @@ class SessionRepository {
     int limit = 20,
     bool forceRefresh = false,
   }) async {
-    final isDefaultQuery = (mode == null || mode == 'All') &&
+    final isDefaultQuery =
+        (mode == null || mode == 'All') &&
         (search == null || search.isEmpty) &&
         page == 1;
 
@@ -395,9 +413,13 @@ class SessionRepository {
         return _cachedSessions!.first;
       }
       final localDb = LocalDatabaseService.instance;
-      if (localDb.isOpen && localDb.currentUserId != null && localDb.currentUserId != 'guest') {
+      if (localDb.isOpen &&
+          localDb.currentUserId != null &&
+          localDb.currentUserId != 'guest') {
         try {
-          final localRecent = await localDb.getRecentSession(localDb.currentUserId!);
+          final localRecent = await localDb.getRecentSession(
+            localDb.currentUserId!,
+          );
           if (localRecent != null) {
             return localRecent;
           }

@@ -88,11 +88,15 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
 
       setState(() => _submittedSuccess = true);
       if (mounted) {
-        AppToast.success(context, 'Thank you! Your feedback has been received.');
+        AppToast.success(
+          context,
+          'Thank you! Your feedback has been received.',
+        );
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to submit feedback. Check connection or send via email.';
+        _errorMessage =
+            'Failed to submit feedback. Check connection or send via email.';
       });
       if (mounted) {
         AppToast.error(context, 'Network error submitting feedback');
@@ -107,7 +111,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
       'Feedback Category: $_category\n\n${_messageController.text.trim()}',
     );
     final subject = Uri.encodeComponent('Pitch Coach Feedback - $_category');
-    final uri = Uri.parse('mailto:support@pitchcoach.app?subject=$subject&body=$body');
+    final uri = Uri.parse(
+      'mailto:support@pitchcoach.app?subject=$subject&body=$body',
+    );
 
     try {
       if (await canLaunchUrl(uri)) {
@@ -134,7 +140,10 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     IconButton(
@@ -175,7 +184,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: AppColors.successGreen.withValues(alpha: 0.15),
+                                  color: AppColors.successGreen.withValues(
+                                    alpha: 0.15,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const AppIcon(
@@ -214,7 +225,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                       )
                     : SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                         child: Form(
                           key: _formKey,
                           child: Column(
@@ -238,7 +251,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                       label: Text(cat),
                                       selected: selected,
                                       selectedColor: AppColors.primaryPurple,
-                                      backgroundColor: AppColors.cardOf(context),
+                                      backgroundColor: AppColors.cardOf(
+                                        context,
+                                      ),
                                       labelStyle: TextStyle(
                                         color: selected
                                             ? Colors.white
@@ -256,7 +271,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                         ),
                                       ),
                                       onSelected: (val) {
-                                        if (val) setState(() => _category = cat);
+                                        if (val) {
+                                          setState(() => _category = cat);
+                                        }
                                       },
                                     ),
                                   );
@@ -285,8 +302,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                   hintText:
                                       'Describe the bug, idea, or issue in detail...',
                                   hintStyle: TextStyle(
-                                    color: AppColors.textSecondaryOf(context)
-                                        .withValues(alpha: 0.7),
+                                    color: AppColors.textSecondaryOf(
+                                      context,
+                                    ).withValues(alpha: 0.7),
                                     fontSize: 14,
                                   ),
                                   filled: true,
@@ -380,14 +398,16 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                           overflow: TextOverflow.ellipsis,
                                           style: AppTextStyles.caption.copyWith(
                                             color: AppColors.textPrimaryOf(
-                                                context),
+                                              context,
+                                            ),
                                           ),
                                         ),
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.close, size: 18),
                                         onPressed: () => setState(
-                                            () => _attachedImage = null),
+                                          () => _attachedImage = null,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -398,7 +418,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                               // Device info opt-in
                               GlassSurface(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8),
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
                                 borderRadius: BorderRadius.circular(14),
                                 child: Row(
                                   mainAxisAlignment:
@@ -415,17 +437,20 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                               fontWeight: FontWeight.w600,
                                               fontSize: 13,
                                               color: AppColors.textPrimaryOf(
-                                                  context),
+                                                context,
+                                              ),
                                             ),
                                           ),
                                           Text(
                                             'Helps us reproduce bugs faster',
-                                            style:
-                                                AppTextStyles.caption.copyWith(
-                                              color: AppColors.textSecondaryOf(
-                                                  context),
-                                              fontSize: 12,
-                                            ),
+                                            style: AppTextStyles.caption
+                                                .copyWith(
+                                                  color:
+                                                      AppColors.textSecondaryOf(
+                                                        context,
+                                                      ),
+                                                  fontSize: 12,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -434,7 +459,8 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                       value: _includeDeviceInfo,
                                       activeThumbColor: AppColors.primaryPurple,
                                       onChanged: (val) => setState(
-                                          () => _includeDeviceInfo = val),
+                                        () => _includeDeviceInfo = val,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -445,12 +471,14 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: AppColors.errorRed
-                                        .withValues(alpha: 0.12),
+                                    color: AppColors.errorRed.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: AppColors.errorRed
-                                          .withValues(alpha: 0.35),
+                                      color: AppColors.errorRed.withValues(
+                                        alpha: 0.35,
+                                      ),
                                     ),
                                   ),
                                   child: Row(
@@ -485,7 +513,8 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                     foregroundColor:
                                         AppColors.primaryPurpleLight,
                                     side: const BorderSide(
-                                        color: AppColors.primaryPurple),
+                                      color: AppColors.primaryPurple,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -498,8 +527,9 @@ class _SendFeedbackScreenState extends State<SendFeedbackScreen> {
                                     : 'Send Feedback',
                                 variant: GradientButtonVariant.primary,
                                 height: 50,
-                                onPressed:
-                                    _isSubmitting ? null : _submitFeedback,
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : _submitFeedback,
                               ),
 
                               const SizedBox(height: 24),

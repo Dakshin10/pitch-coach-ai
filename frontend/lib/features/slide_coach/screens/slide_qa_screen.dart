@@ -43,7 +43,9 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
     if (!hasPerm) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Microphone permission required for answering')),
+          const SnackBar(
+            content: Text('Microphone permission required for answering'),
+          ),
         );
       }
       return;
@@ -105,176 +107,230 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(color: AppColors.primaryPurple),
+                  const CircularProgressIndicator(
+                    color: AppColors.primaryPurple,
+                  ),
                   const SizedBox(height: 16),
-                  Text('Generating tough audience questions...', style: AppTextStyles.bodyTextOf(context)),
+                  Text(
+                    'Generating tough audience questions...',
+                    style: AppTextStyles.bodyTextOf(context),
+                  ),
                 ],
               ),
             )
           : curQ == null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'No questions available',
+                    style: AppTextStyles.headingMOf(context),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => provider.loadQaQuestions(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryPurple,
+                    ),
+                    child: const Text(
+                      'Generate Questions',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Question Step Indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('No questions available', style: AppTextStyles.headingMOf(context)),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () => provider.loadQaQuestions(),
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple),
-                        child: const Text('Generate Questions', style: TextStyle(color: Colors.white)),
+                      Text(
+                        'Question ${curIdx + 1} of $totalQ',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primaryPurple,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Audience: ${provider.deck?.audience ?? "Judges"}',
+                        style: AppTextStyles.captionOf(context),
                       ),
                     ],
                   ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Question Step Indicator
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Question ${curIdx + 1} of $totalQ',
-                            style: AppTextStyles.caption.copyWith(color: AppColors.primaryPurple, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'Audience: ${provider.deck?.audience ?? "Judges"}',
-                            style: AppTextStyles.captionOf(context),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                      // Question Card
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardOf(context),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.borderOf(context)),
-                          boxShadow: AppColors.softShadowOf(context),
-                        ),
-                        child: Column(
+                  // Question Card
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardOf(context),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.borderOf(context)),
+                      boxShadow: AppColors.softShadowOf(context),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.help_outline, color: AppColors.primaryPurple, size: 24),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(curQ.question, style: AppTextStyles.headingMOf(context)),
-                                ),
-                              ],
+                            const Icon(
+                              Icons.help_outline,
+                              color: AppColors.primaryPurple,
+                              size: 24,
                             ),
-                            const SizedBox(height: 14),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryPurple.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(Icons.psychology, size: 18, color: AppColors.primaryPurple),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Why they ask: ${curQ.whyTheyAsk}',
-                                      style: AppTextStyles.caption.copyWith(color: AppColors.primaryPurple),
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                curQ.question,
+                                style: AppTextStyles.headingMOf(context),
                               ),
                             ),
                           ],
                         ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Recording Controls
-                      if (provider.isEvaluatingAnswer) ...[
-                        Center(
-                          child: Column(
-                            children: [
-                              const CircularProgressIndicator(color: AppColors.primaryPurple),
-                              const SizedBox(height: 12),
-                              Text('Transcribing and evaluating your spoken response...', style: AppTextStyles.bodyTextOf(context)),
-                            ],
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryPurple.withValues(
+                              alpha: 0.1,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ),
-                      ] else ...[
-                        Center(
-                          child: Column(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              GestureDetector(
-                                onTap: _isRecording ? _stopAndSubmit : _startRecording,
-                                child: Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    color: _isRecording ? AppColors.dangerRed : AppColors.primaryPurple,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (_isRecording ? AppColors.dangerRed : AppColors.primaryPurple)
-                                            .withValues(alpha: 0.4),
-                                        blurRadius: 16,
-                                        spreadRadius: 4,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    _isRecording ? Icons.stop : Icons.mic,
-                                    color: Colors.white,
-                                    size: 38,
+                              const Icon(
+                                Icons.psychology,
+                                size: 18,
+                                color: AppColors.primaryPurple,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Why they ask: ${curQ.whyTheyAsk}',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.primaryPurple,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                _isRecording
-                                    ? 'Recording answer... Tap stop to grade'
-                                    : 'Tap microphone to speak your answer',
-                                style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold),
-                              ),
                             ],
                           ),
                         ),
                       ],
+                    ),
+                  ),
 
-                      // Evaluation Results Card
-                      if (eval != null) ...[
-                        const SizedBox(height: 28),
-                        _buildEvaluationCard(context, eval),
-                      ],
+                  const SizedBox(height: 24),
 
-                      const SizedBox(height: 32),
-
-                      // Navigation Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Recording Controls
+                  if (provider.isEvaluatingAnswer) ...[
+                    Center(
+                      child: Column(
                         children: [
-                          OutlinedButton(
-                            onPressed: curIdx > 0 ? () => provider.prevQuestion() : null,
-                            child: const Text('← Previous'),
+                          const CircularProgressIndicator(
+                            color: AppColors.primaryPurple,
                           ),
-                          ElevatedButton(
-                            onPressed: curIdx < totalQ - 1 ? () => provider.nextQuestion() : null,
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple),
-                            child: const Text('Next Question →', style: TextStyle(color: Colors.white)),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Transcribing and evaluating your spoken response...',
+                            style: AppTextStyles.bodyTextOf(context),
                           ),
                         ],
                       ),
+                    ),
+                  ] else ...[
+                    Center(
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: _isRecording
+                                ? _stopAndSubmit
+                                : _startRecording,
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: _isRecording
+                                    ? AppColors.dangerRed
+                                    : AppColors.primaryPurple,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        (_isRecording
+                                                ? AppColors.dangerRed
+                                                : AppColors.primaryPurple)
+                                            .withValues(alpha: 0.4),
+                                    blurRadius: 16,
+                                    spreadRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                _isRecording ? Icons.stop : Icons.mic,
+                                color: Colors.white,
+                                size: 38,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _isRecording
+                                ? 'Recording answer... Tap stop to grade'
+                                : 'Tap microphone to speak your answer',
+                            style: AppTextStyles.captionOf(
+                              context,
+                            ).copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
-                      const SizedBox(height: 24),
+                  // Evaluation Results Card
+                  if (eval != null) ...[
+                    const SizedBox(height: 28),
+                    _buildEvaluationCard(context, eval),
+                  ],
+
+                  const SizedBox(height: 32),
+
+                  // Navigation Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      OutlinedButton(
+                        onPressed: curIdx > 0
+                            ? () => provider.prevQuestion()
+                            : null,
+                        child: const Text('← Previous'),
+                      ),
+                      ElevatedButton(
+                        onPressed: curIdx < totalQ - 1
+                            ? () => provider.nextQuestion()
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryPurple,
+                        ),
+                        child: const Text(
+                          'Next Question →',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
                     ],
                   ),
-                ),
+
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
     );
   }
 
@@ -292,16 +348,26 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Evaluation & Scoring', style: AppTextStyles.bodyBoldOf(context)),
+              Text(
+                'Evaluation & Scoring',
+                style: AppTextStyles.bodyBoldOf(context),
+              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${eval.overallScore}/100',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -322,12 +388,27 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
           ),
 
           const SizedBox(height: 14),
-          Text('Your Spoken Answer:', style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            'Your Spoken Answer:',
+            style: AppTextStyles.captionOf(
+              context,
+            ).copyWith(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 2),
-          Text('"${eval.spokenTranscript}"', style: AppTextStyles.bodyTextOf(context).copyWith(fontStyle: FontStyle.italic, fontSize: 13)),
+          Text(
+            '"${eval.spokenTranscript}"',
+            style: AppTextStyles.bodyTextOf(
+              context,
+            ).copyWith(fontStyle: FontStyle.italic, fontSize: 13),
+          ),
 
           const SizedBox(height: 12),
-          Text('Coach Critique:', style: AppTextStyles.captionOf(context).copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            'Coach Critique:',
+            style: AppTextStyles.captionOf(
+              context,
+            ).copyWith(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 2),
           Text(eval.critique, style: AppTextStyles.bodyTextOf(context)),
 
@@ -337,23 +418,35 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
             decoration: BoxDecoration(
               color: AppColors.successGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.successGreen.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.successGreen.withValues(alpha: 0.3),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.check_circle_outline, color: AppColors.successGreen, size: 16),
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: AppColors.successGreen,
+                      size: 16,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Sample Better Answer (Model Answer):',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.successGreen, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.successGreen,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(eval.sampleBetterAnswer, style: AppTextStyles.bodyTextOf(context)),
+                Text(
+                  eval.sampleBetterAnswer,
+                  style: AppTextStyles.bodyTextOf(context),
+                ),
               ],
             ),
           ),
@@ -381,8 +474,22 @@ class _SlideQaScreenState extends State<SlideQaScreen> {
         ),
         child: Column(
           children: [
-            Text('$score', style: TextStyle(color: col, fontWeight: FontWeight.bold, fontSize: 13)),
-            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondaryOf(context))),
+            Text(
+              '$score',
+              style: TextStyle(
+                color: col,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondaryOf(context),
+              ),
+            ),
           ],
         ),
       ),

@@ -54,7 +54,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       final info = await PackageInfo.fromPlatform();
       if (mounted) {
         setState(() {
-          _appVersionString = 'Pitch Coach v${info.version} (${info.buildNumber})';
+          _appVersionString =
+              'Pitch Coach v${info.version} (${info.buildNumber})';
         });
       }
     } catch (_) {
@@ -107,8 +108,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: AppColors.textSecondaryOf(context)
-                          .withValues(alpha: 0.3),
+                      color: AppColors.textSecondaryOf(
+                        context,
+                      ).withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -350,9 +352,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 const SizedBox(width: 8),
                 Text(
                   'Delete Account',
-                  style: AppTextStyles.headingMOf(dialogCtx).copyWith(
-                    color: AppColors.errorRed,
-                  ),
+                  style: AppTextStyles.headingMOf(
+                    dialogCtx,
+                  ).copyWith(color: AppColors.errorRed),
                 ),
               ],
             ),
@@ -397,12 +399,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
               ),
               ElevatedButton(
-                onPressed: isMatch ? () => Navigator.pop(dialogCtx, true) : null,
+                onPressed: isMatch
+                    ? () => Navigator.pop(dialogCtx, true)
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.dangerRed,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      AppColors.dangerRed.withValues(alpha: 0.3),
+                  disabledBackgroundColor: AppColors.dangerRed.withValues(
+                    alpha: 0.3,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -467,7 +472,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                   parent: BouncingScrollPhysics(),
                 ),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20.0, vertical: 14.0),
+                  horizontal: 20.0,
+                  vertical: 14.0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -491,8 +498,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                               const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: () async {
-                                  final refreshed = await context
-                                      .push('/profile-setup');
+                                  final refreshed = await context.push(
+                                    '/profile-setup',
+                                  );
                                   if (refreshed == true && mounted) {
                                     _refreshAllData();
                                   }
@@ -540,7 +548,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                         SettingsTile(
                           leadingIcon: AppIcons.person,
                           title: 'Personal Information',
-                          subtitle: 'Name, industry, speaking goals & feedback style',
+                          subtitle:
+                              'Name, industry, speaking goals & feedback style',
                           trailingType: SettingsTileTrailing.value,
                           trailingText: user.name,
                           onTap: () async {
@@ -554,8 +563,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           subtitle:
                               'Practice alerts, slide deck ready notifications',
                           trailingType: SettingsTileTrailing.chevron,
-                          onTap: () =>
-                              context.push('/profile/notifications'),
+                          onTap: () => context.push('/profile/notifications'),
                         ),
                         SettingsTile(
                           leadingIcon: AppIcons.award,
@@ -587,17 +595,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                         SettingsTile(
                           leadingIcon: AppIcons.book,
                           title: 'Communication Lessons',
-                          subtitle: 'Speech delivery and public speaking courses',
+                          subtitle:
+                              'Speech delivery and public speaking courses',
                           trailingType: SettingsTileTrailing.value,
-                          trailingText:
-                              '${LessonCatalog.all.length} lessons',
+                          trailingText: '${LessonCatalog.all.length} lessons',
                           onTap: () => context.push('/lessons'),
                         ),
                         SettingsTile(
                           leadingIcon: AppIcons.video,
                           title: 'Watch: Reduce Filler Words',
-                          subtitle:
-                              '4-minute deep dive on pausing and rhythm',
+                          subtitle: '4-minute deep dive on pausing and rhythm',
                           trailingType: SettingsTileTrailing.chevron,
                           onTap: () {
                             try {
@@ -712,8 +719,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       child: Text(
                         _appVersionString,
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondaryOf(context)
-                              .withValues(alpha: 0.6),
+                          color: AppColors.textSecondaryOf(
+                            context,
+                          ).withValues(alpha: 0.6),
                         ),
                       ),
                     ),
@@ -780,16 +788,17 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ? Image.network(
                               avatarUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Center(
-                                child: Text(
-                                  user.initials,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.bold,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Center(
+                                    child: Text(
+                                      user.initials,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
                             )
                           : Center(
                               child: Text(
@@ -879,8 +888,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                 if (user.isPro) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(6),
@@ -929,8 +940,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 22, vertical: 0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 0,
+                  ),
                 ),
                 child: Text(
                   'Edit Profile',
@@ -997,8 +1010,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       }
     }
 
-    final memberSinceText =
-        user.memberSince.isNotEmpty ? user.memberSince : 'Oct 2026';
+    final memberSinceText = user.memberSince.isNotEmpty
+        ? user.memberSince
+        : 'Oct 2026';
 
     return Row(
       children: [

@@ -44,7 +44,8 @@ class SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
-    final effectiveIconColor = iconColor ??
+    final effectiveIconColor =
+        iconColor ??
         (isDark ? AppColors.primaryPurpleLight : AppColors.primaryPurple);
 
     Widget? effectiveTrailing = trailing;
@@ -67,13 +68,16 @@ class SettingsTile extends StatelessWidget {
         onTap: isDisabled || isLoading
             ? null
             : (trailingType == SettingsTileTrailing.toggle && onToggle != null
-                ? () => onToggle!(!(toggleValue ?? false))
-                : onTap),
+                  ? () => onToggle!(!(toggleValue ?? false))
+                  : onTap),
         borderRadius: BorderRadius.circular(16),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 52),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -82,7 +86,9 @@ class SettingsTile extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: effectiveIconColor.withValues(alpha: isDark ? 0.2 : 0.1),
+                    color: effectiveIconColor.withValues(
+                      alpha: isDark ? 0.2 : 0.1,
+                    ),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
@@ -113,8 +119,9 @@ class SettingsTile extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodyM.copyWith(
                                 color: isDisabled
-                                    ? AppColors.textSecondaryOf(context)
-                                        .withValues(alpha: 0.6)
+                                    ? AppColors.textSecondaryOf(
+                                        context,
+                                      ).withValues(alpha: 0.6)
                                     : AppColors.textPrimaryOf(context),
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14.5,
@@ -125,7 +132,9 @@ class SettingsTile extends StatelessWidget {
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 gradient: AppColors.primaryGradient,
                                 borderRadius: BorderRadius.circular(6),
@@ -167,8 +176,9 @@ class SettingsTile extends StatelessWidget {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor:
-                          AlwaysStoppedAnimation(AppColors.primaryPurple),
+                      valueColor: AlwaysStoppedAnimation(
+                        AppColors.primaryPurple,
+                      ),
                     ),
                   )
                 else if (effectiveTrailing != null)
@@ -194,8 +204,9 @@ class SettingsTile extends StatelessWidget {
                     AppIcon(
                       AppIcons.chevronRight,
                       size: 16,
-                      color: AppColors.textSecondaryOf(context)
-                          .withValues(alpha: 0.7),
+                      color: AppColors.textSecondaryOf(
+                        context,
+                      ).withValues(alpha: 0.7),
                     ),
                   ],
                 ],

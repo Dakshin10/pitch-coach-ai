@@ -30,7 +30,9 @@ class SyncService {
   /// Returns number of sessions synced.
   Future<int> pull({String? userId}) async {
     final effectiveUserId = userId ?? _localDb.currentUserId;
-    if (effectiveUserId == null || effectiveUserId.isEmpty || effectiveUserId == 'guest') {
+    if (effectiveUserId == null ||
+        effectiveUserId.isEmpty ||
+        effectiveUserId == 'guest') {
       return 0;
     }
 
@@ -42,7 +44,9 @@ class SyncService {
       bool hasConnection = true;
       try {
         final connectivityResults = await Connectivity().checkConnectivity();
-        hasConnection = connectivityResults.any((c) => c != ConnectivityResult.none);
+        hasConnection = connectivityResults.any(
+          (c) => c != ConnectivityResult.none,
+        );
       } catch (_) {
         hasConnection = true;
       }
@@ -66,9 +70,7 @@ class SyncService {
 
       // 3. Paginate through /metrics/changes
       while (hasMore) {
-        final queryParams = <String, dynamic>{
-          'limit': '200',
-        };
+        final queryParams = <String, dynamic>{'limit': '200'};
         if (cursorUpdatedAt != null && cursorUpdatedAt.isNotEmpty) {
           queryParams['cursor_updated_at'] = cursorUpdatedAt;
         }
@@ -76,12 +78,18 @@ class SyncService {
           queryParams['cursor_id'] = cursorId;
         }
 
-        final response = await _api.get('/metrics/changes', params: queryParams) as Map<String, dynamic>;
+        final response =
+            await _api.get('/metrics/changes', params: queryParams)
+                as Map<String, dynamic>;
 
-        final sessions = (response['sessions'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-        final fillers = (response['fillers'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-        final achievements = (response['achievements'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-        final nextCursorUpdatedAt = response['next_cursor_updated_at'] as String?;
+        final sessions = (response['sessions'] as List<dynamic>? ?? [])
+            .cast<Map<String, dynamic>>();
+        final fillers = (response['fillers'] as List<dynamic>? ?? [])
+            .cast<Map<String, dynamic>>();
+        final achievements = (response['achievements'] as List<dynamic>? ?? [])
+            .cast<Map<String, dynamic>>();
+        final nextCursorUpdatedAt =
+            response['next_cursor_updated_at'] as String?;
         final nextCursorId = response['next_cursor_id'] as String?;
         hasMore = response['has_more'] as bool? ?? false;
 
@@ -96,7 +104,8 @@ class SyncService {
         await _localDb.db.transaction((txn) async {
           // Upsert sessions
           for (final row in sessions) {
-            await txn.rawInsert('''
+            await txn.rawInsert(
+              '''
               INSERT INTO session_metrics (
                 id, user_id, mode, topic_or_question, duration_seconds, wpm,
                 filler_word_count, pause_count, avg_pause_length, clarity_score,
@@ -121,68 +130,82 @@ class SyncService {
                 tz_offset_minutes = excluded.tz_offset_minutes,
                 updated_at = excluded.updated_at,
                 deleted_at = excluded.deleted_at;
-            ''', [
-              row['id'],
-              row['user_id'],
-              row['mode'] ?? 'interview',
-              row['topic_or_question'] ?? '',
-              (row['duration_seconds'] as num?)?.toDouble() ?? 0.0,
-              (row['wpm'] as num?)?.toDouble() ?? 0.0,
-              (row['filler_word_count'] as num?)?.toInt() ?? 0,
-              (row['pause_count'] as num?)?.toInt() ?? 0,
-              (row['avg_pause_length'] as num?)?.toDouble() ?? 0.0,
-              (row['clarity_score'] as num?)?.toDouble() ?? 0.0,
-              (row['confidence_score'] as num?)?.toDouble() ?? 0.0,
-              (row['overall_score'] as num?)?.toDouble() ?? 0.0,
-              row['status'] ?? 'pending',
-              row['created_at'],
-              row['local_date'],
-              (row['tz_offset_minutes'] as num?)?.toInt() ?? 0,
-              row['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
-              row['deleted_at'],
-            ]);
+            ''',
+              [
+                row['id'],
+                row['user_id'],
+                row['mode'] ?? 'interview',
+                row['topic_or_question'] ?? '',
+                (row['duration_seconds'] as num?)?.toDouble() ?? 0.0,
+                (row['wpm'] as num?)?.toDouble() ?? 0.0,
+                (row['filler_word_count'] as num?)?.toInt() ?? 0,
+                (row['pause_count'] as num?)?.toInt() ?? 0,
+                (row['avg_pause_length'] as num?)?.toDouble() ?? 0.0,
+                (row['clarity_score'] as num?)?.toDouble() ?? 0.0,
+                (row['confidence_score'] as num?)?.toDouble() ?? 0.0,
+                (row['overall_score'] as num?)?.toDouble() ?? 0.0,
+                row['status'] ?? 'pending',
+                row['created_at'],
+                row['local_date'],
+                (row['tz_offset_minutes'] as num?)?.toInt() ?? 0,
+                row['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
+                row['deleted_at'],
+              ],
+            );
           }
 
           // Upsert fillers for updated sessions
           for (final entry in fillersBySession.entries) {
-            await txn.rawDelete('DELETE FROM session_fillers WHERE session_id = ?;', [entry.key]);
+            await txn.rawDelete(
+              'DELETE FROM session_fillers WHERE session_id = ?;',
+              [entry.key],
+            );
             for (final f in entry.value) {
-              await txn.rawInsert('''
+              await txn.rawInsert(
+                '''
                 INSERT OR REPLACE INTO session_fillers (session_id, filler_word, count)
                 VALUES (?, ?, ?);
-              ''', [
-                entry.key,
-                f['filler_word'] as String,
-                (f['count'] as num?)?.toInt() ?? 1,
-              ]);
+              ''',
+                [
+                  entry.key,
+                  f['filler_word'] as String,
+                  (f['count'] as num?)?.toInt() ?? 1,
+                ],
+              );
             }
           }
 
           // Upsert achievements
           for (final a in achievements) {
-            await txn.rawInsert('''
+            await txn.rawInsert(
+              '''
               INSERT INTO user_achievements (user_id, achievement_key, unlocked_at, updated_at)
               VALUES (?, ?, ?, ?)
               ON CONFLICT(user_id, achievement_key) DO UPDATE SET
                 unlocked_at = excluded.unlocked_at,
                 updated_at = excluded.updated_at;
-            ''', [
-              a['user_id'] ?? effectiveUserId,
-              a['achievement_key'],
-              a['unlocked_at'],
-              a['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
-            ]);
+            ''',
+              [
+                a['user_id'] ?? effectiveUserId,
+                a['achievement_key'],
+                a['unlocked_at'],
+                a['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
+              ],
+            );
           }
 
           // Advance cursor inside the same transaction
           if (nextCursorUpdatedAt != null) {
-            await txn.rawInsert('''
+            await txn.rawInsert(
+              '''
               INSERT INTO sync_state (user_id, last_cursor_updated_at, last_cursor_id)
               VALUES (?, ?, ?)
               ON CONFLICT(user_id) DO UPDATE SET
                 last_cursor_updated_at = excluded.last_cursor_updated_at,
                 last_cursor_id = excluded.last_cursor_id;
-            ''', [effectiveUserId, nextCursorUpdatedAt, nextCursorId]);
+            ''',
+              [effectiveUserId, nextCursorUpdatedAt, nextCursorId],
+            );
           }
         });
 
@@ -197,7 +220,9 @@ class SyncService {
       }
 
       _syncStreamController.add(effectiveUserId);
-      debugPrint('[SyncService] Successfully pulled $totalSynced sessions for $effectiveUserId.');
+      debugPrint(
+        '[SyncService] Successfully pulled $totalSynced sessions for $effectiveUserId.',
+      );
       return totalSynced;
     } catch (e, stack) {
       debugPrint('[SyncService] Error during pull sync: $e\n$stack');

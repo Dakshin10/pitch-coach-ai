@@ -43,11 +43,7 @@ class AboutPitchCoachDialog extends StatelessWidget {
                 gradient: AppColors.primaryGradient,
                 shape: BoxShape.circle,
               ),
-              child: const AppIcon(
-                AppIcons.mic,
-                size: 32,
-                color: Colors.white,
-              ),
+              child: const AppIcon(AppIcons.mic, size: 32, color: Colors.white),
             ),
             const SizedBox(height: 16),
             Text(
@@ -121,7 +117,8 @@ class AboutPitchCoachDialog extends StatelessWidget {
                 showLicensePage(
                   context: context,
                   applicationName: 'Pitch Coach',
-                  applicationLegalese: '© 2026 Pitch Coach Inc. All rights reserved.',
+                  applicationLegalese:
+                      '© 2026 Pitch Coach Inc. All rights reserved.',
                 );
               },
               child: Text(

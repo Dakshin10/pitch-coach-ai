@@ -22,7 +22,9 @@ void main() {
           final matches = emojiRegex.allMatches(line);
           if (matches.isNotEmpty) {
             final matchedChars = matches.map((m) => m.group(0)).join(', ');
-            violations.add('${entity.path}:${i + 1} -> [$matchedChars] in "$line"');
+            violations.add(
+              '${entity.path}:${i + 1} -> [$matchedChars] in "$line"',
+            );
           }
         }
       }

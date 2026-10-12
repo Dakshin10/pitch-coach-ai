@@ -79,7 +79,7 @@ void main() {
             'transition_to_next': 'Next',
             'slide_critique': ['Good'],
             'readability_issues': [],
-          }
+          },
         ],
         'created_at': '2026-10-07T12:00:00Z',
         'updated_at': '2026-10-07T12:05:00Z',
@@ -116,55 +116,58 @@ void main() {
       expect(status.error, isNull);
     });
 
-    test('DeckRehearsalResponseModel and SlideRehearsalReportModel serialization', () {
-      final json = {
-        'rehearsal_id': 'reh-123',
-        'deck_id': 'deck-123',
-        'total_duration_seconds': 125.5,
-        'time_limit_seconds': 180,
-        'overall_wpm': 144.2,
-        'overall_filler_count': 2,
-        'overall_coverage_percentage': 92.5,
-        'overall_feedback': ['Terrific pacing', 'Clear transitions'],
-        'slide_reports': [
-          {
-            'slide_number': 1,
-            'slide_title': 'Intro',
-            'target_duration_seconds': 30,
-            'actual_duration_seconds': 28.5,
-            'wpm': 142.0,
-            'filler_count': 1,
-            'filler_breakdown': {'um': 1},
-            'transcript': 'Hello everyone, welcome to the presentation.',
-            'talking_points_coverage': [
-              {
-                'point': 'Welcome judges',
-                'covered': true,
-                'evidence': 'Hello everyone, welcome',
-              }
-            ],
-            'coverage_percentage': 100.0,
-            'ai_feedback': [
-              {'type': 'pacing', 'comment': 'On target'}
-            ],
-          }
-        ],
-        'created_at': '2026-10-07T12:10:00Z',
-      };
+    test(
+      'DeckRehearsalResponseModel and SlideRehearsalReportModel serialization',
+      () {
+        final json = {
+          'rehearsal_id': 'reh-123',
+          'deck_id': 'deck-123',
+          'total_duration_seconds': 125.5,
+          'time_limit_seconds': 180,
+          'overall_wpm': 144.2,
+          'overall_filler_count': 2,
+          'overall_coverage_percentage': 92.5,
+          'overall_feedback': ['Terrific pacing', 'Clear transitions'],
+          'slide_reports': [
+            {
+              'slide_number': 1,
+              'slide_title': 'Intro',
+              'target_duration_seconds': 30,
+              'actual_duration_seconds': 28.5,
+              'wpm': 142.0,
+              'filler_count': 1,
+              'filler_breakdown': {'um': 1},
+              'transcript': 'Hello everyone, welcome to the presentation.',
+              'talking_points_coverage': [
+                {
+                  'point': 'Welcome judges',
+                  'covered': true,
+                  'evidence': 'Hello everyone, welcome',
+                },
+              ],
+              'coverage_percentage': 100.0,
+              'ai_feedback': [
+                {'type': 'pacing', 'comment': 'On target'},
+              ],
+            },
+          ],
+          'created_at': '2026-10-07T12:10:00Z',
+        };
 
-      final rehearsal = DeckRehearsalResponseModel.fromJson(json);
-      expect(rehearsal.rehearsalId, 'reh-123');
-      expect(rehearsal.totalDurationSeconds, 125.5);
-      expect(rehearsal.overallWpm, 144.2);
-      expect(rehearsal.overallFillerCount, 2);
-      expect(rehearsal.overallCoveragePercentage, 92.5);
-      expect(rehearsal.slideReports.length, 1);
+        final rehearsal = DeckRehearsalResponseModel.fromJson(json);
+        expect(rehearsal.rehearsalId, 'reh-123');
+        expect(rehearsal.totalDurationSeconds, 125.5);
+        expect(rehearsal.overallWpm, 144.2);
+        expect(rehearsal.overallFillerCount, 2);
+        expect(rehearsal.overallCoveragePercentage, 92.5);
+        expect(rehearsal.slideReports.length, 1);
 
-      final report = rehearsal.slideReports.first;
-      expect(report.slideNumber, 1);
-      expect(report.fillerBreakdown['um'], 1);
-      expect(report.talkingPointsCoverage.first.covered, true);
-    });
+        final report = rehearsal.slideReports.first;
+        expect(report.slideNumber, 1);
+        expect(report.fillerBreakdown['um'], 1);
+        expect(report.talkingPointsCoverage.first.covered, true);
+      },
+    );
 
     test('QaQuestionModel and QaEvaluationModel serialization', () {
       final qJson = {
@@ -183,14 +186,16 @@ void main() {
       final evalJson = {
         'question_id': 'q-1',
         'question': 'How do you defend against big tech competitors?',
-        'spoken_transcript': 'We have proprietary speech models and enterprise contracts.',
+        'spoken_transcript':
+            'We have proprietary speech models and enterprise contracts.',
         'clarity_score': 85,
         'directness_score': 82,
         'evidence_score': 80,
         'confidence_score': 90,
         'overall_score': 84,
         'critique': 'Strong, confident response. Add retention metrics.',
-        'sample_better_answer': 'Mention our 95% retention rate and patent portfolio.',
+        'sample_better_answer':
+            'Mention our 95% retention rate and patent portfolio.',
       };
 
       final eval = QaEvaluationModel.fromJson(evalJson);

@@ -33,7 +33,9 @@ class OutboxWorker {
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
       if (hasConnection) {
-        debugPrint('[OutboxWorker] Connectivity restored. Triggering outbox processing.');
+        debugPrint(
+          '[OutboxWorker] Connectivity restored. Triggering outbox processing.',
+        );
         process();
       }
     });
@@ -77,7 +79,9 @@ class OutboxWorker {
       }
 
       final effectiveUserId = userId ?? _localDb.currentUserId;
-      if (effectiveUserId == null || effectiveUserId.isEmpty || effectiveUserId == 'guest') {
+      if (effectiveUserId == null ||
+          effectiveUserId.isEmpty ||
+          effectiveUserId == 'guest') {
         return;
       }
 
@@ -102,16 +106,14 @@ class OutboxWorker {
         // Check if backoff window has expired
         if (nextAttemptStr != null && nextAttemptStr.isNotEmpty) {
           final nextAttempt = DateTime.tryParse(nextAttemptStr);
-          if (nextAttempt != null && DateTime.now().toUtc().isBefore(nextAttempt)) {
+          if (nextAttempt != null &&
+              DateTime.now().toUtc().isBefore(nextAttempt)) {
             continue;
           }
         }
 
         // Set state to in_flight
-        await _localDb.updateOutboxState(
-          id: id,
-          state: 'in_flight',
-        );
+        await _localDb.updateOutboxState(id: id, state: 'in_flight');
 
         final action = item['action'] as String;
         if (action == 'CREATE_SESSION') {
@@ -119,7 +121,9 @@ class OutboxWorker {
         }
       }
     } catch (e, stack) {
-      debugPrint('[OutboxWorker] Unexpected error processing outbox: $e\n$stack');
+      debugPrint(
+        '[OutboxWorker] Unexpected error processing outbox: $e\n$stack',
+      );
     } finally {
       _isProcessing = false;
     }
@@ -136,7 +140,9 @@ class OutboxWorker {
     final payload = (jsonDecode(rawPayload) as Map<String, dynamic>?) ?? {};
 
     if (audioPath == null || !await File(audioPath).exists()) {
-      debugPrint('[OutboxWorker] Audio file not found at $audioPath. Marking outbox item failed.');
+      debugPrint(
+        '[OutboxWorker] Audio file not found at $audioPath. Marking outbox item failed.',
+      );
       await _localDb.updateOutboxState(
         id: id,
         state: 'failed',
@@ -161,7 +167,9 @@ class OutboxWorker {
         'tz_offset_minutes': (payload['tz_offset_minutes'] ?? 0).toString(),
       });
 
-      final raw = await _api.postMultipart('/sessions', formData) as Map<String, dynamic>;
+      final raw =
+          await _api.postMultipart('/sessions', formData)
+              as Map<String, dynamic>;
       final result = SessionResult.fromJson(raw);
 
       // 1. Update local session_metrics row with analyzed results
@@ -178,7 +186,9 @@ class OutboxWorker {
         'clarity_score': result.clarityScore,
         'confidence_score': result.confidenceScore,
         'overall_score': result.overallScore,
-        'status': result.isAnalyzed ? (result.analysisFailed ? 'failed' : 'analyzed') : 'analyzing',
+        'status': result.isAnalyzed
+            ? (result.analysisFailed ? 'failed' : 'analyzed')
+            : 'analyzing',
         'created_at': result.createdAt.toUtc().toIso8601String(),
         'local_date': result.localDate,
         'tz_offset_minutes': result.tzOffsetMinutes ?? 0,
@@ -195,7 +205,9 @@ class OutboxWorker {
 
       // 3. Delete outbox row on success
       await _localDb.deleteOutbox(id);
-      debugPrint('[OutboxWorker] Successfully synced session $id and removed from outbox.');
+      debugPrint(
+        '[OutboxWorker] Successfully synced session $id and removed from outbox.',
+      );
 
       // 4. Trigger pull sync to refresh all stats and achievements
       await _sync.pull(userId: userId);
@@ -205,7 +217,10 @@ class OutboxWorker {
 
       final nextAttempt = isFinalFailure
           ? null
-          : DateTime.now().toUtc().add(getBackoffDuration(newRetryCount)).toIso8601String();
+          : DateTime.now()
+                .toUtc()
+                .add(getBackoffDuration(newRetryCount))
+                .toIso8601String();
 
       await _localDb.updateOutboxState(
         id: id,

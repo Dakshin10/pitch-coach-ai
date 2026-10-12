@@ -45,7 +45,8 @@ class _ProgressScreenState extends State<ProgressScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final statsProvider = context.watch<StatsProvider>();
-    final isLoading = statsProvider.isLoading && statsProvider.state != StatsLoadState.ready;
+    final isLoading =
+        statsProvider.isLoading && statsProvider.state != StatsLoadState.ready;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -56,13 +57,20 @@ class _ProgressScreenState extends State<ProgressScreen>
               statsProvider.loadDemo();
             } else {
               final userId = context.read<UserProvider>().user.id;
-              await statsProvider.loadAll(trendRange: _selectedRange.toLowerCase(), force: true, userId: userId);
+              await statsProvider.loadAll(
+                trendRange: _selectedRange.toLowerCase(),
+                force: true,
+                userId: userId,
+              );
             }
           },
           color: AppColors.primaryPurple,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 14.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -70,27 +78,30 @@ class _ProgressScreenState extends State<ProgressScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Progress',
-                      style: AppTextStyles.headingXLOf(context),
-                    ),
+                    Text('Progress', style: AppTextStyles.headingXLOf(context)),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.cardOf(context),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.borderOf(context)),
+                            border: Border.all(
+                              color: AppColors.borderOf(context),
+                            ),
                           ),
                           child: Row(
                             children: [
                               Text(
                                 'This Month',
-                                style: AppTextStyles.captionOf(context).copyWith(
-                                  color: AppColors.textSecondaryOf(context),
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: AppTextStyles.captionOf(context)
+                                    .copyWith(
+                                      color: AppColors.textSecondaryOf(context),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                               ),
                               const SizedBox(width: 4),
                               Icon(
@@ -236,16 +247,22 @@ class _ProgressScreenState extends State<ProgressScreen>
               children: [
                 if (!m.isStreak)
                   Icon(
-                    m.isTrendPositive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                    m.isTrendPositive
+                        ? Icons.arrow_upward_rounded
+                        : Icons.arrow_downward_rounded,
                     size: 11,
-                    color: m.isTrendPositive ? AppColors.successGreen : AppColors.dangerRed,
+                    color: m.isTrendPositive
+                        ? AppColors.successGreen
+                        : AppColors.dangerRed,
                   ),
                 const SizedBox(width: 2),
                 Flexible(
                   child: Text(
                     m.trend,
                     style: AppTextStyles.caption.copyWith(
-                      color: m.isStreak ? AppColors.textSecondary : AppColors.successGreen,
+                      color: m.isStreak
+                          ? AppColors.textSecondary
+                          : AppColors.successGreen,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -259,10 +276,8 @@ class _ProgressScreenState extends State<ProgressScreen>
     );
   }
 
-
   Widget _buildConfidenceChartCard(StatsProvider provider, bool isLoading) {
     final isWeek = _selectedRange == 'Week';
-
 
     // Build chart spots from real trend data; fall back to empty list
     List<FlSpot> spots = [];
@@ -287,7 +302,11 @@ class _ProgressScreenState extends State<ProgressScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderOf(context)),
         boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 4)),
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -298,7 +317,9 @@ class _ProgressScreenState extends State<ProgressScreen>
             children: [
               Text(
                 'Confidence Over Time',
-                style: AppTextStyles.headingMOf(context).copyWith(fontWeight: FontWeight.w700),
+                style: AppTextStyles.headingMOf(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w700),
               ),
               Container(
                 decoration: BoxDecoration(
@@ -325,106 +346,120 @@ class _ProgressScreenState extends State<ProgressScreen>
             child: isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primaryPurple,
+                      ),
                     ),
                   )
                 : spots.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No data yet — complete some sessions first.',
-                          style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary),
-                          textAlign: TextAlign.center,
+                ? Center(
+                    child: Text(
+                      'No data yet — complete some sessions first.',
+                      style: AppTextStyles.bodyM.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : LineChart(
+                    LineChartData(
+                      minY: 0,
+                      maxY: 100,
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: 25,
+                        getDrawingHorizontalLine: (val) => FlLine(
+                          color: AppColors.divider.withValues(alpha: 0.6),
+                          strokeWidth: 1,
                         ),
-                      )
-                    : LineChart(
-                        LineChartData(
-                          minY: 0,
-                          maxY: 100,
-                          gridData: FlGridData(
+                      ),
+                      titlesData: FlTitlesData(
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 28,
+                            interval: 25,
+                            getTitlesWidget: (val, meta) => Text(
+                              '${val.toInt()}',
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (val, meta) {
+                              final idx = val.toInt();
+                              if (idx >= 0 && idx < xLabels.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 6.0),
+                                  child: Text(
+                                    xLabels[idx],
+                                    style: AppTextStyles.caption.copyWith(
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                );
+                              }
+                              return const SizedBox();
+                            },
+                          ),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      lineBarsData: [
+                        LineChartBarData(
+                          isCurved: true,
+                          curveSmoothness: 0.3,
+                          color: AppColors.primaryPurple,
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          belowBarData: BarAreaData(
                             show: true,
-                            drawVerticalLine: false,
-                            horizontalInterval: 25,
-                            getDrawingHorizontalLine: (val) => FlLine(
-                              color: AppColors.divider.withValues(alpha: 0.6),
-                              strokeWidth: 1,
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primaryPurple.withValues(alpha: 0.3),
+                                AppColors.primaryPurple.withValues(alpha: 0.0),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
                             ),
                           ),
-                          titlesData: FlTitlesData(
-                            topTitles:
-                                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            rightTitles:
-                                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 28,
-                                interval: 25,
-                                getTitlesWidget: (val, meta) => Text(
-                                  '${val.toInt()}',
-                                  style: AppTextStyles.caption.copyWith(fontSize: 10),
-                                ),
-                              ),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (val, meta) {
-                                  final idx = val.toInt();
-                                  if (idx >= 0 && idx < xLabels.length) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(top: 6.0),
-                                      child: Text(
-                                        xLabels[idx],
-                                        style: AppTextStyles.caption.copyWith(fontSize: 10),
-                                      ),
-                                    );
-                                  }
-                                  return const SizedBox();
-                                },
-                              ),
-                            ),
-                          ),
-                          borderData: FlBorderData(show: false),
-                          lineBarsData: [
-                            LineChartBarData(
-                              isCurved: true,
-                              curveSmoothness: 0.3,
-                              color: AppColors.primaryPurple,
-                              barWidth: 3,
-                              isStrokeCapRound: true,
-                              belowBarData: BarAreaData(
-                                show: true,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    AppColors.primaryPurple.withValues(alpha: 0.3),
-                                    AppColors.primaryPurple.withValues(alpha: 0.0),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                              ),
-                              dotData: FlDotData(
-                                show: true,
-                                getDotPainter: (spot, percent, barData, index) =>
-                                    FlDotCirclePainter(
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) =>
+                                FlDotCirclePainter(
                                   radius: 4,
                                   color: AppColors.primaryPurple,
                                   strokeWidth: 2,
                                   strokeColor: AppColors.cardOf(context),
                                 ),
-                              ),
-                              spots: spots,
-                            ),
-                          ],
+                          ),
+                          spots: spots,
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRangeToggleOption(String label, bool isSelected, StatsProvider provider) {
+  Widget _buildRangeToggleOption(
+    String label,
+    bool isSelected,
+    StatsProvider provider,
+  ) {
     return GestureDetector(
       onTap: () {
         setState(() => _selectedRange = label);
@@ -457,11 +492,36 @@ class _ProgressScreenState extends State<ProgressScreen>
 
     // Build skill list from real data
     final skills = [
-      {'name': 'Clarity', 'score': sk.clarity / 100, 'label': '${sk.clarity.toStringAsFixed(0)}%', 'color': AppColors.successGreen},
-      {'name': 'Pace', 'score': sk.pace / 100, 'label': '${sk.pace.toStringAsFixed(0)}%', 'color': AppColors.successGreen},
-      {'name': 'Filler Words', 'score': sk.fillerWords / 100, 'label': '${sk.fillerWords.toStringAsFixed(0)}%', 'color': AppColors.warningAmber},
-      {'name': 'Confidence', 'score': sk.confidence / 100, 'label': '${sk.confidence.toStringAsFixed(0)}%', 'color': AppColors.successGreen},
-      {'name': 'Engagement', 'score': sk.engagement / 100, 'label': '${sk.engagement.toStringAsFixed(0)}%', 'color': AppColors.primaryPurple},
+      {
+        'name': 'Clarity',
+        'score': sk.clarity / 100,
+        'label': '${sk.clarity.toStringAsFixed(0)}%',
+        'color': AppColors.successGreen,
+      },
+      {
+        'name': 'Pace',
+        'score': sk.pace / 100,
+        'label': '${sk.pace.toStringAsFixed(0)}%',
+        'color': AppColors.successGreen,
+      },
+      {
+        'name': 'Filler Words',
+        'score': sk.fillerWords / 100,
+        'label': '${sk.fillerWords.toStringAsFixed(0)}%',
+        'color': AppColors.warningAmber,
+      },
+      {
+        'name': 'Confidence',
+        'score': sk.confidence / 100,
+        'label': '${sk.confidence.toStringAsFixed(0)}%',
+        'color': AppColors.successGreen,
+      },
+      {
+        'name': 'Engagement',
+        'score': sk.engagement / 100,
+        'label': '${sk.engagement.toStringAsFixed(0)}%',
+        'color': AppColors.primaryPurple,
+      },
     ];
 
     return Container(
@@ -471,21 +531,31 @@ class _ProgressScreenState extends State<ProgressScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderOf(context)),
         boxShadow: const [
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 12, offset: Offset(0, 4)),
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Skill Breakdown',
-              style: AppTextStyles.headingMOf(context).copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'Skill Breakdown',
+            style: AppTextStyles.headingMOf(
+              context,
+            ).copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 16),
           if (isLoading)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.primaryPurple,
+                  ),
                 ),
               ),
             )
@@ -503,12 +573,20 @@ class _ProgressScreenState extends State<ProgressScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(name,
-                            style: AppTextStyles.bodyM
-                                .copyWith(fontSize: 13, fontWeight: FontWeight.w600)),
-                        Text(label,
-                            style: AppTextStyles.caption
-                                .copyWith(color: color, fontWeight: FontWeight.w700)),
+                        Text(
+                          name,
+                          style: AppTextStyles.bodyM.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          label,
+                          style: AppTextStyles.caption.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -517,7 +595,8 @@ class _ProgressScreenState extends State<ProgressScreen>
                       child: LinearProgressIndicator(
                         value: score.clamp(0.0, 1.0),
                         minHeight: 8,
-                        backgroundColor: Theme.of(context).brightness == Brightness.dark
+                        backgroundColor:
+                            Theme.of(context).brightness == Brightness.dark
                             ? const Color(0xFF282548)
                             : const Color(0xFFEFEFF5),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -541,7 +620,9 @@ class _ProgressScreenState extends State<ProgressScreen>
         if (isLoading)
           const Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.primaryPurple,
+              ),
             ),
           )
         else if (provider.achievements.isEmpty)
@@ -595,9 +676,18 @@ class _ProgressScreenState extends State<ProgressScreen>
                             gradient: badge.isUnlocked
                                 ? AppColors.primaryGradient
                                 : LinearGradient(
-                                    colors: Theme.of(context).brightness == Brightness.dark
-                                        ? const [Color(0xFF2C2845), Color(0xFF232038)]
-                                        : const [Color(0xFFE0E0E8), Color(0xFFD0D0D8)]),
+                                    colors:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const [
+                                            Color(0xFF2C2845),
+                                            Color(0xFF232038),
+                                          ]
+                                        : const [
+                                            Color(0xFFE0E0E8),
+                                            Color(0xFFD0D0D8),
+                                          ],
+                                  ),
                           ),
                           child: Center(
                             child: AppIcon(
@@ -639,10 +729,21 @@ class _ProgressScreenState extends State<ProgressScreen>
     if (badge.isUnlocked && badge.unlockedAt != null) {
       final d = badge.unlockedAt!.toLocal();
       const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
-      unlockedText = 'Unlocked on ${months[d.month - 1]} ${d.day}, ${d.year}! ${badge.description}';
+      unlockedText =
+          'Unlocked on ${months[d.month - 1]} ${d.day}, ${d.year}! ${badge.description}';
     } else {
       unlockedText = badge.description;
     }
@@ -669,12 +770,19 @@ class _ProgressScreenState extends State<ProgressScreen>
                 child: AppIcon(
                   badge.icon,
                   size: 22,
-                  color: badge.isUnlocked ? Colors.white : AppColors.textSecondaryOf(context),
+                  color: badge.isUnlocked
+                      ? Colors.white
+                      : AppColors.textSecondaryOf(context),
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(badge.title, style: AppTextStyles.headingMOf(context))),
+            Expanded(
+              child: Text(
+                badge.title,
+                style: AppTextStyles.headingMOf(context),
+              ),
+            ),
           ],
         ),
         content: Text(unlockedText, style: AppTextStyles.bodyMOf(context)),
@@ -683,7 +791,10 @@ class _ProgressScreenState extends State<ProgressScreen>
             onPressed: () => Navigator.pop(context),
             child: const Text(
               'Close',
-              style: TextStyle(color: AppColors.primaryPurple, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: AppColors.primaryPurple,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -694,7 +805,9 @@ class _ProgressScreenState extends State<ProgressScreen>
   Widget _buildFillerWordTrendCard(StatsProvider provider, bool isLoading) {
     final pct = provider.summary.fillerReductionPct;
     final isPositive = pct >= 0;
-    final displayPct = isPositive ? '-${pct.toStringAsFixed(0)}%' : '+${(-pct).toStringAsFixed(0)}%';
+    final displayPct = isPositive
+        ? '-${pct.toStringAsFixed(0)}%'
+        : '+${(-pct).toStringAsFixed(0)}%';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -724,7 +837,9 @@ class _ProgressScreenState extends State<ProgressScreen>
                     isLoading ? '...' : displayPct,
                     style: AppTextStyles.headingXL.copyWith(
                       fontSize: 22,
-                      color: isPositive ? AppColors.successGreen : AppColors.dangerRed,
+                      color: isPositive
+                          ? AppColors.successGreen
+                          : AppColors.dangerRed,
                     ),
                   ),
                   if (!isLoading) ...[
@@ -745,20 +860,19 @@ class _ProgressScreenState extends State<ProgressScreen>
             isLoading
                 ? Icons.trending_flat_rounded
                 : isPositive
-                    ? Icons.trending_down_rounded
-                    : Icons.trending_up_rounded,
+                ? Icons.trending_down_rounded
+                : Icons.trending_up_rounded,
             color: isLoading
                 ? AppColors.textSecondary
                 : isPositive
-                    ? AppColors.successGreen
-                    : AppColors.dangerRed,
+                ? AppColors.successGreen
+                : AppColors.dangerRed,
             size: 36,
           ),
         ],
       ),
     );
   }
-
 }
 
 // ── Data class for GridView metric cards ─────────────────────────────────────

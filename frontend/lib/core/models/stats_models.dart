@@ -27,15 +27,15 @@ class StatsSummary {
   });
 
   factory StatsSummary.fromJson(Map<String, dynamic> j) => StatsSummary(
-        totalSessions: (j['total_sessions'] as num?)?.toInt() ?? 0,
-        avgConfidence: (j['avg_confidence'] as num?)?.toDouble() ?? 0,
-        streakDays: (j['streak_days'] as num?)?.toInt() ?? 0,
-        fillerReductionPct: (j['filler_reduction_pct'] as num?)?.toDouble() ?? 0,
-        avgScore: (j['avg_score'] as num?)?.toDouble(),
-        avgWpm: (j['avg_wpm'] as num?)?.toDouble(),
-        avgClarity: (j['avg_clarity'] as num?)?.toDouble(),
-        totalDuration: (j['total_duration'] as num?)?.toDouble(),
-      );
+    totalSessions: (j['total_sessions'] as num?)?.toInt() ?? 0,
+    avgConfidence: (j['avg_confidence'] as num?)?.toDouble() ?? 0,
+    streakDays: (j['streak_days'] as num?)?.toInt() ?? 0,
+    fillerReductionPct: (j['filler_reduction_pct'] as num?)?.toDouble() ?? 0,
+    avgScore: (j['avg_score'] as num?)?.toDouble(),
+    avgWpm: (j['avg_wpm'] as num?)?.toDouble(),
+    avgClarity: (j['avg_clarity'] as num?)?.toDouble(),
+    totalDuration: (j['total_duration'] as num?)?.toDouble(),
+  );
 
   static const StatsSummary empty = StatsSummary(
     totalSessions: 0,
@@ -60,9 +60,9 @@ class TrendPoint {
   const TrendPoint({required this.date, required this.confidence});
 
   factory TrendPoint.fromJson(Map<String, dynamic> j) => TrendPoint(
-        date: j['date'] as String? ?? '',
-        confidence: (j['confidence'] as num?)?.toDouble() ?? 0,
-      );
+    date: j['date'] as String? ?? '',
+    confidence: (j['confidence'] as num?)?.toDouble() ?? 0,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,12 +85,12 @@ class SkillBreakdown {
   });
 
   factory SkillBreakdown.fromJson(Map<String, dynamic> j) => SkillBreakdown(
-        clarity: (j['clarity'] as num?)?.toDouble() ?? 0,
-        pace: (j['pace'] as num?)?.toDouble() ?? 0,
-        fillerWords: (j['filler_words'] as num?)?.toDouble() ?? 0,
-        confidence: (j['confidence'] as num?)?.toDouble() ?? 0,
-        engagement: (j['engagement'] as num?)?.toDouble() ?? 0,
-      );
+    clarity: (j['clarity'] as num?)?.toDouble() ?? 0,
+    pace: (j['pace'] as num?)?.toDouble() ?? 0,
+    fillerWords: (j['filler_words'] as num?)?.toDouble() ?? 0,
+    confidence: (j['confidence'] as num?)?.toDouble() ?? 0,
+    engagement: (j['engagement'] as num?)?.toDouble() ?? 0,
+  );
 
   static const SkillBreakdown empty = SkillBreakdown(
     clarity: 0,
@@ -123,13 +123,13 @@ class Achievement {
   });
 
   factory Achievement.fromJson(Map<String, dynamic> j) => Achievement(
-        key: j['key'] as String? ?? '',
-        title: j['title'] as String? ?? '',
-        icon: j['icon'] as String? ?? 'trophy',
-        isUnlocked: j['is_unlocked'] as bool? ?? false,
-        unlockedAt: j['unlocked_at'] != null
-            ? DateTime.parse(j['unlocked_at'] as String)
-            : null,
-        description: j['description'] as String? ?? '',
-      );
+    key: j['key'] as String? ?? '',
+    title: j['title'] as String? ?? '',
+    icon: j['icon'] as String? ?? 'trophy',
+    isUnlocked: j['is_unlocked'] as bool? ?? false,
+    unlockedAt: j['unlocked_at'] != null
+        ? DateTime.parse(j['unlocked_at'] as String)
+        : null,
+    description: j['description'] as String? ?? '',
+  );
 }

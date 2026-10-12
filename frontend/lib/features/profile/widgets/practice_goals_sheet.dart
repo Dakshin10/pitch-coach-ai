@@ -145,7 +145,9 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.textSecondaryOf(context).withValues(alpha: 0.3),
+                    color: AppColors.textSecondaryOf(
+                      context,
+                    ).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -260,8 +262,8 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
                         color: isSelected
                             ? null
                             : (isDark
-                                ? AppColors.cardDark
-                                : AppColors.cardLight),
+                                  ? AppColors.cardDark
+                                  : AppColors.cardLight),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: isSelected
@@ -298,7 +300,10 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
               ),
               const SizedBox(height: 8),
               GlassSurface(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 borderRadius: BorderRadius.circular(16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -340,8 +345,9 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
                               size: 16,
                               color: _weeklyGoal > 1
                                   ? AppColors.textPrimaryOf(context)
-                                  : AppColors.textSecondaryOf(context)
-                                      .withValues(alpha: 0.3),
+                                  : AppColors.textSecondaryOf(
+                                      context,
+                                    ).withValues(alpha: 0.3),
                             ),
                           ),
                         ),
@@ -369,8 +375,9 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
                               size: 16,
                               color: _weeklyGoal < 14
                                   ? AppColors.textPrimaryOf(context)
-                                  : AppColors.textSecondaryOf(context)
-                                      .withValues(alpha: 0.3),
+                                  : AppColors.textSecondaryOf(
+                                      context,
+                                    ).withValues(alpha: 0.3),
                             ),
                           ),
                         ),

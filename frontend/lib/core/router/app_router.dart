@@ -52,12 +52,7 @@ abstract class AppRouter {
   static const String slideCoachQa = '/slide-coach/qa';
 
   /// Bottom-tab destinations — no transition so phone nav stays responsive.
-  static const Set<String> _tabPaths = {
-    home,
-    history,
-    progress,
-    profile,
-  };
+  static const Set<String> _tabPaths = {home, history, progress, profile};
 
   static Page<T> _buildPage<T>({
     required BuildContext context,
@@ -66,10 +61,7 @@ abstract class AppRouter {
   }) {
     if (_tabPaths.contains(state.matchedLocation) ||
         _tabPaths.contains(state.uri.path)) {
-      return NoTransitionPage<T>(
-        key: state.pageKey,
-        child: child,
-      );
+      return NoTransitionPage<T>(key: state.pageKey, child: child);
     }
 
     // Lightweight fade only — avoid undisposed CurvedAnimations and
@@ -125,9 +117,8 @@ abstract class AppRouter {
             routes: [
               GoRoute(
                 path: home,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: HomeScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: HomeScreen()),
               ),
             ],
           ),
@@ -135,9 +126,8 @@ abstract class AppRouter {
             routes: [
               GoRoute(
                 path: history,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: HistoryScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: HistoryScreen()),
               ),
             ],
           ),
@@ -145,9 +135,8 @@ abstract class AppRouter {
             routes: [
               GoRoute(
                 path: progress,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: ProgressScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ProgressScreen()),
               ),
             ],
           ),
@@ -155,9 +144,8 @@ abstract class AppRouter {
             routes: [
               GoRoute(
                 path: profile,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: ProfileScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ProfileScreen()),
               ),
             ],
           ),
@@ -190,7 +178,8 @@ abstract class AppRouter {
             sessionId = state.extra as String;
           } else if (state.extra is Map<String, dynamic>) {
             final map = state.extra as Map<String, dynamic>;
-            sessionId = (map['session_id'] as String?) ?? (map['id'] as String?);
+            sessionId =
+                (map['session_id'] as String?) ?? (map['id'] as String?);
           }
           sessionId ??= state.uri.queryParameters['session_id'];
           return _buildPage(

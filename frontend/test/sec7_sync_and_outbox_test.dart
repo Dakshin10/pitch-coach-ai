@@ -22,35 +22,45 @@ void main() {
   });
 
   group('Section 7: Flutter Sync and Outbox Resilience Tests', () {
-    test('Transactional page application: rollback on failure leaves DB and cursor clean', () async {
-      final service = LocalDatabaseService.instance;
-      await service.initForUser(testId);
+    test(
+      'Transactional page application: rollback on failure leaves DB and cursor clean',
+      () async {
+        final service = LocalDatabaseService.instance;
+        await service.initForUser(testId);
 
-      // Initial cursor
-      await service.setSyncCursor(testId, '2026-10-09T10:00:00Z', 's-prev');
+        // Initial cursor
+        await service.setSyncCursor(testId, '2026-10-09T10:00:00Z', 's-prev');
 
-      // Attempt transactional insert that throws an error midway
-      try {
-        await service.db.transaction((txn) async {
-          await txn.rawInsert('''
+        // Attempt transactional insert that throws an error midway
+        try {
+          await service.db.transaction((txn) async {
+            await txn.rawInsert(
+              '''
             INSERT INTO session_metrics (id, user_id, topic_or_question, created_at, local_date, updated_at)
             VALUES ('s-tx-1', ?, 'Topic 1', '2026-10-09T11:00:00Z', '2026-10-09', '2026-10-09T11:00:00Z');
-          ''', [testId]);
+          ''',
+              [testId],
+            );
 
-          // Simulate mid-page network drop or parse error
-          throw Exception('Simulated mid-page crash');
-        });
-      } catch (_) {}
+            // Simulate mid-page network drop or parse error
+            throw Exception('Simulated mid-page crash');
+          });
+        } catch (_) {}
 
-      // Verify rollback: s-tx-1 does NOT exist
-      final rows = await service.db.query('session_metrics', where: 'id = ?', whereArgs: ['s-tx-1']);
-      expect(rows.isEmpty, isTrue);
+        // Verify rollback: s-tx-1 does NOT exist
+        final rows = await service.db.query(
+          'session_metrics',
+          where: 'id = ?',
+          whereArgs: ['s-tx-1'],
+        );
+        expect(rows.isEmpty, isTrue);
 
-      // Verify cursor is UNCHANGED
-      final cursor = await service.getSyncCursor(testId);
-      expect(cursor['cursor_updated_at'], '2026-10-09T10:00:00Z');
-      expect(cursor['cursor_id'], 's-prev');
-    });
+        // Verify cursor is UNCHANGED
+        final cursor = await service.getSyncCursor(testId);
+        expect(cursor['cursor_updated_at'], '2026-10-09T10:00:00Z');
+        expect(cursor['cursor_id'], 's-prev');
+      },
+    );
 
     test('Tombstones applied properly in local SQLite', () async {
       final service = LocalDatabaseService.instance;
@@ -90,7 +100,11 @@ void main() {
       expect(summary.totalSessions, 0);
 
       // Soft-deleted row is retained with deleted_at
-      final raw = await service.db.query('session_metrics', where: 'id = ?', whereArgs: ['sess-tomb']);
+      final raw = await service.db.query(
+        'session_metrics',
+        where: 'id = ?',
+        whereArgs: ['sess-tomb'],
+      );
       expect(raw.first['deleted_at'], '2026-10-09T12:00:00Z');
     });
 
@@ -98,7 +112,9 @@ void main() {
       final service = LocalDatabaseService.instance;
       await service.initForUser(testId);
 
-      final tempAudio = File(p.join(Directory.systemTemp.path, 'outbox_persist_$testId.m4a'));
+      final tempAudio = File(
+        p.join(Directory.systemTemp.path, 'outbox_persist_$testId.m4a'),
+      );
       await tempAudio.writeAsString('audio content must never be deleted');
 
       const sid = 'sess-5-fails';
@@ -129,38 +145,47 @@ void main() {
       if (tempAudio.existsSync()) tempAudio.deleteSync();
     });
 
-    test('In-flight items recovered and retried with same UUID without creating duplicates', () async {
-      final service = LocalDatabaseService.instance;
-      await service.initForUser(testId);
+    test(
+      'In-flight items recovered and retried with same UUID without creating duplicates',
+      () async {
+        final service = LocalDatabaseService.instance;
+        await service.initForUser(testId);
 
-      final tempAudio = File(p.join(Directory.systemTemp.path, 'in_flight_$testId.m4a'));
-      await tempAudio.writeAsString('audio');
+        final tempAudio = File(
+          p.join(Directory.systemTemp.path, 'in_flight_$testId.m4a'),
+        );
+        await tempAudio.writeAsString('audio');
 
-      const sid = 'sess-in-flight-crash';
-      await service.enqueueOutbox(
-        id: sid,
-        userId: testId,
-        action: 'CREATE_SESSION',
-        payload: '{"mode":"interview"}',
-        localAudioPath: tempAudio.path,
-      );
+        const sid = 'sess-in-flight-crash';
+        await service.enqueueOutbox(
+          id: sid,
+          userId: testId,
+          action: 'CREATE_SESSION',
+          payload: '{"mode":"interview"}',
+          localAudioPath: tempAudio.path,
+        );
 
-      // Set to in_flight (simulating crash during upload)
-      await service.updateOutboxState(id: sid, state: 'in_flight');
+        // Set to in_flight (simulating crash during upload)
+        await service.updateOutboxState(id: sid, state: 'in_flight');
 
-      // On app restart, getPendingOutbox retrieves it because state != 'done'
-      final pending = await service.getPendingOutbox(testId);
-      expect(pending.length, 1);
-      expect(pending.first['id'], sid);
-      expect(pending.first['state'], 'in_flight');
+        // On app restart, getPendingOutbox retrieves it because state != 'done'
+        final pending = await service.getPendingOutbox(testId);
+        expect(pending.length, 1);
+        expect(pending.first['id'], sid);
+        expect(pending.first['state'], 'in_flight');
 
-      // Manual state reset simulates recovery
-      await service.updateOutboxState(id: sid, state: 'queued', retryCount: 0);
-      final refreshed = await service.getPendingOutbox(testId);
-      expect(refreshed.first['state'], 'queued');
-      expect(refreshed.first['id'], sid); // Same UUID!
+        // Manual state reset simulates recovery
+        await service.updateOutboxState(
+          id: sid,
+          state: 'queued',
+          retryCount: 0,
+        );
+        final refreshed = await service.getPendingOutbox(testId);
+        expect(refreshed.first['state'], 'queued');
+        expect(refreshed.first['id'], sid); // Same UUID!
 
-      if (tempAudio.existsSync()) tempAudio.deleteSync();
-    });
+        if (tempAudio.existsSync()) tempAudio.deleteSync();
+      },
+    );
   });
 }

@@ -72,8 +72,9 @@ class LanguagePickerSheet extends StatelessWidget {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.textSecondaryOf(context)
-                        .withValues(alpha: 0.3),
+                    color: AppColors.textSecondaryOf(
+                      context,
+                    ).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -132,7 +133,9 @@ class LanguagePickerSheet extends StatelessWidget {
                     },
                     child: GlassSurface(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       borderRadius: BorderRadius.circular(14),
                       child: Row(
                         children: [
@@ -158,10 +161,13 @@ class LanguagePickerSheet extends StatelessWidget {
                           if (!isAvailable)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.textSecondaryOf(context)
-                                    .withValues(alpha: 0.15),
+                                color: AppColors.textSecondaryOf(
+                                  context,
+                                ).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(

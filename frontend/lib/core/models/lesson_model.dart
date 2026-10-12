@@ -29,8 +29,7 @@ abstract class LessonCatalog {
       title: 'Reduce Filler Words',
       description:
           'Learn how to speak clearly without relying on unnecessary filler words like "um", "uh", or "like".',
-      videoUrl:
-          'https://vjs.zencdn.net/v/oceans.mp4',
+      videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
       duration: '4 min',
       category: 'speaking',
       weakAreaTag: 'filler_words',
@@ -97,8 +96,7 @@ abstract class LessonCatalog {
       title: 'Presentation Body Language',
       description:
           'Learn how posture, eye contact, and gestures amplify your message and boost your confidence.',
-      videoUrl:
-          'https://www.w3schools.com/html/mov_bbb.mp4',
+      videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
       duration: '5 min',
       category: 'presentation',
       weakAreaTag: 'confidence',

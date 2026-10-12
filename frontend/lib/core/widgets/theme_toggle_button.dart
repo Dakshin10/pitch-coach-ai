@@ -9,11 +9,7 @@ class ThemeToggleButton extends StatelessWidget {
   final double size;
   final bool compact;
 
-  const ThemeToggleButton({
-    super.key,
-    this.size = 42,
-    this.compact = false,
-  });
+  const ThemeToggleButton({super.key, this.size = 42, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -40,9 +36,7 @@ class ThemeToggleButton extends StatelessWidget {
                   ? Colors.white.withValues(alpha: 0.1)
                   : Colors.white.withValues(alpha: 0.9),
               border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.14)
-                    : border,
+                color: isDark ? Colors.white.withValues(alpha: 0.14) : border,
               ),
               boxShadow: compact
                   ? null
@@ -62,7 +56,10 @@ class ThemeToggleButton extends StatelessWidget {
                 return FadeTransition(
                   opacity: animation,
                   child: ScaleTransition(
-                    scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
+                    scale: Tween<double>(
+                      begin: 0.85,
+                      end: 1,
+                    ).animate(animation),
                     child: child,
                   ),
                 );

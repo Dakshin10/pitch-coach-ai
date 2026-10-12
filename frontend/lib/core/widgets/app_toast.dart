@@ -5,9 +5,12 @@ import 'app_icon.dart';
 
 /// Standard, consistent toast notification system using AppIcon SVGs (no emojis).
 class AppToast {
-  static void success(BuildContext context, String message) => showSuccess(context, message);
-  static void error(BuildContext context, String message) => showError(context, message);
-  static void info(BuildContext context, String message) => showInfo(context, message);
+  static void success(BuildContext context, String message) =>
+      showSuccess(context, message);
+  static void error(BuildContext context, String message) =>
+      showError(context, message);
+  static void info(BuildContext context, String message) =>
+      showInfo(context, message);
 
   static void showSuccess(BuildContext context, String message) {
     _show(

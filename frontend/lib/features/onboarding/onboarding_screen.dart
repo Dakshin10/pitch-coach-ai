@@ -27,8 +27,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   static const List<double> _leftBaseHeights = [22, 32, 45, 38, 58, 72, 88];
   static const List<double> _rightBaseHeights = [88, 72, 58, 38, 45, 32, 22];
-  static const List<double> _leftOpacities = [0.3, 0.4, 0.55, 0.7, 0.8, 0.9, 1.0];
-  static const List<double> _rightOpacities = [1.0, 0.9, 0.8, 0.7, 0.55, 0.4, 0.3];
+  static const List<double> _leftOpacities = [
+    0.3,
+    0.4,
+    0.55,
+    0.7,
+    0.8,
+    0.9,
+    1.0,
+  ];
+  static const List<double> _rightOpacities = [
+    1.0,
+    0.9,
+    0.8,
+    0.7,
+    0.55,
+    0.4,
+    0.3,
+  ];
 
   @override
   void initState() {
@@ -53,10 +69,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       duration: const Duration(milliseconds: 800),
     );
     _fadeIn = CurvedAnimation(parent: _enterController, curve: Curves.easeOut);
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _enterController, curve: Curves.easeOutCubic));
+    _slideUp = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _enterController, curve: Curves.easeOutCubic),
+        );
     _enterController.forward();
   }
 
@@ -131,7 +147,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  AppColors.primaryPurple.withValues(alpha: isDark ? 0.40 : 0.26),
+                  AppColors.primaryPurple.withValues(
+                    alpha: isDark ? 0.40 : 0.26,
+                  ),
                   AppColors.primaryPurple.withValues(alpha: 0),
                 ],
               ),
@@ -204,7 +222,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         final baseH = baseHeights[index];
         final opacity = opacities[index];
         // Uses pre-computed animation — zero allocation per frame
-        final animatedHeight = baseH * (0.55 + 0.5 * _barAnimations[startBarIndex + index].value);
+        final animatedHeight =
+            baseH * (0.55 + 0.5 * _barAnimations[startBarIndex + index].value);
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2.0),
@@ -264,10 +283,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     Color(0xFFB4A9FF),
                     Color(0xFF22D3EE),
                   ]
-                : const [
-                    Color(0xFF15132A),
-                    Color(0xFF8B7CFF),
-                  ],
+                : const [Color(0xFF15132A), Color(0xFF8B7CFF)],
           ).createShader(bounds),
           child: Text(
             'Pitch Coach',
@@ -325,7 +341,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           borderColor: outline,
           textColor: text,
           onPressed: () async {
-            await Provider.of<UserProvider>(context, listen: false).loginAsGuest();
+            await Provider.of<UserProvider>(
+              context,
+              listen: false,
+            ).loginAsGuest();
             if (!context.mounted) return;
             context.go('/home');
           },

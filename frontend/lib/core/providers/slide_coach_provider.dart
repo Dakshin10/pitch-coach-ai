@@ -105,7 +105,8 @@ class SlideCoachProvider extends ChangeNotifier {
 
   bool get isRehearsing => _isRehearsing;
   bool get isAnalyzingRehearsal => _isAnalyzingRehearsal;
-  DeckRehearsalResponseModel? get latestRehearsalResult => _latestRehearsalResult;
+  DeckRehearsalResponseModel? get latestRehearsalResult =>
+      _latestRehearsalResult;
   String? get rehearsalError => _rehearsalError;
 
   // ── Q&A State ──
@@ -150,7 +151,8 @@ class SlideCoachProvider extends ChangeNotifier {
         await loadDeck(storedId);
         if (_deck != null) {
           _completedDeckToAnnounce = _deck;
-          final alertEnabled = await SettingsProvider.isSlideDeckReadyAlertEnabled();
+          final alertEnabled =
+              await SettingsProvider.isSlideDeckReadyAlertEnabled();
           if (alertEnabled) {
             try {
               await NotificationService.instance.showInstantNotification(
@@ -245,7 +247,8 @@ class SlideCoachProvider extends ChangeNotifier {
           await loadDeck(deckId);
           if (_deck != null) {
             _completedDeckToAnnounce = _deck;
-            final alertEnabled = await SettingsProvider.isSlideDeckReadyAlertEnabled();
+            final alertEnabled =
+                await SettingsProvider.isSlideDeckReadyAlertEnabled();
             if (alertEnabled) {
               try {
                 await NotificationService.instance.showInstantNotification(
@@ -315,11 +318,7 @@ class SlideCoachProvider extends ChangeNotifier {
 
     _patchDebounce?.cancel();
     _patchDebounce = Timer(const Duration(milliseconds: 800), () {
-      _repo.patchSlide(
-        _activeDeckId!,
-        cur.slideNumber,
-        talkingPoints: points,
-      );
+      _repo.patchSlide(_activeDeckId!, cur.slideNumber, talkingPoints: points);
     });
   }
 
@@ -376,8 +375,9 @@ class SlideCoachProvider extends ChangeNotifier {
 
   void recordSlideTransition(int nextSlideNumber) {
     if (!_isRehearsing || _rehearsalStartTime == null) return;
-    final elapsedMs =
-        DateTime.now().difference(_rehearsalStartTime!).inMilliseconds;
+    final elapsedMs = DateTime.now()
+        .difference(_rehearsalStartTime!)
+        .inMilliseconds;
     _rehearsalTimestamps.add({
       'slide_number': nextSlideNumber,
       'entered_at_ms': elapsedMs,

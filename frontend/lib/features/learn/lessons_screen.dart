@@ -16,7 +16,12 @@ class LessonsScreen extends StatefulWidget {
 class _LessonsScreenState extends State<LessonsScreen> {
   String _selectedCategory = 'All';
 
-  final List<String> _categories = ['All', 'Interview', 'Presentation', 'Speaking'];
+  final List<String> _categories = [
+    'All',
+    'Interview',
+    'Presentation',
+    'Speaking',
+  ];
 
   List<Lesson> get _filteredLessons {
     if (_selectedCategory == 'All') return LessonCatalog.all;
@@ -38,10 +43,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Learn',
-                    style: AppTextStyles.headingXLOf(context),
-                  ),
+                  Text('Learn', style: AppTextStyles.headingXLOf(context)),
                   Row(
                     children: [
                       Container(
@@ -50,7 +52,9 @@ class _LessonsScreenState extends State<LessonsScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.cardOf(context),
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.borderOf(context)),
+                          border: Border.all(
+                            color: AppColors.borderOf(context),
+                          ),
                         ),
                         child: const Icon(
                           Icons.school_rounded,
@@ -72,7 +76,9 @@ class _LessonsScreenState extends State<LessonsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 'Improve your communication skills',
-                style: AppTextStyles.bodyMOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
+                style: AppTextStyles.bodyMOf(
+                  context,
+                ).copyWith(color: AppColors.textSecondaryOf(context)),
               ),
             ),
 
@@ -93,13 +99,19 @@ class _LessonsScreenState extends State<LessonsScreen> {
                       selectedColor: AppColors.primaryPurple,
                       backgroundColor: AppColors.cardOf(context),
                       labelStyle: AppTextStyles.captionOf(context).copyWith(
-                        color: isSelected ? Colors.white : AppColors.textPrimaryOf(context),
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.textPrimaryOf(context),
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                          color: isSelected ? AppColors.primaryPurple : AppColors.borderOf(context),
+                          color: isSelected
+                              ? AppColors.primaryPurple
+                              : AppColors.borderOf(context),
                         ),
                       ),
                       onSelected: (selected) {
@@ -118,7 +130,10 @@ class _LessonsScreenState extends State<LessonsScreen> {
             // Lesson List
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
                 itemCount: _filteredLessons.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
@@ -137,11 +152,21 @@ class _LessonsScreenState extends State<LessonsScreen> {
         currentIndex: 0, // No dedicated nav slot; closest is Home
         onTap: (index) {
           switch (index) {
-            case 0: context.go('/home'); break;
-            case 1: context.go('/history'); break;
-            case 2: context.push('/interview'); break;
-            case 3: context.go('/progress'); break;
-            case 4: context.go('/profile'); break;
+            case 0:
+              context.go('/home');
+              break;
+            case 1:
+              context.go('/history');
+              break;
+            case 2:
+              context.push('/interview');
+              break;
+            case 3:
+              context.go('/progress');
+              break;
+            case 4:
+              context.go('/profile');
+              break;
           }
         },
         onMicTap: () => context.push('/interview'),
@@ -158,17 +183,23 @@ class _LessonCard extends StatelessWidget {
 
   Color get _categoryColor {
     switch (lesson.category) {
-      case 'interview': return AppColors.primaryPurple;
-      case 'presentation': return AppColors.accentBlue;
-      default: return AppColors.accentGreen;
+      case 'interview':
+        return AppColors.primaryPurple;
+      case 'presentation':
+        return AppColors.accentBlue;
+      default:
+        return AppColors.accentGreen;
     }
   }
 
   IconData get _categoryIcon {
     switch (lesson.category) {
-      case 'interview': return Icons.event_seat_rounded;
-      case 'presentation': return Icons.bar_chart_rounded;
-      default: return Icons.record_voice_over_rounded;
+      case 'interview':
+        return Icons.event_seat_rounded;
+      case 'presentation':
+        return Icons.bar_chart_rounded;
+      default:
+        return Icons.record_voice_over_rounded;
     }
   }
 
@@ -206,10 +237,9 @@ class _LessonCard extends StatelessWidget {
                 children: [
                   Text(
                     lesson.title,
-                    style: AppTextStyles.headingMOf(context).copyWith(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: AppTextStyles.headingMOf(
+                      context,
+                    ).copyWith(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -224,8 +254,11 @@ class _LessonCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.play_circle_outline_rounded,
-                          size: 14, color: _categoryColor),
+                      Icon(
+                        Icons.play_circle_outline_rounded,
+                        size: 14,
+                        color: _categoryColor,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         lesson.duration,
@@ -241,7 +274,10 @@ class _LessonCard extends StatelessWidget {
               ),
             ),
 
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),

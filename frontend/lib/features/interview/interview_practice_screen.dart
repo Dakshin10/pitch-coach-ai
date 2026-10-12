@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/practice_mode.dart';
@@ -9,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_atmosphere.dart';
 import '../../core/widgets/theme_toggle_button.dart';
+import 'bloc/practice_session_bloc.dart';
 export 'controllers/interview_session_controller.dart';
 import 'controllers/interview_session_controller.dart';
 
@@ -19,10 +21,7 @@ import 'controllers/interview_session_controller.dart';
 class InterviewPracticeScreen extends StatelessWidget {
   final PracticeSessionConfig? initialConfig;
 
-  const InterviewPracticeScreen({
-    super.key,
-    this.initialConfig,
-  });
+  const InterviewPracticeScreen({super.key, this.initialConfig});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +30,15 @@ class InterviewPracticeScreen extends StatelessWidget {
         isGuest: context.read<UserProvider>().isGuest,
         initialConfig: initialConfig,
       ),
-      child: const _InterviewPracticeContent(),
+      child: Builder(
+        builder: (context) {
+          final ctrl = context.read<InterviewSessionController>();
+          return BlocProvider<PracticeSessionBloc>.value(
+            value: ctrl.bloc,
+            child: const _InterviewPracticeContent(),
+          );
+        },
+      ),
     );
   }
 }
@@ -84,7 +91,8 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Interruption handling for phone calls or switching away mid-recording
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       final ctrl = context.read<InterviewSessionController>();
       if (ctrl.isRecording) {
         ctrl.handleAppInterruption();
@@ -99,7 +107,9 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     super.dispose();
   }
 
-  Future<bool> _confirmLeaveMidRecording(InterviewSessionController ctrl) async {
+  Future<bool> _confirmLeaveMidRecording(
+    InterviewSessionController ctrl,
+  ) async {
     if (!ctrl.isRecording) return true;
 
     final shouldLeave = await showDialog<bool>(
@@ -116,18 +126,25 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
         ),
         content: Text(
           'Leaving now will cancel your active recording. Are you sure you want to discard this take?',
-          style: AppTextStyles.bodyMOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
+          style: AppTextStyles.bodyMOf(
+            context,
+          ).copyWith(color: AppColors.textSecondaryOf(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Keep Recording', style: TextStyle(color: AppColors.primaryPurpleLight)),
+            child: Text(
+              'Keep Recording',
+              style: TextStyle(color: AppColors.primaryPurpleLight),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.dangerRed,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Discard & Leave'),
@@ -161,47 +178,53 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
         body: AppAtmosphere(
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 12.0,
+              ),
               child: Column(
                 children: [
-                // 1. Top bar with Mode Title, Back button, and Timer / Target pill
-                _buildTopAppBar(context, ctrl),
+                  // 1. Top bar with Mode Title, Back button, and Timer / Target pill
+                  _buildTopAppBar(context, ctrl),
 
-                const SizedBox(height: 14),
+                  const SizedBox(height: 14),
 
-                // 2. Mode selection tabs (only visible when idle)
-                if (!ctrl.isRecording && !ctrl.isUploading)
-                  _buildModeTabs(ctrl),
+                  // 2. Mode selection tabs (only visible when idle)
+                  if (!ctrl.isRecording && !ctrl.isUploading)
+                    _buildModeTabs(ctrl),
 
-                const SizedBox(height: 14),
+                  const SizedBox(height: 14),
 
-                // 3. Question Prompt Card (with real Question Bank navigation)
-                _buildQuestionCard(ctrl),
+                  // 3. Question Prompt Card (with real Question Bank navigation)
+                  _buildQuestionCard(ctrl),
 
-                const SizedBox(height: 14),
+                  const SizedBox(height: 14),
 
-                // 4. Central Stage: Live Waveform, Instructions, or Error Recovery
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: _buildCentralStage(context, ctrl),
+                  // 4. Central Stage: Live Waveform, Instructions, or Error Recovery
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: _buildCentralStage(context, ctrl),
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                // 5. Bottom Controls (Record, Stop, Cancel, Retry)
-                _buildBottomControls(context, ctrl),
-              ],
+                  // 5. Bottom Controls (Record, Stop, Cancel, Retry)
+                  _buildBottomControls(context, ctrl),
+                ],
+              ),
             ),
           ),
-        ),
         ),
       ),
     );
   }
 
-  Widget _buildTopAppBar(BuildContext context, InterviewSessionController ctrl) {
+  Widget _buildTopAppBar(
+    BuildContext context,
+    InterviewSessionController ctrl,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -231,15 +254,17 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
         ),
         Text(
           ctrl.currentMode.title,
-          style: AppTextStyles.headingMOf(context).copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: AppTextStyles.headingMOf(
+            context,
+          ).copyWith(fontWeight: FontWeight.w700),
         ),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             _TimerPill(
-              time: ctrl.isRecording ? ctrl.formattedTime : '${ctrl.currentPrompt.targetDurationSeconds}s target',
+              time: ctrl.isRecording
+                  ? ctrl.formattedTime
+                  : '${ctrl.currentPrompt.targetDurationSeconds}s target',
               isActive: ctrl.isRecording,
             ),
             const SizedBox(width: 8),
@@ -264,7 +289,10 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               onTap: () => ctrl.switchMode(mode.id),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primaryPurple.withValues(alpha: 0.18)
@@ -283,14 +311,20 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                     Icon(
                       mode.icon,
                       size: 16,
-                      color: isSelected ? AppColors.primaryPurple : AppColors.textSecondaryOf(context),
+                      color: isSelected
+                          ? AppColors.primaryPurple
+                          : AppColors.textSecondaryOf(context),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       mode.title.replaceAll(' Practice', ''),
                       style: AppTextStyles.captionOf(context).copyWith(
-                        color: isSelected ? AppColors.primaryPurple : AppColors.textSecondaryOf(context),
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected
+                            ? AppColors.primaryPurple
+                            : AppColors.textSecondaryOf(context),
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                     ),
                   ],
@@ -322,7 +356,10 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primaryPurple.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
@@ -351,11 +388,9 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           // Question Prompt Text
           Text(
             prompt.text,
-            style: AppTextStyles.headingMOf(context).copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 18,
-              height: 1.35,
-            ),
+            style: AppTextStyles.headingMOf(
+              context,
+            ).copyWith(fontWeight: FontWeight.w700, fontSize: 18, height: 1.35),
           ),
 
           if (prompt.hint.isNotEmpty) ...[
@@ -411,8 +446,14 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                   label: const Text('Next Prompt'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primaryPurpleLight,
-                    side: BorderSide(color: AppColors.primaryPurpleLight.withValues(alpha: 0.4)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    side: BorderSide(
+                      color: AppColors.primaryPurpleLight.withValues(
+                        alpha: 0.4,
+                      ),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ],
@@ -423,7 +464,10 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     );
   }
 
-  Widget _buildCentralStage(BuildContext context, InterviewSessionController ctrl) {
+  Widget _buildCentralStage(
+    BuildContext context,
+    InterviewSessionController ctrl,
+  ) {
     if (ctrl.isPermissionDenied) {
       return _buildPermissionDeniedCard(ctrl);
     }
@@ -469,15 +513,14 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             ),
           ),
           const SizedBox(height: 14),
-          Text(
-            'Ready to Rehearse',
-            style: AppTextStyles.headingMOf(context),
-          ),
+          Text('Ready to Rehearse', style: AppTextStyles.headingMOf(context)),
           const SizedBox(height: 8),
           Text(
             'Take a breath, organize your key points, and tap the record button below when ready.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.bodyMOf(context).copyWith(color: AppColors.textSecondaryOf(context), height: 1.35),
+            style: AppTextStyles.bodyMOf(
+              context,
+            ).copyWith(color: AppColors.textSecondaryOf(context), height: 1.35),
           ),
           const SizedBox(height: 16),
           Container(
@@ -489,11 +532,17 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer_outlined, size: 16, color: AppColors.primaryPurple),
+                const Icon(
+                  Icons.timer_outlined,
+                  size: 16,
+                  color: AppColors.primaryPurple,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Recommended: ${ctrl.currentPrompt.targetDurationSeconds}s • Min: 5s • Max: 5m',
-                  style: AppTextStyles.captionOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
+                  style: AppTextStyles.captionOf(
+                    context,
+                  ).copyWith(color: AppColors.textSecondaryOf(context)),
                 ),
               ],
             ),
@@ -572,11 +621,17 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               decoration: BoxDecoration(
                 color: AppColors.warningAmber.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.warningAmber.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.warningAmber.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.warningAmber),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: AppColors.warningAmber,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -594,7 +649,10 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             Text(
               'Speak clearly. Your audio will be sent to the AI pipeline upon stop.',
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary, fontSize: 13),
+              style: AppTextStyles.bodyM.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
             ),
         ],
       ),
@@ -618,7 +676,9 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             height: 44,
             child: CircularProgressIndicator(
               strokeWidth: 3.5,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.primaryPurple,
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -630,7 +690,9 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           Text(
             'Transferring audio to server. Deep speech analysis will begin immediately.',
             textAlign: TextAlign.center,
-            style: AppTextStyles.bodyMOf(context).copyWith(color: AppColors.textSecondaryOf(context)),
+            style: AppTextStyles.bodyMOf(
+              context,
+            ).copyWith(color: AppColors.textSecondaryOf(context)),
           ),
         ],
       ),
@@ -638,7 +700,8 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
   }
 
   Widget _buildPermissionDeniedCard(InterviewSessionController ctrl) {
-    final isPermanent = ctrl.micPermissionState == MicPermissionState.permanentlyDenied;
+    final isPermanent =
+        ctrl.micPermissionState == MicPermissionState.permanentlyDenied;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -682,8 +745,13 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryPurple,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
                   ),
                   onPressed: ctrl.openSettings,
                   icon: const Icon(Icons.settings_rounded, size: 18),
@@ -694,8 +762,13 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textOnDark,
                   side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                 ),
                 onPressed: ctrl.startRecording,
                 child: const Text('Try Again'),
@@ -708,14 +781,18 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
   }
 
   Widget _buildUploadFailedRecoveryCard(
-      BuildContext context, InterviewSessionController ctrl) {
+    BuildContext context,
+    InterviewSessionController ctrl,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.warningAmber.withValues(alpha: 0.4)),
+        border: Border.all(
+          color: AppColors.warningAmber.withValues(alpha: 0.4),
+        ),
       ),
       child: Column(
         children: [
@@ -751,16 +828,23 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryPurple,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
                 onPressed: () => ctrl.retryUpload((sessionId) {
                   if (sessionId != null && context.mounted) {
-                    context.read<SessionResultsProvider>().startBackgroundProcessing(
-                      sessionId: sessionId,
-                      topic: ctrl.currentPrompt.text,
-                      mode: ctrl.currentMode.id,
-                    );
+                    context
+                        .read<SessionResultsProvider>()
+                        .startBackgroundProcessing(
+                          sessionId: sessionId,
+                          topic: ctrl.currentPrompt.text,
+                          mode: ctrl.currentMode.id,
+                        );
                     context.push('/results', extra: sessionId);
                   } else if (context.mounted) {
                     context.push('/results');
@@ -772,9 +856,16 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.dangerRed,
-                  side: BorderSide(color: AppColors.dangerRed.withValues(alpha: 0.4)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  side: BorderSide(
+                    color: AppColors.dangerRed.withValues(alpha: 0.4),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
                 onPressed: ctrl.discardFailedRecording,
                 child: const Text('Discard Take'),
@@ -786,7 +877,10 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
     );
   }
 
-  Widget _buildBottomControls(BuildContext context, InterviewSessionController ctrl) {
+  Widget _buildBottomControls(
+    BuildContext context,
+    InterviewSessionController ctrl,
+  ) {
     if (ctrl.isUploading) {
       return const SizedBox(height: 80);
     }
@@ -798,11 +892,13 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           GestureDetector(
             onTap: () => ctrl.stopRecording((sessionId) {
               if (sessionId != null && context.mounted) {
-                context.read<SessionResultsProvider>().startBackgroundProcessing(
-                  sessionId: sessionId,
-                  topic: ctrl.currentPrompt.text,
-                  mode: ctrl.currentMode.id,
-                );
+                context
+                    .read<SessionResultsProvider>()
+                    .startBackgroundProcessing(
+                      sessionId: sessionId,
+                      topic: ctrl.currentPrompt.text,
+                      mode: ctrl.currentMode.id,
+                    );
                 context.push('/results', extra: sessionId);
               } else if (context.mounted) {
                 context.push('/results');
@@ -844,7 +940,9 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
             },
             child: Text(
               'Cancel take',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -869,11 +967,7 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
           ],
         ),
         child: const Center(
-          child: Icon(
-            Icons.mic_rounded,
-            color: Colors.white,
-            size: 36,
-          ),
+          child: Icon(Icons.mic_rounded, color: Colors.white, size: 36),
         ),
       ),
     );
@@ -888,10 +982,7 @@ class _TimerPill extends StatelessWidget {
   final String time;
   final bool isActive;
 
-  const _TimerPill({
-    required this.time,
-    required this.isActive,
-  });
+  const _TimerPill({required this.time, required this.isActive});
 
   @override
   Widget build(BuildContext context) {
@@ -911,7 +1002,9 @@ class _TimerPill extends StatelessWidget {
       child: Text(
         time,
         style: AppTextStyles.bodySmallBoldOf(context).copyWith(
-          color: isActive ? AppColors.primaryPurple : AppColors.textSecondaryOf(context),
+          color: isActive
+              ? AppColors.primaryPurple
+              : AppColors.textSecondaryOf(context),
           fontWeight: FontWeight.w700,
           fontFeatures: [const FontFeature.tabularFigures()],
         ),

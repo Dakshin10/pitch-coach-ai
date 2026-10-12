@@ -20,7 +20,9 @@ class LocalDatabaseService {
 
   Database get db {
     if (_db == null || !_db!.isOpen) {
-      throw StateError('LocalDatabaseService is not initialized. Call initForUser first.');
+      throw StateError(
+        'LocalDatabaseService is not initialized. Call initForUser first.',
+      );
     }
     return _db!;
   }
@@ -31,7 +33,8 @@ class LocalDatabaseService {
   /// Ensures SQLite FFI is initialized on desktop / test environments.
   static void ensureFfiInitialized() {
     if (!_ffiInitialized) {
-      if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      if (!kIsWeb &&
+          (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       }
@@ -43,7 +46,9 @@ class LocalDatabaseService {
   /// If the database for another user is currently open, it is closed first.
   Future<Database> initForUser(String userId) async {
     ensureFfiInitialized();
-    final sanitizedUserId = userId.isEmpty ? 'guest' : userId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final sanitizedUserId = userId.isEmpty
+        ? 'guest'
+        : userId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
 
     if (_db != null && _db!.isOpen) {
       if (_currentUserId == sanitizedUserId) {
@@ -89,7 +94,11 @@ class LocalDatabaseService {
     }
   }
 
-  static Future<void> _applyMigrations(Database db, int oldVersion, int newVersion) async {
+  static Future<void> _applyMigrations(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
     if (oldVersion < 1) {
       await _migrationV1(db);
     }
@@ -121,8 +130,12 @@ class LocalDatabaseService {
         deleted_at TEXT
       );
     ''');
-    batch.execute('CREATE INDEX IF NOT EXISTS idx_sm_user_date ON session_metrics(user_id, local_date DESC);');
-    batch.execute('CREATE INDEX IF NOT EXISTS idx_sm_user_updated ON session_metrics(user_id, updated_at, id);');
+    batch.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sm_user_date ON session_metrics(user_id, local_date DESC);',
+    );
+    batch.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sm_user_updated ON session_metrics(user_id, updated_at, id);',
+    );
 
     // 2. session_fillers
     batch.execute('''
@@ -208,7 +221,8 @@ class LocalDatabaseService {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> upsertSessionMetric(Map<String, dynamic> row) async {
-    await db.rawInsert('''
+    await db.rawInsert(
+      '''
       INSERT INTO session_metrics (
         id, user_id, mode, topic_or_question, duration_seconds, wpm,
         filler_word_count, pause_count, avg_pause_length, clarity_score,
@@ -233,44 +247,56 @@ class LocalDatabaseService {
         tz_offset_minutes = excluded.tz_offset_minutes,
         updated_at = excluded.updated_at,
         deleted_at = excluded.deleted_at;
-    ''', [
-      row['id'],
-      row['user_id'],
-      row['mode'] ?? 'interview',
-      row['topic_or_question'] ?? '',
-      (row['duration_seconds'] as num?)?.toDouble() ?? 0.0,
-      (row['wpm'] as num?)?.toDouble() ?? 0.0,
-      (row['filler_word_count'] as num?)?.toInt() ?? 0,
-      (row['pause_count'] as num?)?.toInt() ?? 0,
-      (row['avg_pause_length'] as num?)?.toDouble() ?? 0.0,
-      (row['clarity_score'] as num?)?.toDouble() ?? 0.0,
-      (row['confidence_score'] as num?)?.toDouble() ?? 0.0,
-      (row['overall_score'] as num?)?.toDouble() ?? 0.0,
-      row['status'] ?? 'pending',
-      row['created_at'],
-      row['local_date'],
-      (row['tz_offset_minutes'] as num?)?.toInt() ?? 0,
-      row['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
-      row['deleted_at'],
-    ]);
+    ''',
+      [
+        row['id'],
+        row['user_id'],
+        row['mode'] ?? 'interview',
+        row['topic_or_question'] ?? '',
+        (row['duration_seconds'] as num?)?.toDouble() ?? 0.0,
+        (row['wpm'] as num?)?.toDouble() ?? 0.0,
+        (row['filler_word_count'] as num?)?.toInt() ?? 0,
+        (row['pause_count'] as num?)?.toInt() ?? 0,
+        (row['avg_pause_length'] as num?)?.toDouble() ?? 0.0,
+        (row['clarity_score'] as num?)?.toDouble() ?? 0.0,
+        (row['confidence_score'] as num?)?.toDouble() ?? 0.0,
+        (row['overall_score'] as num?)?.toDouble() ?? 0.0,
+        row['status'] ?? 'pending',
+        row['created_at'],
+        row['local_date'],
+        (row['tz_offset_minutes'] as num?)?.toInt() ?? 0,
+        row['updated_at'] ?? DateTime.now().toUtc().toIso8601String(),
+        row['deleted_at'],
+      ],
+    );
   }
 
-  Future<void> softDeleteSession(String id, String deletedAt, {String? updatedAt}) async {
+  Future<void> softDeleteSession(
+    String id,
+    String deletedAt, {
+    String? updatedAt,
+  }) async {
     final updated = updatedAt ?? DateTime.now().toUtc().toIso8601String();
-    await db.rawUpdate('''
+    await db.rawUpdate(
+      '''
       UPDATE session_metrics
       SET deleted_at = ?, updated_at = ?
       WHERE id = ?;
-    ''', [deletedAt, updated, id]);
+    ''',
+      [deletedAt, updated, id],
+    );
   }
 
   Future<SessionSummary?> getRecentSession(String userId) async {
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT * FROM session_metrics
       WHERE user_id = ? AND deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT 1;
-    ''', [userId]);
+    ''',
+      [userId],
+    );
 
     if (rows.isEmpty) return null;
     return _mapRowToSessionSummary(rows.first);
@@ -310,7 +336,8 @@ class LocalDatabaseService {
       durationSeconds: (r['duration_seconds'] as num?)?.toDouble() ?? 0.0,
       overallScore: (r['overall_score'] as num?)?.toDouble() ?? 0.0,
       confidenceScore: (r['confidence_score'] as num?)?.toDouble() ?? 0.0,
-      createdAt: DateTime.tryParse(r['created_at'] as String? ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(r['created_at'] as String? ?? '') ?? DateTime.now(),
       localDate: r['local_date'] as String?,
       tzOffsetMinutes: (r['tz_offset_minutes'] as num?)?.toInt(),
       isAnalyzed: status == 'analyzed',
@@ -322,24 +349,36 @@ class LocalDatabaseService {
   // Session Fillers DAO
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<void> replaceFillers(String sessionId, List<Map<String, dynamic>> fillers) async {
+  Future<void> replaceFillers(
+    String sessionId,
+    List<Map<String, dynamic>> fillers,
+  ) async {
     await db.transaction((txn) async {
-      await txn.rawDelete('DELETE FROM session_fillers WHERE session_id = ?;', [sessionId]);
+      await txn.rawDelete('DELETE FROM session_fillers WHERE session_id = ?;', [
+        sessionId,
+      ]);
       for (final f in fillers) {
-        await txn.rawInsert('''
+        await txn.rawInsert(
+          '''
           INSERT OR REPLACE INTO session_fillers (session_id, filler_word, count)
           VALUES (?, ?, ?);
-        ''', [
-          sessionId,
-          f['filler_word'] as String,
-          (f['count'] as num?)?.toInt() ?? 1,
-        ]);
+        ''',
+          [
+            sessionId,
+            f['filler_word'] as String,
+            (f['count'] as num?)?.toInt() ?? 1,
+          ],
+        );
       }
     });
   }
 
-  Future<List<Map<String, dynamic>>> getTopFillers(String userId, {int limit = 5}) async {
-    return db.rawQuery('''
+  Future<List<Map<String, dynamic>>> getTopFillers(
+    String userId, {
+    int limit = 5,
+  }) async {
+    return db.rawQuery(
+      '''
       SELECT f.filler_word, SUM(f.count) AS total_count
       FROM session_fillers f
       JOIN session_metrics m ON f.session_id = m.id
@@ -347,7 +386,9 @@ class LocalDatabaseService {
       GROUP BY f.filler_word
       ORDER BY total_count DESC
       LIMIT ?;
-    ''', [userId, limit]);
+    ''',
+      [userId, limit],
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -360,17 +401,21 @@ class LocalDatabaseService {
     String unlockedAt,
     String updatedAt,
   ) async {
-    await db.rawInsert('''
+    await db.rawInsert(
+      '''
       INSERT INTO user_achievements (user_id, achievement_key, unlocked_at, updated_at)
       VALUES (?, ?, ?, ?)
       ON CONFLICT(user_id, achievement_key) DO UPDATE SET
         unlocked_at = excluded.unlocked_at,
         updated_at = excluded.updated_at;
-    ''', [userId, key, unlockedAt, updatedAt]);
+    ''',
+      [userId, key, unlockedAt, updatedAt],
+    );
   }
 
   Future<List<Achievement>> getUserAchievements(String userId) async {
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT c.key, c.title, c.description, c.icon_name, c.category,
              ua.unlocked_at, ua.updated_at,
              CASE WHEN ua.achievement_key IS NOT NULL THEN 1 ELSE 0 END AS is_unlocked
@@ -378,7 +423,9 @@ class LocalDatabaseService {
       LEFT JOIN user_achievements ua
         ON c.key = ua.achievement_key AND ua.user_id = ?
       ORDER BY c.key ASC;
-    ''', [userId]);
+    ''',
+      [userId],
+    );
 
     return rows.map((r) {
       final unlocked = (r['is_unlocked'] as int? ?? 0) == 1;
@@ -388,7 +435,9 @@ class LocalDatabaseService {
         title: r['title'] as String? ?? '',
         icon: r['icon_name'] as String? ?? 'trophy',
         isUnlocked: unlocked,
-        unlockedAt: (unlocked && unlockedStr != null) ? DateTime.tryParse(unlockedStr) : null,
+        unlockedAt: (unlocked && unlockedStr != null)
+            ? DateTime.tryParse(unlockedStr)
+            : null,
         description: r['description'] as String? ?? '',
       );
     }).toList();
@@ -399,11 +448,14 @@ class LocalDatabaseService {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<Map<String, String?>> getSyncCursor(String userId) async {
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT last_cursor_updated_at, last_cursor_id
       FROM sync_state
       WHERE user_id = ?;
-    ''', [userId]);
+    ''',
+      [userId],
+    );
 
     if (rows.isEmpty) {
       return {'cursor_updated_at': null, 'cursor_id': null};
@@ -419,13 +471,16 @@ class LocalDatabaseService {
     String? cursorUpdatedAt,
     String? cursorId,
   ) async {
-    await db.rawInsert('''
+    await db.rawInsert(
+      '''
       INSERT INTO sync_state (user_id, last_cursor_updated_at, last_cursor_id)
       VALUES (?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         last_cursor_updated_at = excluded.last_cursor_updated_at,
         last_cursor_id = excluded.last_cursor_id;
-    ''', [userId, cursorUpdatedAt, cursorId]);
+    ''',
+      [userId, cursorUpdatedAt, cursorId],
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -440,19 +495,25 @@ class LocalDatabaseService {
     String? localAudioPath,
   }) async {
     final now = DateTime.now().toUtc().toIso8601String();
-    await db.rawInsert('''
+    await db.rawInsert(
+      '''
       INSERT OR REPLACE INTO sync_outbox (
         id, user_id, action, payload, local_audio_path, state, retry_count, next_attempt_at, last_error, created_at
       ) VALUES (?, ?, ?, ?, ?, 'queued', 0, NULL, NULL, ?);
-    ''', [id, userId, action, payload, localAudioPath, now]);
+    ''',
+      [id, userId, action, payload, localAudioPath, now],
+    );
   }
 
   Future<List<Map<String, dynamic>>> getPendingOutbox(String userId) async {
-    return db.rawQuery('''
+    return db.rawQuery(
+      '''
       SELECT * FROM sync_outbox
       WHERE user_id = ? AND state != 'done'
       ORDER BY created_at ASC;
-    ''', [userId]);
+    ''',
+      [userId],
+    );
   }
 
   Future<void> updateOutboxState({
@@ -462,14 +523,17 @@ class LocalDatabaseService {
     String? nextAttemptAt,
     String? lastError,
   }) async {
-    await db.rawUpdate('''
+    await db.rawUpdate(
+      '''
       UPDATE sync_outbox
       SET state = ?,
           retry_count = COALESCE(?, retry_count),
           next_attempt_at = ?,
           last_error = ?
       WHERE id = ?;
-    ''', [state, retryCount, nextAttemptAt, lastError, id]);
+    ''',
+      [state, retryCount, nextAttemptAt, lastError, id],
+    );
   }
 
   Future<void> deleteOutbox(String id) async {
@@ -485,7 +549,8 @@ class LocalDatabaseService {
     String userId, {
     int tzOffsetMinutes = 330,
   }) async {
-    final summaryRows = await db.rawQuery('''
+    final summaryRows = await db.rawQuery(
+      '''
       SELECT COUNT(*) AS total_sessions,
              ROUND(AVG(overall_score), 1) AS avg_score,
              ROUND(AVG(wpm), 1) AS avg_wpm,
@@ -494,28 +559,40 @@ class LocalDatabaseService {
              ROUND(SUM(duration_seconds), 1) AS total_duration
       FROM session_metrics
       WHERE user_id = ? AND status = 'analyzed' AND deleted_at IS NULL;
-    ''', [userId]);
+    ''',
+      [userId],
+    );
 
-    final totalSessions = (summaryRows.first['total_sessions'] as num?)?.toInt() ?? 0;
-    final avgConfidence = (summaryRows.first['avg_confidence'] as num?)?.toDouble() ?? 0.0;
-    final avgScore = (summaryRows.first['avg_score'] as num?)?.toDouble() ?? 0.0;
+    final totalSessions =
+        (summaryRows.first['total_sessions'] as num?)?.toInt() ?? 0;
+    final avgConfidence =
+        (summaryRows.first['avg_confidence'] as num?)?.toDouble() ?? 0.0;
+    final avgScore =
+        (summaryRows.first['avg_score'] as num?)?.toDouble() ?? 0.0;
     final avgWpm = (summaryRows.first['avg_wpm'] as num?)?.toDouble() ?? 0.0;
-    final avgClarity = (summaryRows.first['avg_clarity'] as num?)?.toDouble() ?? 0.0;
-    final totalDuration = (summaryRows.first['total_duration'] as num?)?.toDouble() ?? 0.0;
+    final avgClarity =
+        (summaryRows.first['avg_clarity'] as num?)?.toDouble() ?? 0.0;
+    final totalDuration =
+        (summaryRows.first['total_duration'] as num?)?.toDouble() ?? 0.0;
 
     if (totalSessions == 0) {
       return StatsSummary.empty;
     }
 
     // Streak calculation using local dates
-    final nowLocal = DateTime.now().toUtc().add(Duration(minutes: tzOffsetMinutes));
+    final nowLocal = DateTime.now().toUtc().add(
+      Duration(minutes: tzOffsetMinutes),
+    );
     final todayStr = _formatDate(nowLocal);
-    final yesterdayStr = _formatDate(nowLocal.subtract(const Duration(days: 1)));
+    final yesterdayStr = _formatDate(
+      nowLocal.subtract(const Duration(days: 1)),
+    );
 
     final streak = await getStreak(userId, todayStr, yesterdayStr);
 
     // Filler reduction percentage
-    final fillerRows = await db.rawQuery('''
+    final fillerRows = await db.rawQuery(
+      '''
       WITH ordered AS (
         SELECT filler_word_count,
                ROW_NUMBER() OVER (ORDER BY created_at ASC) AS rn,
@@ -527,14 +604,19 @@ class LocalDatabaseService {
         AVG(CASE WHEN rn <= total_count / 2 THEN filler_word_count END) AS first_half_avg,
         AVG(CASE WHEN rn > total_count / 2 THEN filler_word_count END) AS second_half_avg
       FROM ordered;
-    ''', [userId]);
+    ''',
+      [userId],
+    );
 
     double fillerReduction = 0.0;
     if (fillerRows.isNotEmpty && fillerRows.first['first_half_avg'] != null) {
-      final firstAvg = (fillerRows.first['first_half_avg'] as num?)?.toDouble() ?? 0.0;
-      final secondAvg = (fillerRows.first['second_half_avg'] as num?)?.toDouble() ?? 0.0;
+      final firstAvg =
+          (fillerRows.first['first_half_avg'] as num?)?.toDouble() ?? 0.0;
+      final secondAvg =
+          (fillerRows.first['second_half_avg'] as num?)?.toDouble() ?? 0.0;
       if (firstAvg > 0) {
-        fillerReduction = ((firstAvg - secondAvg) / firstAvg * 100.0 * 10).round() / 10.0;
+        fillerReduction =
+            ((firstAvg - secondAvg) / firstAvg * 100.0 * 10).round() / 10.0;
       }
     }
 
@@ -556,10 +638,13 @@ class LocalDatabaseService {
     int days = 7,
     int tzOffsetMinutes = 330,
   }) async {
-    final nowLocal = DateTime.now().toUtc().add(Duration(minutes: tzOffsetMinutes));
+    final nowLocal = DateTime.now().toUtc().add(
+      Duration(minutes: tzOffsetMinutes),
+    );
     final cutoffDate = _formatDate(nowLocal.subtract(Duration(days: days)));
 
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT local_date,
              ROUND(AVG(overall_score), 1) AS score,
              ROUND(AVG(wpm), 1) AS wpm,
@@ -570,12 +655,15 @@ class LocalDatabaseService {
       WHERE user_id = ? AND status = 'analyzed' AND deleted_at IS NULL AND local_date >= ?
       GROUP BY local_date
       ORDER BY local_date ASC;
-    ''', [userId, cutoffDate]);
+    ''',
+      [userId, cutoffDate],
+    );
 
     return rows.map((r) {
       return TrendPoint(
         date: r['local_date'] as String? ?? '',
-        confidence: (r['confidence'] as num?)?.toDouble() ??
+        confidence:
+            (r['confidence'] as num?)?.toDouble() ??
             (r['score'] as num?)?.toDouble() ??
             0.0,
       );
@@ -588,7 +676,8 @@ class LocalDatabaseService {
     String todayStr,
     String yesterdayStr,
   ) async {
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       WITH d AS (
         SELECT DISTINCT local_date FROM session_metrics
         WHERE user_id = ? AND deleted_at IS NULL AND status = 'analyzed'
@@ -597,7 +686,9 @@ class LocalDatabaseService {
       )
       SELECT COUNT(*) AS streak, MAX(local_date) AS last_day
       FROM g GROUP BY grp ORDER BY last_day DESC LIMIT 1;
-    ''', [userId]);
+    ''',
+      [userId],
+    );
 
     if (rows.isEmpty) return 0;
     final lastDay = rows.first['last_day'] as String?;

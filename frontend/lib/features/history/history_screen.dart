@@ -31,7 +31,13 @@ class _HistoryScreenState extends State<HistoryScreen>
   bool _isLoading = true;
   String? _errorMessage;
 
-  final List<String> _filterChips = ['All', 'Interview', 'Presentation', 'Free Talk', 'Slide Decks'];
+  final List<String> _filterChips = [
+    'All',
+    'Interview',
+    'Presentation',
+    'Free Talk',
+    'Slide Decks',
+  ];
 
   @override
   bool get wantKeepAlive => true;
@@ -58,10 +64,15 @@ class _HistoryScreenState extends State<HistoryScreen>
     super.dispose();
   }
 
-  Future<void> _loadSessions({bool isInitial = false, bool force = false}) async {
+  Future<void> _loadSessions({
+    bool isInitial = false,
+    bool force = false,
+  }) async {
     if (_selectedFilter == 'Slide Decks') {
       if (mounted) setState(() => _isLoading = false);
-      await context.read<SlideCoachProvider>().loadSavedDecks(forceRefresh: force);
+      await context.read<SlideCoachProvider>().loadSavedDecks(
+        forceRefresh: force,
+      );
       return;
     }
 
@@ -73,17 +84,19 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
     try {
       if (context.read<UserProvider>().isGuest) {
-        if (mounted) setState(() => _sessions = DemoRepository.instance.sessions);
+        if (mounted) {
+          setState(() => _sessions = DemoRepository.instance.sessions);
+        }
         return;
       }
       // Map filter chip → API mode value
       final modeParam = _selectedFilter == 'All'
           ? null
           : _selectedFilter == 'Interview'
-              ? 'interview'
-              : _selectedFilter == 'Presentation'
-                  ? 'presentation'
-                  : 'free_talk';
+          ? 'interview'
+          : _selectedFilter == 'Presentation'
+          ? 'presentation'
+          : 'free_talk';
 
       final sessions = await SessionRepository.instance.listSessions(
         mode: modeParam,
@@ -100,7 +113,9 @@ class _HistoryScreenState extends State<HistoryScreen>
       }
     } catch (e) {
       if (mounted && _sessions.isEmpty) {
-        setState(() => _errorMessage = 'Could not load sessions. Pull to retry.');
+        setState(
+          () => _errorMessage = 'Could not load sessions. Pull to retry.',
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -191,7 +206,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                                 ? AppColors.primaryPurple
                                 : AppColors.cardOf(context),
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.borderOf(context)),
+                            border: Border.all(
+                              color: AppColors.borderOf(context),
+                            ),
                           ),
                           child: Icon(
                             Icons.calendar_month_rounded,
@@ -224,11 +241,15 @@ class _HistoryScreenState extends State<HistoryScreen>
                     setState(() => _searchQuery = val);
                   },
                   onSubmitted: (_) => _loadSessions(),
-                  style: AppTextStyles.bodyM.copyWith(color: AppColors.textPrimaryOf(context)),
+                  style: AppTextStyles.bodyM.copyWith(
+                    color: AppColors.textPrimaryOf(context),
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Search sessions...',
                     hintStyle: AppTextStyles.bodyM.copyWith(
-                      color: AppColors.textSecondaryOf(context).withValues(alpha: 0.7),
+                      color: AppColors.textSecondaryOf(
+                        context,
+                      ).withValues(alpha: 0.7),
                     ),
                     prefixIcon: Icon(
                       Icons.search_rounded,
@@ -267,20 +288,28 @@ class _HistoryScreenState extends State<HistoryScreen>
                         selectedColor: AppColors.primaryPurple,
                         backgroundColor: AppColors.cardOf(context),
                         labelStyle: AppTextStyles.caption.copyWith(
-                          color: isSelected ? Colors.white : AppColors.textPrimaryOf(context),
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.textPrimaryOf(context),
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                           side: BorderSide(
-                            color: isSelected ? AppColors.primaryPurple : AppColors.borderOf(context),
+                            color: isSelected
+                                ? AppColors.primaryPurple
+                                : AppColors.borderOf(context),
                           ),
                         ),
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedFilter = chip);
                             if (chip == 'Slide Decks') {
-                              context.read<SlideCoachProvider>().loadSavedDecks();
+                              context
+                                  .read<SlideCoachProvider>()
+                                  .loadSavedDecks();
                             } else {
                               _loadSessions();
                             }
@@ -299,52 +328,59 @@ class _HistoryScreenState extends State<HistoryScreen>
                 child: _selectedFilter == 'Slide Decks'
                     ? _buildSlideDeckSection(context)
                     : _isLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryPurple),
-                            ),
-                          )
-                        : _errorMessage != null
-                            ? _buildErrorState()
-                            : _sessions.isEmpty
-                                ? _buildEmptyState()
-                                : RefreshIndicator(
-                                    onRefresh: () => _loadSessions(force: true),
-                                    color: AppColors.primaryPurple,
-                                    child: ListView.builder(
-                                      physics: const AlwaysScrollableScrollPhysics(),
-                                      itemCount: _groupedSessions.keys.length,
-                                      itemBuilder: (context, index) {
-                                        final groupKey =
-                                            _groupedSessions.keys.elementAt(index);
-                                        final sessionsInGroup =
-                                            _groupedSessions[groupKey]!;
-                                        return Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(
-                                                  vertical: 8.0),
-                                              child: Text(
-                                                groupKey,
-                                                style: AppTextStyles.headingMOf(context).copyWith(
-                                                  fontSize: 15,
-                                                  color: AppColors.textSecondaryOf(context),
-                                                ),
-                                              ),
-                                            ),
-                                            ...sessionsInGroup.map(
-                                              (s) => Padding(
-                                                padding: const EdgeInsets.only(
-                                                    bottom: 12.0),
-                                                child: _buildSessionCard(context, s),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primaryPurple,
+                          ),
+                        ),
+                      )
+                    : _errorMessage != null
+                    ? _buildErrorState()
+                    : _sessions.isEmpty
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        onRefresh: () => _loadSessions(force: true),
+                        color: AppColors.primaryPurple,
+                        child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _groupedSessions.keys.length,
+                          itemBuilder: (context, index) {
+                            final groupKey = _groupedSessions.keys.elementAt(
+                              index,
+                            );
+                            final sessionsInGroup = _groupedSessions[groupKey]!;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8.0,
                                   ),
+                                  child: Text(
+                                    groupKey,
+                                    style: AppTextStyles.headingMOf(context)
+                                        .copyWith(
+                                          fontSize: 15,
+                                          color: AppColors.textSecondaryOf(
+                                            context,
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                                ...sessionsInGroup.map(
+                                  (s) => Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: 12.0,
+                                    ),
+                                    child: _buildSessionCard(context, s),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
               ),
             ],
           ),
@@ -358,19 +394,19 @@ class _HistoryScreenState extends State<HistoryScreen>
     final scoreColor = score >= 80
         ? AppColors.successGreen
         : score >= 60
-            ? AppColors.warningAmber
-            : AppColors.dangerRed;
+        ? AppColors.warningAmber
+        : AppColors.dangerRed;
 
     final icon = session.mode == 'presentation'
         ? Icons.bar_chart_rounded
         : session.mode == 'free_talk'
-            ? Icons.mic_rounded
-            : Icons.event_seat_rounded;
+        ? Icons.mic_rounded
+        : Icons.event_seat_rounded;
     final iconBg = session.mode == 'presentation'
         ? AppColors.accentBlue
         : session.mode == 'free_talk'
-            ? AppColors.accentGreen
-            : AppColors.primaryPurple;
+        ? AppColors.accentGreen
+        : AppColors.primaryPurple;
 
     return InkWell(
       onTap: () => context.push('/results', extra: session.id),
@@ -382,66 +418,73 @@ class _HistoryScreenState extends State<HistoryScreen>
           border: Border.all(color: AppColors.borderOf(context)),
           boxShadow: AppColors.softShadowOf(context),
         ),
-          // Use ListTile for session cards (Unit 1)
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: iconBg.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconBg, size: 24),
-            ),
-            title: Text(
-              session.topicOrQuestion,
-              style: AppTextStyles.headingMOf(context).copyWith(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 2),
-                Text(
-                  session.modeLabel,
-                  style: AppTextStyles.captionOf(context).copyWith(
-                    color: AppColors.textSecondaryOf(context),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${session.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
-                  '${session.createdAt.toLocal().minute.toString().padLeft(2, '0')}'
-                  ' · ${session.durationFormatted}',
-                  style: AppTextStyles.captionOf(context).copyWith(
-                    color: AppColors.textSecondaryOf(context).withValues(alpha: 0.7),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-            trailing: session.analysisFailed
-                ? const Tooltip(
-                    message: 'Analysis failed — tap to retry',
-                    child: Icon(Icons.error_outline_rounded,
-                        color: AppColors.warningAmber, size: 30),
-                  )
-                : CircularGauge(
-                    value: score,
-                    size: 46,
-                    strokeWidth: 4.5,
-                    centerBigText: '${score.round()}%',
-                    gradientColors: [scoreColor, scoreColor],
-                  ),
-            isThreeLine: true,
+        // Use ListTile for session cards (Unit 1)
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 8,
           ),
+          leading: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: iconBg.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconBg, size: 24),
+          ),
+          title: Text(
+            session.topicOrQuestion,
+            style: AppTextStyles.headingMOf(
+              context,
+            ).copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 2),
+              Text(
+                session.modeLabel,
+                style: AppTextStyles.captionOf(
+                  context,
+                ).copyWith(color: AppColors.textSecondaryOf(context)),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${session.createdAt.toLocal().hour.toString().padLeft(2, '0')}:'
+                '${session.createdAt.toLocal().minute.toString().padLeft(2, '0')}'
+                ' · ${session.durationFormatted}',
+                style: AppTextStyles.captionOf(context).copyWith(
+                  color: AppColors.textSecondaryOf(
+                    context,
+                  ).withValues(alpha: 0.7),
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          trailing: session.analysisFailed
+              ? const Tooltip(
+                  message: 'Analysis failed — tap to retry',
+                  child: Icon(
+                    Icons.error_outline_rounded,
+                    color: AppColors.warningAmber,
+                    size: 30,
+                  ),
+                )
+              : CircularGauge(
+                  value: score,
+                  size: 46,
+                  strokeWidth: 4.5,
+                  centerBigText: '${score.round()}%',
+                  gradientColors: [scoreColor, scoreColor],
+                ),
+          isThreeLine: true,
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildEmptyState() {
@@ -473,11 +516,11 @@ class _HistoryScreenState extends State<HistoryScreen>
             _searchQuery.isNotEmpty
                 ? 'No results for "$_searchQuery". Try a different search.'
                 : _selectedDate != null
-                    ? 'No sessions on the selected date.'
-                    : 'Start practicing to build your session history.',
-            style: AppTextStyles.bodyMOf(context).copyWith(
-              color: AppColors.textSecondaryOf(context),
-            ),
+                ? 'No sessions on the selected date.'
+                : 'Start practicing to build your session history.',
+            style: AppTextStyles.bodyMOf(
+              context,
+            ).copyWith(color: AppColors.textSecondaryOf(context)),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -504,20 +547,30 @@ class _HistoryScreenState extends State<HistoryScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSecondaryOf(context)),
+          Icon(
+            Icons.wifi_off_rounded,
+            size: 48,
+            color: AppColors.textSecondaryOf(context),
+          ),
           const SizedBox(height: 16),
-          Text(_errorMessage ?? 'Something went wrong.', style: AppTextStyles.bodyMOf(context), textAlign: TextAlign.center),
+          Text(
+            _errorMessage ?? 'Something went wrong.',
+            style: AppTextStyles.bodyMOf(context),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _loadSessions,
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryPurple,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Retry'),
           ),
         ],
       ),
     );
   }
-
 
   /// Show the DatePicker and reload sessions filtered to that date (Unit 2).
   Future<void> _pickDate() async {
@@ -564,18 +617,32 @@ class _HistoryScreenState extends State<HistoryScreen>
       );
     }
 
-    if (slideProvider.savedDecksError != null && slideProvider.savedDecks.isEmpty) {
+    if (slideProvider.savedDecksError != null &&
+        slideProvider.savedDecks.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textSecondaryOf(context)),
+            Icon(
+              Icons.wifi_off_rounded,
+              size: 48,
+              color: AppColors.textSecondaryOf(context),
+            ),
             const SizedBox(height: 16),
-            Text(slideProvider.savedDecksError ?? 'Could not load slide decks.', style: AppTextStyles.bodyMOf(context), textAlign: TextAlign.center),
+            Text(
+              slideProvider.savedDecksError ?? 'Could not load slide decks.',
+              style: AppTextStyles.bodyMOf(context),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => context.read<SlideCoachProvider>().loadSavedDecks(forceRefresh: true),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple, foregroundColor: Colors.white),
+              onPressed: () => context
+                  .read<SlideCoachProvider>()
+                  .loadSavedDecks(forceRefresh: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryPurple,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Retry'),
             ),
           ],
@@ -586,19 +653,22 @@ class _HistoryScreenState extends State<HistoryScreen>
     final query = _searchQuery.toLowerCase().trim();
     var decks = slideProvider.savedDecks;
     if (query.isNotEmpty) {
-      decks = decks.where((d) =>
-        d.filename.toLowerCase().contains(query) ||
-        d.goal.toLowerCase().contains(query) ||
-        d.audience.toLowerCase().contains(query)
-      ).toList();
+      decks = decks
+          .where(
+            (d) =>
+                d.filename.toLowerCase().contains(query) ||
+                d.goal.toLowerCase().contains(query) ||
+                d.audience.toLowerCase().contains(query),
+          )
+          .toList();
     }
     if (_selectedDate != null) {
       decks = decks.where((d) {
         final dt = d.createdDateTime;
         if (dt == null) return false;
         return dt.year == _selectedDate!.year &&
-               dt.month == _selectedDate!.month &&
-               dt.day == _selectedDate!.day;
+            dt.month == _selectedDate!.month &&
+            dt.day == _selectedDate!.day;
       }).toList();
     }
 
@@ -620,7 +690,10 @@ class _HistoryScreenState extends State<HistoryScreen>
               ),
             ),
             const SizedBox(height: 16),
-            Text('No slide decks found', style: AppTextStyles.headingLOf(context)),
+            Text(
+              'No slide decks found',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -628,11 +701,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                 _searchQuery.isNotEmpty
                     ? 'No presentations matching "$_searchQuery".'
                     : _selectedDate != null
-                        ? 'No presentation decks found on selected date.'
-                        : 'Upload a PDF presentation to generate instant visual coaching, talking points, and pitch scripts.',
-                style: AppTextStyles.bodyMOf(context).copyWith(
-                  color: AppColors.textSecondaryOf(context),
-                ),
+                    ? 'No presentation decks found on selected date.'
+                    : 'Upload a PDF presentation to generate instant visual coaching, talking points, and pitch scripts.',
+                style: AppTextStyles.bodyMOf(
+                  context,
+                ).copyWith(color: AppColors.textSecondaryOf(context)),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -647,7 +720,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -656,7 +732,8 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () => context.read<SlideCoachProvider>().loadSavedDecks(forceRefresh: true),
+      onRefresh: () =>
+          context.read<SlideCoachProvider>().loadSavedDecks(forceRefresh: true),
       color: AppColors.primaryPurple,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -677,15 +754,23 @@ class _HistoryScreenState extends State<HistoryScreen>
     final scoreColor = score >= 80
         ? AppColors.successGreen
         : score >= 60
-            ? AppColors.warningAmber
-            : AppColors.dangerRed;
+        ? AppColors.warningAmber
+        : AppColors.dangerRed;
 
     final isDone = deck.status == 'done';
     final isProcessing = deck.status == 'processing';
 
-    final slideCount = deck.slides.isNotEmpty ? deck.slides.length : deck.pageCount;
+    final slideCount = deck.slides.isNotEmpty
+        ? deck.slides.length
+        : deck.pageCount;
     final timeMin = (deck.timeLimitSeconds / 60).round();
-    final audienceFormatted = deck.audience.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ');
+    final audienceFormatted = deck.audience
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map(
+          (w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '',
+        )
+        .join(' ');
 
     return InkWell(
       onTap: () async {
@@ -709,7 +794,10 @@ class _HistoryScreenState extends State<HistoryScreen>
           boxShadow: AppColors.softShadowOf(context),
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 8,
+          ),
           leading: Container(
             width: 44,
             height: 44,
@@ -717,14 +805,17 @@ class _HistoryScreenState extends State<HistoryScreen>
               color: AppColors.primaryPurple.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.primaryPurple, size: 24),
+            child: const Icon(
+              Icons.picture_as_pdf_rounded,
+              color: AppColors.primaryPurple,
+              size: 24,
+            ),
           ),
           title: Text(
             deck.filename,
-            style: AppTextStyles.headingMOf(context).copyWith(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTextStyles.headingMOf(
+              context,
+            ).copyWith(fontSize: 15, fontWeight: FontWeight.w700),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -745,7 +836,9 @@ class _HistoryScreenState extends State<HistoryScreen>
               Text(
                 '${deck.timeFormatted} · ${deck.dateFormatted}',
                 style: AppTextStyles.captionOf(context).copyWith(
-                  color: AppColors.textSecondaryOf(context).withValues(alpha: 0.7),
+                  color: AppColors.textSecondaryOf(
+                    context,
+                  ).withValues(alpha: 0.7),
                   fontSize: 11,
                 ),
               ),
@@ -764,7 +857,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                 )
               else if (isProcessing)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryPurple.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
@@ -775,12 +871,18 @@ class _HistoryScreenState extends State<HistoryScreen>
                       const SizedBox(
                         width: 12,
                         height: 12,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryPurple),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primaryPurple,
+                        ),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         '${deck.progress}%',
-                        style: AppTextStyles.caption.copyWith(color: AppColors.primaryPurple, fontWeight: FontWeight.bold),
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primaryPurple,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -788,11 +890,19 @@ class _HistoryScreenState extends State<HistoryScreen>
               else
                 const Tooltip(
                   message: 'Analysis failed — tap to re-analyze',
-                  child: Icon(Icons.error_outline_rounded, color: AppColors.dangerRed, size: 28),
+                  child: Icon(
+                    Icons.error_outline_rounded,
+                    color: AppColors.dangerRed,
+                    size: 28,
+                  ),
                 ),
               const SizedBox(width: 4),
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondaryOf(context), size: 20),
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.textSecondaryOf(context),
+                  size: 20,
+                ),
                 color: AppColors.cardOf(context),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -819,7 +929,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                       value: 'review',
                       child: Row(
                         children: [
-                          Icon(Icons.dashboard_outlined, size: 18, color: AppColors.primaryPurple),
+                          Icon(
+                            Icons.dashboard_outlined,
+                            size: 18,
+                            color: AppColors.primaryPurple,
+                          ),
                           SizedBox(width: 10),
                           Text('Open Review & Script'),
                         ],
@@ -829,7 +943,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                       value: 'rehearsal',
                       child: Row(
                         children: [
-                          Icon(Icons.mic_outlined, size: 18, color: AppColors.accentBlue),
+                          Icon(
+                            Icons.mic_outlined,
+                            size: 18,
+                            color: AppColors.accentBlue,
+                          ),
                           SizedBox(width: 10),
                           Text('Practice Rehearsal'),
                         ],
@@ -839,7 +957,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                       value: 'qa',
                       child: Row(
                         children: [
-                          Icon(Icons.question_answer_outlined, size: 18, color: AppColors.auroraCyan),
+                          Icon(
+                            Icons.question_answer_outlined,
+                            size: 18,
+                            color: AppColors.auroraCyan,
+                          ),
                           SizedBox(width: 10),
                           Text('Audience Q&A Prep'),
                         ],
@@ -850,7 +972,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                     value: 'reanalyze',
                     child: Row(
                       children: [
-                        Icon(Icons.refresh_rounded, size: 18, color: AppColors.warningAmber),
+                        Icon(
+                          Icons.refresh_rounded,
+                          size: 18,
+                          color: AppColors.warningAmber,
+                        ),
                         SizedBox(width: 10),
                         Text('Re-analyze with AI'),
                       ],
@@ -875,7 +1001,10 @@ class _HistoryScreenState extends State<HistoryScreen>
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: AppColors.borderOf(context)),
         ),
-        title: Text('Re-compute with AI?', style: AppTextStyles.headingMOf(context)),
+        title: Text(
+          'Re-compute with AI?',
+          style: AppTextStyles.headingMOf(context),
+        ),
         content: Text(
           'This will re-run the vision and speech coaching pipeline on "${deck.filename}". Any saved scripts will be regenerated.',
           style: AppTextStyles.bodyTextOf(context),
@@ -883,7 +1012,10 @@ class _HistoryScreenState extends State<HistoryScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryOf(context))),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondaryOf(context)),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -892,7 +1024,9 @@ class _HistoryScreenState extends State<HistoryScreen>
               await provider.triggerReanalysis(deck.id);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Re-analysis started in background...')),
+                  const SnackBar(
+                    content: Text('Re-analysis started in background...'),
+                  ),
                 );
                 context.push('/slide-coach/processing');
               }

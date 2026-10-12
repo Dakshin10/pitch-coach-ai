@@ -116,14 +116,16 @@ abstract class AppColors {
   static Color dividerOf(BuildContext context) =>
       isDark(context) ? dividerDark : divider;
 
-  static Color iconButtonBgOf(BuildContext context) =>
-      isDark(context) ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFEBEBF5);
+  static Color iconButtonBgOf(BuildContext context) => isDark(context)
+      ? Colors.white.withValues(alpha: 0.08)
+      : const Color(0xFFEBEBF5);
 
   static Color chipBgOf(BuildContext context) =>
       isDark(context) ? cardDark : surfaceLightElevated;
 
-  static Color surfaceSubtleOf(BuildContext context) =>
-      isDark(context) ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04);
+  static Color surfaceSubtleOf(BuildContext context) => isDark(context)
+      ? Colors.white.withValues(alpha: 0.05)
+      : Colors.black.withValues(alpha: 0.04);
 
   static List<BoxShadow> softShadowOf(BuildContext context) {
     if (isDark(context)) {

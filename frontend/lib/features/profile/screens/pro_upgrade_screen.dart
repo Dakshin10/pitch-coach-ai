@@ -50,7 +50,10 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _joinedWaitlist = true);
-        AppToast.info(context, "You're on the waitlist! Thank you for your interest.");
+        AppToast.info(
+          context,
+          "You're on the waitlist! Thank you for your interest.",
+        );
       }
     } finally {
       if (mounted) setState(() => _isJoining = false);
@@ -70,7 +73,10 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     IconButton(
@@ -102,8 +108,10 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
 
               Expanded(
                 child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -111,7 +119,9 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 24),
+                          horizontal: 20,
+                          vertical: 24,
+                        ),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -123,7 +133,9 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                           ),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: AppColors.primaryPurple.withValues(alpha: 0.4),
+                            color: AppColors.primaryPurple.withValues(
+                              alpha: 0.4,
+                            ),
                           ),
                         ),
                         child: Column(
@@ -135,8 +147,9 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppColors.secondaryCyan
-                                        .withValues(alpha: 0.3),
+                                    color: AppColors.secondaryCyan.withValues(
+                                      alpha: 0.3,
+                                    ),
                                     blurRadius: 16,
                                   ),
                                 ],
@@ -149,7 +162,9 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              isPro ? 'Pro Membership Active' : 'Unlock Pitch Coach Pro',
+                              isPro
+                                  ? 'Pro Membership Active'
+                                  : 'Unlock Pitch Coach Pro',
                               style: AppTextStyles.headingL.copyWith(
                                 fontSize: 22,
                                 color: AppColors.textPrimaryOf(context),
@@ -313,12 +328,18 @@ class _ProUpgradeScreenState extends State<ProUpgradeScreen> {
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
-                              vertical: 16, horizontal: 20),
+                            vertical: 16,
+                            horizontal: 20,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppColors.successGreen.withValues(alpha: 0.15),
+                            color: AppColors.successGreen.withValues(
+                              alpha: 0.15,
+                            ),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: AppColors.successGreen.withValues(alpha: 0.4),
+                              color: AppColors.successGreen.withValues(
+                                alpha: 0.4,
+                              ),
                             ),
                           ),
                           child: Row(

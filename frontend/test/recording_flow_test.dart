@@ -21,26 +21,34 @@ void main() {
       final presentation = PracticeMode.fromId(PracticeMode.presentationId);
       expect(presentation.title, 'Presentation Practice');
       expect(presentation.prompts.isNotEmpty, true);
-      expect(presentation.prompts.any((p) => p.category.contains('Elevator Pitch')), true);
+      expect(
+        presentation.prompts.any((p) => p.category.contains('Elevator Pitch')),
+        true,
+      );
 
       final freeTalk = PracticeMode.fromId(PracticeMode.freeTalkId);
       expect(freeTalk.title, 'Free Talk');
       expect(freeTalk.prompts.isNotEmpty, true);
     });
 
-    test('Prompts have valid ids, categories, hints, and positive durations', () {
-      for (final mode in PracticeMode.allModes) {
-        for (final prompt in mode.prompts) {
-          expect(prompt.id.isNotEmpty, true);
-          expect(prompt.text.isNotEmpty, true);
-          expect(prompt.category.isNotEmpty, true);
-          expect(prompt.targetDurationSeconds, greaterThan(0));
+    test(
+      'Prompts have valid ids, categories, hints, and positive durations',
+      () {
+        for (final mode in PracticeMode.allModes) {
+          for (final prompt in mode.prompts) {
+            expect(prompt.id.isNotEmpty, true);
+            expect(prompt.text.isNotEmpty, true);
+            expect(prompt.category.isNotEmpty, true);
+            expect(prompt.targetDurationSeconds, greaterThan(0));
+          }
         }
-      }
-    });
+      },
+    );
 
     test('PracticeSessionConfig defaults correctly for any mode', () {
-      final config = PracticeSessionConfig.defaultFor(PracticeMode.presentationId);
+      final config = PracticeSessionConfig.defaultFor(
+        PracticeMode.presentationId,
+      );
       expect(config.modeId, PracticeMode.presentationId);
       expect(config.prompt.id, 'pres-1');
     });
@@ -50,7 +58,9 @@ void main() {
     test('Initializes in idle phase with default mode and first prompt', () {
       final ctrl = InterviewSessionController(
         isGuest: true,
-        initialConfig: PracticeSessionConfig.defaultFor(PracticeMode.interviewId),
+        initialConfig: PracticeSessionConfig.defaultFor(
+          PracticeMode.interviewId,
+        ),
       );
 
       expect(ctrl.phase, RecordingPhase.idle);
@@ -65,7 +75,9 @@ void main() {
     test('Supports cycling prompts forward and backward', () {
       final ctrl = InterviewSessionController(
         isGuest: true,
-        initialConfig: PracticeSessionConfig.defaultFor(PracticeMode.interviewId),
+        initialConfig: PracticeSessionConfig.defaultFor(
+          PracticeMode.interviewId,
+        ),
       );
 
       final initialPromptId = ctrl.currentPrompt.id;
@@ -81,7 +93,9 @@ void main() {
     test('Supports switching practice mode while idle', () {
       final ctrl = InterviewSessionController(
         isGuest: true,
-        initialConfig: PracticeSessionConfig.defaultFor(PracticeMode.interviewId),
+        initialConfig: PracticeSessionConfig.defaultFor(
+          PracticeMode.interviewId,
+        ),
       );
 
       ctrl.switchMode(PracticeMode.freeTalkId);
@@ -90,9 +104,7 @@ void main() {
     });
 
     test('Enforces minimum recording length of 5 seconds', () async {
-      final ctrl = InterviewSessionController(
-        isGuest: true,
-      );
+      final ctrl = InterviewSessionController(isGuest: true);
 
       // Attempting to stop when not recording or elapsed < 5s
       bool completed = false;
@@ -154,57 +166,62 @@ void main() {
       expect(result.durationFormatted, '02:05');
     });
 
-    test('SessionRepository in-memory cache stores and retrieves instantaneously', () {
-      final repo = SessionRepository.instance;
-      final result = SessionResult(
-        id: 'sess-cache-test-1',
-        mode: 'presentation',
-        topicOrQuestion: 'Product Launch',
-        durationSeconds: 60.0,
-        wpm: 130.0,
-        fillerWordCount: 1,
-        fillerWordBreakdown: {'uh': 1},
-        pauseCount: 2,
-        avgPauseLength: 1.0,
-        clarityScore: 95.0,
-        confidenceScore: 90.0,
-        overallScore: 93.0,
-        aiFeedback: const [],
-        createdAt: DateTime.now(),
-        isAnalyzed: true,
-      );
+    test(
+      'SessionRepository in-memory cache stores and retrieves instantaneously',
+      () {
+        final repo = SessionRepository.instance;
+        final result = SessionResult(
+          id: 'sess-cache-test-1',
+          mode: 'presentation',
+          topicOrQuestion: 'Product Launch',
+          durationSeconds: 60.0,
+          wpm: 130.0,
+          fillerWordCount: 1,
+          fillerWordBreakdown: {'uh': 1},
+          pauseCount: 2,
+          avgPauseLength: 1.0,
+          clarityScore: 95.0,
+          confidenceScore: 90.0,
+          overallScore: 93.0,
+          aiFeedback: const [],
+          createdAt: DateTime.now(),
+          isAnalyzed: true,
+        );
 
-      repo.cacheSession(result);
-      final cached = repo.getCachedSession('sess-cache-test-1');
-      expect(cached, isNotNull);
-      expect(cached!.id, 'sess-cache-test-1');
-      expect(cached.overallScore, 93.0);
+        repo.cacheSession(result);
+        final cached = repo.getCachedSession('sess-cache-test-1');
+        expect(cached, isNotNull);
+        expect(cached!.id, 'sess-cache-test-1');
+        expect(cached.overallScore, 93.0);
 
-      repo.invalidateSessionResult('sess-cache-test-1');
-      expect(repo.getCachedSession('sess-cache-test-1'), isNull);
-    });
+        repo.invalidateSessionResult('sess-cache-test-1');
+        expect(repo.getCachedSession('sess-cache-test-1'), isNull);
+      },
+    );
 
-    test('SessionResultsProvider background tracking and announcement dismissal', () {
-      final provider = SessionResultsProvider();
-      expect(provider.hasActiveBackgroundProcessing, false);
-      expect(provider.completedSessionToAnnounce, isNull);
+    test(
+      'SessionResultsProvider background tracking and announcement dismissal',
+      () {
+        final provider = SessionResultsProvider();
+        expect(provider.hasActiveBackgroundProcessing, false);
+        expect(provider.completedSessionToAnnounce, isNull);
 
-      // Start background processing
-      provider.startBackgroundProcessing(
-        sessionId: 'bg-sess-456',
-        topic: 'Tell me about a challenging project',
-        mode: 'interview',
-      );
+        // Start background processing
+        provider.startBackgroundProcessing(
+          sessionId: 'bg-sess-456',
+          topic: 'Tell me about a challenging project',
+          mode: 'interview',
+        );
 
-      expect(provider.hasActiveBackgroundProcessing, true);
-      expect(provider.activeSessionId, 'bg-sess-456');
-      expect(provider.activeTopic, 'Tell me about a challenging project');
-      expect(provider.activeMode, 'interview');
+        expect(provider.hasActiveBackgroundProcessing, true);
+        expect(provider.activeSessionId, 'bg-sess-456');
+        expect(provider.activeTopic, 'Tell me about a challenging project');
+        expect(provider.activeMode, 'interview');
 
-      // Dismiss announcement
-      provider.dismissCompletedAnnouncement();
-      expect(provider.completedSessionToAnnounce, isNull);
-    });
+        // Dismiss announcement
+        provider.dismissCompletedAnnouncement();
+        expect(provider.completedSessionToAnnounce, isNull);
+      },
+    );
   });
 }
-
