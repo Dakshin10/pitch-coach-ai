@@ -12,11 +12,7 @@ class AppAtmosphere extends StatefulWidget {
   final Widget child;
   final bool safeArea;
 
-  const AppAtmosphere({
-    super.key,
-    required this.child,
-    this.safeArea = true,
-  });
+  const AppAtmosphere({super.key, required this.child, this.safeArea = true});
 
   @override
   State<AppAtmosphere> createState() => _AppAtmosphereState();
@@ -164,12 +160,7 @@ class _GlowOrb extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            color,
-            color.withValues(alpha: 0),
-          ],
-        ),
+        gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
       ),
     );
   }
@@ -200,10 +191,11 @@ class GlassSurface extends StatelessWidget {
     final decoration = BoxDecoration(
       color: gradient == null
           ? (elevated
-              ? AppColors.elevatedCardOf(context)
-              : AppColors.glassOf(context))
+                ? AppColors.elevatedCardOf(context)
+                : AppColors.glassOf(context))
           : null,
-      gradient: gradient ??
+      gradient:
+          gradient ??
           (isDark
               ? LinearGradient(
                   colors: [
@@ -233,11 +225,7 @@ class GlassSurface extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: borderRadius,
-        child: content,
-      ),
+      child: InkWell(onTap: onTap, borderRadius: borderRadius, child: content),
     );
   }
 }

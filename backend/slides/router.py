@@ -27,6 +27,7 @@ from auth.dependencies import get_current_user
 from config import get_groq_key, get_settings
 from models import SlideDeck, User
 from slides.pipeline import (
+    convert_pptx_to_pdf,
     evaluate_qa_answer,
     extract_all_slides_vision,
     generate_qa_questions,
@@ -99,10 +100,15 @@ def _run_deck_pipeline(
         deck.progress = 45
         deck_store.save(deck)
 
+        def on_vision_progress(completed: int, total: int):
+            deck.progress = min(70, 45 + int((completed / total) * 25))
+            deck_store.save(deck)
+
         descriptions = extract_all_slides_vision(
             image_paths=image_paths,
             client=client,
             model=settings.GROQ_VISION_MODEL,
+            on_progress=on_vision_progress,
         )
         deck.progress = 70
         deck_store.save(deck)
@@ -165,40 +171,46 @@ async def upload_deck(
     # Enforce daily quota
     check_and_increment_daily_quota(current_user.id, "decks", settings.MAX_DECKS_PER_DAY)
 
-    # 1. Reject PPTX with clear 415 error
     filename = file.filename or "deck.pdf"
     ext = os.path.splitext(filename)[1].lower()
-    if ext in [".ppt", ".pptx"]:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Please export your deck as PDF.",
-        )
-    if ext != ".pdf":
+    if ext not in [".pdf", ".pptx", ".ppt"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF files are supported. Please upload a .pdf file.",
+            detail="Only PDF and PPTX presentation files are supported.",
         )
 
     # 2. Streaming read and validate size (max 25MB)
     max_bytes = 25 * 1024 * 1024
-    pdf_bytes = await file.read(max_bytes + 1)
-    if len(pdf_bytes) > max_bytes:
+    raw_bytes = await file.read(max_bytes + 1)
+    if len(raw_bytes) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File size exceeds the 25 MB limit.",
         )
-    if not pdf_bytes:
+    if not raw_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is empty.",
         )
 
-    # 3. Validate magic bytes
-    if not pdf_bytes.startswith(b"%PDF"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file format. The file is not a valid PDF.",
-        )
+    # Convert PPTX to PDF if PowerPoint file
+    if ext in [".pptx", ".ppt"]:
+        try:
+            pdf_bytes = convert_pptx_to_pdf(raw_bytes)
+        except Exception as e:
+            logger.error("Failed to convert PPTX to PDF: %s", e)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unable to parse presentation file: {e}",
+            )
+    else:
+        pdf_bytes = raw_bytes
+        # Validate PDF magic bytes
+        if not pdf_bytes.startswith(b"%PDF"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file format. The file is not a valid PDF.",
+            )
 
     # 4. Validate page count (1 to 60 pages)
     try:
@@ -210,8 +222,8 @@ async def upload_deck(
 
     if page_count < 1:
         raise HTTPException(status_code=400, detail="The PDF document is empty (0 pages).")
-    if page_count > 60:
-        raise HTTPException(status_code=400, detail=f"PDF exceeds maximum allowed pages (found {page_count}, limit is 60).")
+    if page_count > 20:
+        raise HTTPException(status_code=400, detail=f"PDF exceeds maximum allowed pages (found {page_count}, limit is 20).")
 
     # 5. Check SHA-256 cache
     content_hash = hashlib.sha256(
@@ -260,6 +272,80 @@ async def upload_deck(
         "deck_id": new_deck.id,
         "status": "processing",
     }
+
+
+@router.get(
+    "",
+    response_model=List[SlideDeckResponse],
+    summary="List all saved presentation decks for the current user",
+)
+def list_user_decks(
+    current_user: User = Depends(get_current_user),
+):
+    decks = deck_store.list_user_decks(current_user.id)
+    results = []
+    for deck in decks:
+        summary_obj = DeckSummary.model_validate(deck.deck_summary) if deck.deck_summary else None
+        slides_objs = [SlideCoaching.model_validate(s) for s in deck.slides]
+        results.append(
+            SlideDeckResponse(
+                id=deck.id,
+                filename=deck.filename,
+                audience=deck.audience,
+                time_limit_seconds=deck.time_limit_seconds,
+                goal=deck.goal,
+                status=deck.status,
+                stage=deck.stage,
+                progress=deck.progress,
+                page_count=deck.page_count,
+                deck_summary=summary_obj,
+                slides=slides_objs,
+                created_at=deck.created_at.isoformat(),
+                updated_at=deck.updated_at.isoformat(),
+            )
+        )
+    return results
+
+
+@router.post(
+    "/{deck_id}/reanalyze",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Re-run AI coaching analysis on an existing deck",
+)
+def reanalyze_deck(
+    deck_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+):
+    deck = deck_store.get(deck_id)
+    if not deck or deck.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Deck not found")
+
+    pdf_path = os.path.join(deck_store.get_deck_dir(deck.id), "deck.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="Original deck PDF file not found on server")
+
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+
+    deck.status = "processing"
+    deck.stage = "rendering"
+    deck.progress = 0
+    deck.error = None
+    deck.failure_reason = None
+    deck_store.save(deck)
+
+    background_tasks.add_task(
+        _run_deck_pipeline,
+        deck_id=deck.id,
+        pdf_bytes=pdf_bytes,
+        audience=deck.audience,
+        time_limit_seconds=deck.time_limit_seconds,
+        goal=deck.goal,
+        user_id=current_user.id,
+    )
+
+    return {"status": "reanalyzing", "deck_id": deck.id}
 
 
 @router.get(

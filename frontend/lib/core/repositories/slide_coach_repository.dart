@@ -41,7 +41,9 @@ class SlideCoachRepository {
   /// Polls the processing status of a deck.
   Future<SlideDeckStatusModel> getStatus(String deckId) async {
     final resp = await _api.get('/slides/$deckId/status');
-    return SlideDeckStatusModel.fromJson(Map<String, dynamic>.from(resp as Map));
+    return SlideDeckStatusModel.fromJson(
+      Map<String, dynamic>.from(resp as Map),
+    );
   }
 
   /// Fetches the full structured coaching output for a deck.
@@ -83,15 +85,16 @@ class SlideCoachRepository {
   }) async {
     final formData = FormData.fromMap({
       'slide_timestamps': jsonEncode(slideTimestamps),
-      'file': await MultipartFile.fromFile(audioPath, filename: 'rehearsal.m4a'),
+      'file': await MultipartFile.fromFile(
+        audioPath,
+        filename: 'rehearsal.m4a',
+      ),
     });
 
-    final resp = await _api.postMultipart(
-      '/slides/$deckId/rehearse',
-      formData,
-    );
+    final resp = await _api.postMultipart('/slides/$deckId/rehearse', formData);
     return DeckRehearsalResponseModel.fromJson(
-        Map<String, dynamic>.from(resp as Map));
+      Map<String, dynamic>.from(resp as Map),
+    );
   }
 
   /// Generates audience-targeted Q&A questions for the deck.
@@ -100,7 +103,9 @@ class SlideCoachRepository {
     final data = Map<String, dynamic>.from(resp as Map);
     final list = data['questions'] as List<dynamic>? ?? [];
     return list
-        .map((e) => QaQuestionModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => QaQuestionModel.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
   }
 
@@ -120,5 +125,21 @@ class SlideCoachRepository {
       formData,
     );
     return QaEvaluationModel.fromJson(Map<String, dynamic>.from(resp as Map));
+  }
+
+  /// Lists all saved presentation decks for the current user.
+  Future<List<SlideDeckModel>> listDecks() async {
+    final resp = await _api.get('/slides');
+    final list = resp as List<dynamic>? ?? [];
+    return list
+        .map(
+          (e) => SlideDeckModel.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
+        .toList();
+  }
+
+  /// Triggers re-analysis of an existing deck.
+  Future<void> reanalyzeDeck(String deckId) async {
+    await _api.post('/slides/$deckId/reanalyze');
   }
 }

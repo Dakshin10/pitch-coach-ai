@@ -25,6 +25,7 @@ USERS_COL = "users"
 SESSIONS_COL = "sessions"
 ACHIEVEMENTS_COL = "achievements"
 SLIDE_DECKS_COL = "slide_decks"
+FEEDBACK_COL = "feedback"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +45,8 @@ class User:
     feedback_style: str = "Encouraging & Constructive"
     is_guest: bool = False
     dark_mode: bool = False
+    avatar_url: Optional[str] = None
+    settings: Dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=_now_utc)
     expires_at: Optional[datetime] = None
 
@@ -62,6 +65,8 @@ class User:
             "feedback_style": self.feedback_style,
             "is_guest": self.is_guest,
             "dark_mode": self.dark_mode,
+            "avatar_url": self.avatar_url,
+            "settings": self.settings,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
         }
@@ -80,6 +85,8 @@ class User:
             feedback_style=d.get("feedback_style", "Encouraging & Constructive"),
             is_guest=d.get("is_guest", False),
             dark_mode=d.get("dark_mode", False),
+            avatar_url=d.get("avatar_url"),
+            settings=d.get("settings") or {},
             created_at=d.get("created_at") or _now_utc(),
             expires_at=d.get("expires_at"),
         )
@@ -89,11 +96,18 @@ class User:
 class PracticeSession:
     id: str = field(default_factory=_gen_uuid)
     user_id: str = ""
+    parent_session_id: Optional[str] = None
+    template_id: Optional[str] = None
+    structure_score: Optional[float] = None
+    template_sections_detected: Optional[List[str]] = None
+    template_sections_missing: Optional[List[str]] = None
     mode: str = "interview"
     topic_or_question: str = "Tell me about yourself."
     audio_url: Optional[str] = None
     duration_seconds: float = 0.0
     transcript: Optional[str] = None
+    word_timestamps: Optional[List[Dict[str, Any]]] = None
+    audio_offset_seconds: float = 0.0
 
     wpm: float = 0.0
     filler_word_count: int = 0
@@ -105,8 +119,16 @@ class PracticeSession:
     confidence_score: float = 0.0
     overall_score: float = 0.0
 
+    energy_curve: Optional[List[float]] = None
+    pitch_variation_score: Optional[float] = None
+    volume_consistency_score: Optional[float] = None
+
     ai_feedback: List[Dict[str, Any]] = field(default_factory=list)
     created_at: datetime = field(default_factory=_now_utc)
+    local_date: Optional[str] = None
+    tz_offset_minutes: int = 0
+    d1_pending: bool = False
+    stage: str = "pending"
     is_analyzed: bool = False
     analysis_failed: bool = False
     failure_reason: Optional[str] = None
@@ -115,14 +137,23 @@ class PracticeSession:
         return {
             "id": self.id,
             "user_id": self.user_id,
+            "parent_session_id": self.parent_session_id,
+            "template_id": self.template_id,
+            "structure_score": self.structure_score,
+            "template_sections_detected": self.template_sections_detected or [],
+            "template_sections_missing": self.template_sections_missing or [],
+            "energy_curve": self.energy_curve or [],
+            "pitch_variation_score": self.pitch_variation_score,
+            "volume_consistency_score": self.volume_consistency_score,
             "mode": self.mode,
             "topic_or_question": self.topic_or_question,
             "audio_url": self.audio_url,
             "duration_seconds": self.duration_seconds,
             "transcript": self.transcript,
+            "word_timestamps": self.word_timestamps or [],
+            "audio_offset_seconds": self.audio_offset_seconds,
             "wpm": self.wpm,
             "filler_word_count": self.filler_word_count,
-            "filler_word_breakdown": self.filler_word_breakdown,
             "pause_count": self.pause_count,
             "avg_pause_length": self.avg_pause_length,
             "clarity_score": self.clarity_score,
@@ -130,6 +161,19 @@ class PracticeSession:
             "overall_score": self.overall_score,
             "ai_feedback": self.ai_feedback,
             "created_at": self.created_at,
+            "local_date": self.local_date,
+            "tz_offset_minutes": self.tz_offset_minutes,
+            "d1_pending": self.d1_pending,
+            "stage": self.stage,
+            "metrics": {
+                "wpm": self.wpm,
+                "overall": self.overall_score,
+                "clarity": self.clarity_score,
+                "confidence": self.confidence_score,
+                "pause_count": self.pause_count,
+                "duration": self.duration_seconds,
+                "filler_count": self.filler_word_count,
+            },
             "is_analyzed": self.is_analyzed,
             "analysis_failed": self.analysis_failed,
             "failure_reason": self.failure_reason,
@@ -140,11 +184,21 @@ class PracticeSession:
         return PracticeSession(
             id=d.get("id", ""),
             user_id=d.get("user_id", ""),
+            parent_session_id=d.get("parent_session_id"),
+            template_id=d.get("template_id"),
+            structure_score=d.get("structure_score"),
+            template_sections_detected=d.get("template_sections_detected"),
+            template_sections_missing=d.get("template_sections_missing"),
+            energy_curve=d.get("energy_curve") or [],
+            pitch_variation_score=d.get("pitch_variation_score"),
+            volume_consistency_score=d.get("volume_consistency_score"),
             mode=d.get("mode", "interview"),
             topic_or_question=d.get("topic_or_question", ""),
             audio_url=d.get("audio_url"),
             duration_seconds=d.get("duration_seconds", 0.0),
             transcript=d.get("transcript"),
+            word_timestamps=d.get("word_timestamps") or [],
+            audio_offset_seconds=float(d.get("audio_offset_seconds", 0.0)),
             wpm=d.get("wpm", 0.0),
             filler_word_count=d.get("filler_word_count", 0),
             filler_word_breakdown=d.get("filler_word_breakdown", {}),
@@ -155,6 +209,10 @@ class PracticeSession:
             overall_score=d.get("overall_score", 0.0),
             ai_feedback=d.get("ai_feedback", []),
             created_at=d.get("created_at") or _now_utc(),
+            local_date=d.get("local_date"),
+            tz_offset_minutes=d.get("tz_offset_minutes", 0),
+            d1_pending=d.get("d1_pending", False),
+            stage=d.get("stage", "done" if d.get("is_analyzed") else "pending"),
             is_analyzed=d.get("is_analyzed", False),
             analysis_failed=d.get("analysis_failed", False),
             failure_reason=d.get("failure_reason"),

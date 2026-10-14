@@ -6,9 +6,10 @@ library;
 // ─────────────────────────────────────────────────────────────────────────────
 
 class FeedbackItem {
-  final String category;  // filler_words / pacing / clarity / structure / confidence
+  final String
+  category; // filler_words / pacing / clarity / structure / confidence
   final String message;
-  final String severity;  // positive / warning / tip
+  final String severity; // positive / warning / tip
   final String? example;
 
   const FeedbackItem({
@@ -19,11 +20,39 @@ class FeedbackItem {
   });
 
   factory FeedbackItem.fromJson(Map<String, dynamic> j) => FeedbackItem(
-        category: j['category'] as String? ?? 'clarity',
-        message: j['message'] as String? ?? '',
-        severity: j['severity'] as String? ?? 'tip',
-        example: j['example'] as String?,
-      );
+    category: j['category'] as String? ?? 'clarity',
+    message: j['message'] as String? ?? '',
+    severity: j['severity'] as String? ?? 'tip',
+    example: j['example'] as String?,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WordTimestamp
+// ─────────────────────────────────────────────────────────────────────────────
+
+class WordTimestamp {
+  final String word;
+  final double start;
+  final double end;
+
+  const WordTimestamp({
+    required this.word,
+    required this.start,
+    required this.end,
+  });
+
+  factory WordTimestamp.fromJson(Map<String, dynamic> j) => WordTimestamp(
+    word: j['word'] as String? ?? '',
+    start: (j['start'] as num?)?.toDouble() ?? 0.0,
+    end: (j['end'] as num?)?.toDouble() ?? 0.0,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'word': word,
+    'start': start,
+    'end': end,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +65,8 @@ class SessionResult {
   final String topicOrQuestion;
   final double durationSeconds;
   final String? transcript;
+  final List<WordTimestamp> wordTimestamps;
+  final double audioOffsetSeconds;
   final double wpm;
   final int fillerWordCount;
   final Map<String, int> fillerWordBreakdown;
@@ -46,12 +77,43 @@ class SessionResult {
   final double overallScore;
   final List<FeedbackItem> aiFeedback;
   final DateTime createdAt;
+  final String? localDate;
+  final int? tzOffsetMinutes;
   final bool isAnalyzed;
+
   /// True when the server-side AI analysis failed (scores are placeholders).
   final bool analysisFailed;
   final String? failureReason;
+
   /// Local path to the recorded audio file, populated by SessionRepository after upload.
   final String? audioPath;
+
+  /// Remote or relative streaming URL for the session audio.
+  final String? audioUrl;
+
+  /// Optional parent session id if this session was a practice retry of a previous attempt.
+  final String? parentSessionId;
+
+  /// Optional pitch template ID used for rubric and structure evaluation.
+  final String? templateId;
+
+  /// Structure adherence score (0-100) based on template sections.
+  final double? structureScore;
+
+  /// Sections detected in user's pitch.
+  final List<String> templateSectionsDetected;
+
+  /// Sections missing from user's pitch based on the template.
+  final List<String> templateSectionsMissing;
+
+  /// Downsampled RMS vocal energy curve (normalized points 0.0 - 1.0).
+  final List<double> energyCurve;
+
+  /// Pitch variation score (0-100; < 45 indicates monotone delivery).
+  final double? pitchVariationScore;
+
+  /// Volume consistency score (0-100).
+  final double? volumeConsistencyScore;
 
   const SessionResult({
     required this.id,
@@ -59,6 +121,8 @@ class SessionResult {
     required this.topicOrQuestion,
     required this.durationSeconds,
     this.transcript,
+    this.wordTimestamps = const [],
+    this.audioOffsetSeconds = 0.0,
     required this.wpm,
     required this.fillerWordCount,
     required this.fillerWordBreakdown,
@@ -69,35 +133,76 @@ class SessionResult {
     required this.overallScore,
     required this.aiFeedback,
     required this.createdAt,
+    this.localDate,
+    this.tzOffsetMinutes,
     required this.isAnalyzed,
     this.analysisFailed = false,
     this.failureReason,
     this.audioPath,
+    this.audioUrl,
+    this.parentSessionId,
+    this.templateId,
+    this.structureScore,
+    this.templateSectionsDetected = const [],
+    this.templateSectionsMissing = const [],
+    this.energyCurve = const [],
+    this.pitchVariationScore,
+    this.volumeConsistencyScore,
   });
 
+  /// Returns whichever audio locator is available: local file path or remote URL.
+  String? get playableAudioUri => audioPath ?? audioUrl;
+
   factory SessionResult.fromJson(Map<String, dynamic> j) => SessionResult(
-        id: j['id'] as String,
-        mode: j['mode'] as String? ?? 'interview',
-        topicOrQuestion: j['topic_or_question'] as String? ?? '',
-        durationSeconds: (j['duration_seconds'] as num?)?.toDouble() ?? 0,
-        transcript: j['transcript'] as String?,
-        wpm: (j['wpm'] as num?)?.toDouble() ?? 0,
-        fillerWordCount: (j['filler_word_count'] as num?)?.toInt() ?? 0,
-        fillerWordBreakdown: (j['filler_word_breakdown'] as Map<String, dynamic>? ?? {})
-            .map((k, v) => MapEntry(k, (v as num).toInt())),
-        pauseCount: (j['pause_count'] as num?)?.toInt() ?? 0,
-        avgPauseLength: (j['avg_pause_length'] as num?)?.toDouble() ?? 0,
-        clarityScore: (j['clarity_score'] as num?)?.toDouble() ?? 0,
-        confidenceScore: (j['confidence_score'] as num?)?.toDouble() ?? 0,
-        overallScore: (j['overall_score'] as num?)?.toDouble() ?? 0,
-        aiFeedback: (j['ai_feedback'] as List<dynamic>? ?? [])
-            .map((e) => FeedbackItem.fromJson(e as Map<String, dynamic>))
+    id: j['id'] as String,
+    mode: j['mode'] as String? ?? 'interview',
+    topicOrQuestion: j['topic_or_question'] as String? ?? '',
+    durationSeconds: (j['duration_seconds'] as num?)?.toDouble() ?? 0,
+    transcript: j['transcript'] as String?,
+    wordTimestamps: (j['word_timestamps'] as List<dynamic>? ?? [])
+        .map((e) => WordTimestamp.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    audioOffsetSeconds:
+        (j['audio_offset_seconds'] as num?)?.toDouble() ?? 0.0,
+    wpm: (j['wpm'] as num?)?.toDouble() ?? 0,
+    fillerWordCount: (j['filler_word_count'] as num?)?.toInt() ?? 0,
+    fillerWordBreakdown:
+        (j['filler_word_breakdown'] as Map<String, dynamic>? ?? {}).map(
+          (k, v) => MapEntry(k, (v as num).toInt()),
+        ),
+    pauseCount: (j['pause_count'] as num?)?.toInt() ?? 0,
+    avgPauseLength: (j['avg_pause_length'] as num?)?.toDouble() ?? 0,
+    clarityScore: (j['clarity_score'] as num?)?.toDouble() ?? 0,
+    confidenceScore: (j['confidence_score'] as num?)?.toDouble() ?? 0,
+    overallScore: (j['overall_score'] as num?)?.toDouble() ?? 0,
+    aiFeedback: (j['ai_feedback'] as List<dynamic>? ?? [])
+        .map((e) => FeedbackItem.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    createdAt: DateTime.parse(j['created_at'] as String),
+    localDate: j['local_date'] as String?,
+    tzOffsetMinutes: (j['tz_offset_minutes'] as num?)?.toInt(),
+    isAnalyzed: j['is_analyzed'] as bool? ?? false,
+    analysisFailed: j['analysis_failed'] as bool? ?? false,
+    failureReason: j['failure_reason'] as String?,
+    audioPath: j['audio_path'] as String?,
+    audioUrl: j['audio_url'] as String?,
+    parentSessionId: j['parent_session_id'] as String?,
+    templateId: j['template_id'] as String?,
+    structureScore: (j['structure_score'] as num?)?.toDouble(),
+    templateSectionsDetected:
+        (j['template_sections_detected'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
             .toList(),
-        createdAt: DateTime.parse(j['created_at'] as String),
-        isAnalyzed: j['is_analyzed'] as bool? ?? false,
-        analysisFailed: j['analysis_failed'] as bool? ?? false,
-        failureReason: j['failure_reason'] as String?,
-      );
+    templateSectionsMissing:
+        (j['template_sections_missing'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList(),
+    energyCurve: (j['energy_curve'] as List<dynamic>? ?? [])
+        .map((e) => (e as num).toDouble())
+        .toList(),
+    pitchVariationScore: (j['pitch_variation_score'] as num?)?.toDouble(),
+    volumeConsistencyScore: (j['volume_consistency_score'] as num?)?.toDouble(),
+  );
 
   SessionResult copyWith({
     String? id,
@@ -105,6 +210,8 @@ class SessionResult {
     String? topicOrQuestion,
     double? durationSeconds,
     String? transcript,
+    List<WordTimestamp>? wordTimestamps,
+    double? audioOffsetSeconds,
     double? wpm,
     int? fillerWordCount,
     Map<String, int>? fillerWordBreakdown,
@@ -119,6 +226,15 @@ class SessionResult {
     bool? analysisFailed,
     String? failureReason,
     String? audioPath,
+    String? audioUrl,
+    String? parentSessionId,
+    String? templateId,
+    double? structureScore,
+    List<String>? templateSectionsDetected,
+    List<String>? templateSectionsMissing,
+    List<double>? energyCurve,
+    double? pitchVariationScore,
+    double? volumeConsistencyScore,
   }) {
     return SessionResult(
       id: id ?? this.id,
@@ -126,6 +242,8 @@ class SessionResult {
       topicOrQuestion: topicOrQuestion ?? this.topicOrQuestion,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       transcript: transcript ?? this.transcript,
+      wordTimestamps: wordTimestamps ?? this.wordTimestamps,
+      audioOffsetSeconds: audioOffsetSeconds ?? this.audioOffsetSeconds,
       wpm: wpm ?? this.wpm,
       fillerWordCount: fillerWordCount ?? this.fillerWordCount,
       fillerWordBreakdown: fillerWordBreakdown ?? this.fillerWordBreakdown,
@@ -140,6 +258,17 @@ class SessionResult {
       analysisFailed: analysisFailed ?? this.analysisFailed,
       failureReason: failureReason ?? this.failureReason,
       audioPath: audioPath ?? this.audioPath,
+      audioUrl: audioUrl ?? this.audioUrl,
+      parentSessionId: parentSessionId ?? this.parentSessionId,
+      templateId: templateId ?? this.templateId,
+      structureScore: structureScore ?? this.structureScore,
+      templateSectionsDetected:
+          templateSectionsDetected ?? this.templateSectionsDetected,
+      templateSectionsMissing:
+          templateSectionsMissing ?? this.templateSectionsMissing,
+      energyCurve: energyCurve ?? this.energyCurve,
+      pitchVariationScore: pitchVariationScore ?? this.pitchVariationScore,
+      volumeConsistencyScore: volumeConsistencyScore ?? this.volumeConsistencyScore,
     );
   }
 
@@ -149,6 +278,42 @@ class SessionResult {
     final m = total ~/ 60;
     final s = total % 60;
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  String get sessionId => id;
+
+  String get modeLabel {
+    switch (mode) {
+      case 'presentation':
+        return 'Presentation';
+      case 'free_talk':
+        return 'Free Talk';
+      default:
+        return 'Interview';
+    }
+  }
+
+  int get totalFillerCount => fillerWordCount;
+
+  /// Filler words normalized per 100 words spoken.
+  /// Uses word timestamps or transcript word count if available; falls back to WPM * duration.
+  double get fillersPer100Words {
+    final words = wordTimestamps.isNotEmpty
+        ? wordTimestamps.length
+        : (transcript != null && transcript!.trim().isNotEmpty
+            ? transcript!.trim().split(RegExp(r'\s+')).length
+            : ((wpm * durationSeconds) / 60.0).round());
+    if (words <= 0) return 0.0;
+    return (fillerWordCount / words) * 100.0;
+  }
+
+  /// Distance from the optimal 120-160 WPM pacing band.
+  /// Returns 0.0 if pace is within [120, 160].
+  /// Positive values represent distance outside the band.
+  static double wpmBandDistance(double value) {
+    if (value < 120.0) return 120.0 - value;
+    if (value > 160.0) return value - 160.0;
+    return 0.0;
   }
 }
 
@@ -164,9 +329,12 @@ class SessionSummary {
   final double overallScore;
   final double confidenceScore;
   final DateTime createdAt;
+  final String? localDate;
+  final int? tzOffsetMinutes;
   final bool isAnalyzed;
   final bool analysisFailed;
   final String? failureReason;
+  final String? parentSessionId;
 
   const SessionSummary({
     required this.id,
@@ -176,23 +344,29 @@ class SessionSummary {
     required this.overallScore,
     required this.confidenceScore,
     required this.createdAt,
+    this.localDate,
+    this.tzOffsetMinutes,
     required this.isAnalyzed,
     this.analysisFailed = false,
     this.failureReason,
+    this.parentSessionId,
   });
 
   factory SessionSummary.fromJson(Map<String, dynamic> j) => SessionSummary(
-        id: j['id'] as String,
-        mode: j['mode'] as String? ?? 'interview',
-        topicOrQuestion: j['topic_or_question'] as String? ?? '',
-        durationSeconds: (j['duration_seconds'] as num?)?.toDouble() ?? 0,
-        overallScore: (j['overall_score'] as num?)?.toDouble() ?? 0,
-        confidenceScore: (j['confidence_score'] as num?)?.toDouble() ?? 0,
-        createdAt: DateTime.parse(j['created_at'] as String),
-        isAnalyzed: j['is_analyzed'] as bool? ?? false,
-        analysisFailed: j['analysis_failed'] as bool? ?? false,
-        failureReason: j['failure_reason'] as String?,
-      );
+    id: j['id'] as String,
+    mode: j['mode'] as String? ?? 'interview',
+    topicOrQuestion: j['topic_or_question'] as String? ?? '',
+    durationSeconds: (j['duration_seconds'] as num?)?.toDouble() ?? 0,
+    overallScore: (j['overall_score'] as num?)?.toDouble() ?? 0,
+    confidenceScore: (j['confidence_score'] as num?)?.toDouble() ?? 0,
+    createdAt: DateTime.parse(j['created_at'] as String),
+    localDate: j['local_date'] as String?,
+    tzOffsetMinutes: (j['tz_offset_minutes'] as num?)?.toInt(),
+    isAnalyzed: j['is_analyzed'] as bool? ?? false,
+    analysisFailed: j['analysis_failed'] as bool? ?? false,
+    failureReason: j['failure_reason'] as String?,
+    parentSessionId: j['parent_session_id'] as String?,
+  );
 
   String get durationFormatted {
     final total = durationSeconds.toInt();
@@ -203,8 +377,21 @@ class SessionSummary {
 
   /// Pretty date: "Mon, Sep 22"
   String get dateFormatted {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final d = createdAt.toLocal();
     return '${days[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}';
   }
@@ -212,9 +399,12 @@ class SessionSummary {
   /// Mode label for display
   String get modeLabel {
     switch (mode) {
-      case 'presentation': return 'Presentation';
-      case 'free_talk': return 'Free Talk';
-      default: return 'Interview';
+      case 'presentation':
+        return 'Presentation';
+      case 'free_talk':
+        return 'Free Talk';
+      default:
+        return 'Interview';
     }
   }
 }

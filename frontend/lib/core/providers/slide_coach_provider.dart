@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/slide_coach_models.dart';
 import '../repositories/slide_coach_repository.dart';
+import '../services/notification_service.dart';
+import 'settings_provider.dart';
 
 class SlideCoachProvider extends ChangeNotifier {
   final _repo = SlideCoachRepository.instance;
+  static const String _storageActiveDeckKey = 'active_processing_deck_id';
+  final _storage = const FlutterSecureStorage();
 
   // ── Upload State ──
   bool _isUploading = false;
@@ -22,10 +27,56 @@ class SlideCoachProvider extends ChangeNotifier {
   String? _pollError;
   Timer? _pollTimer;
 
+  // Completed announcement modal trigger
+  SlideDeckModel? _completedDeckToAnnounce;
+  SlideDeckModel? get completedDeckToAnnounce => _completedDeckToAnnounce;
+
   String? get activeDeckId => _activeDeckId;
   SlideDeckStatusModel? get status => _status;
   bool get isPolling => _isPolling;
   String? get pollError => _pollError;
+  bool get hasActiveBackgroundProcessing =>
+      _isPolling || (_status != null && _status!.isProcessing);
+
+  void dismissCompletedAnnouncement() {
+    _completedDeckToAnnounce = null;
+    notifyListeners();
+  }
+
+  // ── Saved Decks / History State ──
+  List<SlideDeckModel> _savedDecks = [];
+  bool _isLoadingSavedDecks = false;
+  String? _savedDecksError;
+
+  List<SlideDeckModel> get savedDecks => _savedDecks;
+  bool get isLoadingSavedDecks => _isLoadingSavedDecks;
+  String? get savedDecksError => _savedDecksError;
+
+  Future<void> loadSavedDecks({bool forceRefresh = false}) async {
+    _isLoadingSavedDecks = true;
+    _savedDecksError = null;
+    notifyListeners();
+
+    try {
+      _savedDecks = await _repo.listDecks();
+      _isLoadingSavedDecks = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoadingSavedDecks = false;
+      _savedDecksError = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> triggerReanalysis(String deckId) async {
+    try {
+      await _repo.reanalyzeDeck(deckId);
+      startPolling(deckId);
+    } catch (e) {
+      _pollError = e.toString();
+      notifyListeners();
+    }
+  }
 
   // ── Active Deck Review State ──
   SlideDeckModel? _deck;
@@ -44,6 +95,13 @@ class SlideCoachProvider extends ChangeNotifier {
     return _deck!.slides[_currentSlideIndex];
   }
 
+  @visibleForTesting
+  void setDeckForTesting(SlideDeckModel deck) {
+    _deck = deck;
+    _currentSlideIndex = 0;
+    notifyListeners();
+  }
+
   // ── Rehearsal State ──
   bool _isRehearsing = false;
   final List<Map<String, dynamic>> _rehearsalTimestamps = [];
@@ -54,7 +112,8 @@ class SlideCoachProvider extends ChangeNotifier {
 
   bool get isRehearsing => _isRehearsing;
   bool get isAnalyzingRehearsal => _isAnalyzingRehearsal;
-  DeckRehearsalResponseModel? get latestRehearsalResult => _latestRehearsalResult;
+  DeckRehearsalResponseModel? get latestRehearsalResult =>
+      _latestRehearsalResult;
   String? get rehearsalError => _rehearsalError;
 
   // ── Q&A State ──
@@ -78,6 +137,52 @@ class SlideCoachProvider extends ChangeNotifier {
       return _qaQuestions.first;
     }
     return _qaQuestions[_currentQaIndex];
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Restore State on App Launch or Return
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> restoreActiveDeckIfProcessing() async {
+    try {
+      final storedId = await _storage.read(key: _storageActiveDeckKey);
+      if (storedId == null || storedId.trim().isEmpty) return;
+      if (_isPolling && _activeDeckId == storedId) return;
+
+      _activeDeckId = storedId;
+      final st = await _repo.getStatus(storedId);
+      _status = st;
+
+      if (st.status == 'done') {
+        await _storage.delete(key: _storageActiveDeckKey);
+        await loadDeck(storedId);
+        if (_deck != null) {
+          _completedDeckToAnnounce = _deck;
+          final alertEnabled =
+              await SettingsProvider.isSlideDeckReadyAlertEnabled();
+          if (alertEnabled) {
+            try {
+              await NotificationService.instance.showInstantNotification(
+                'Slide Deck Ready',
+                'Your presentation "${_deck!.fileName}" has been analyzed and is ready for rehearsal.',
+              );
+            } catch (e) {
+              debugPrint('Failed to send instant notification: $e');
+            }
+          }
+        }
+        notifyListeners();
+      } else if (st.status == 'failed') {
+        await _storage.delete(key: _storageActiveDeckKey);
+        _pollError = st.error ?? 'Analysis failed';
+        notifyListeners();
+      } else {
+        // Still in progress (rendering / reading_slides / writing_coaching)
+        startPolling(storedId);
+      }
+    } catch (e) {
+      debugPrint('Error restoring active deck: $e');
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -114,6 +219,7 @@ class SlideCoachProvider extends ChangeNotifier {
       final deckId = res['deck_id'] as String;
       _activeDeckId = deckId;
       _isUploading = false;
+      await _storage.write(key: _storageActiveDeckKey, value: deckId);
       notifyListeners();
 
       // Start status polling
@@ -132,6 +238,7 @@ class SlideCoachProvider extends ChangeNotifier {
     _pollTimer?.cancel();
     _isPolling = true;
     _pollError = null;
+    _storage.write(key: _storageActiveDeckKey, value: deckId);
     notifyListeners();
 
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
@@ -143,10 +250,28 @@ class SlideCoachProvider extends ChangeNotifier {
         if (st.status == 'done') {
           timer.cancel();
           _isPolling = false;
+          await _storage.delete(key: _storageActiveDeckKey);
           await loadDeck(deckId);
+          if (_deck != null) {
+            _completedDeckToAnnounce = _deck;
+            final alertEnabled =
+                await SettingsProvider.isSlideDeckReadyAlertEnabled();
+            if (alertEnabled) {
+              try {
+                await NotificationService.instance.showInstantNotification(
+                  'Slide Deck Ready',
+                  'Your presentation "${_deck!.fileName}" has been analyzed and is ready for rehearsal.',
+                );
+              } catch (e) {
+                debugPrint('Failed to send notification: $e');
+              }
+            }
+          }
+          notifyListeners();
         } else if (st.status == 'failed') {
           timer.cancel();
           _isPolling = false;
+          await _storage.delete(key: _storageActiveDeckKey);
           _pollError = st.error ?? 'Analysis failed';
           notifyListeners();
         }
@@ -200,11 +325,7 @@ class SlideCoachProvider extends ChangeNotifier {
 
     _patchDebounce?.cancel();
     _patchDebounce = Timer(const Duration(milliseconds: 800), () {
-      _repo.patchSlide(
-        _activeDeckId!,
-        cur.slideNumber,
-        talkingPoints: points,
-      );
+      _repo.patchSlide(_activeDeckId!, cur.slideNumber, talkingPoints: points);
     });
   }
 
@@ -261,8 +382,9 @@ class SlideCoachProvider extends ChangeNotifier {
 
   void recordSlideTransition(int nextSlideNumber) {
     if (!_isRehearsing || _rehearsalStartTime == null) return;
-    final elapsedMs =
-        DateTime.now().difference(_rehearsalStartTime!).inMilliseconds;
+    final elapsedMs = DateTime.now()
+        .difference(_rehearsalStartTime!)
+        .inMilliseconds;
     _rehearsalTimestamps.add({
       'slide_number': nextSlideNumber,
       'entered_at_ms': elapsedMs,

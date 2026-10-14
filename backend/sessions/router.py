@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, RedirectResponse
 from google.cloud import firestore as fs
 
 from auth.dependencies import get_current_user
@@ -18,8 +19,11 @@ from schemas import (
     SessionSummary,
     StartSessionRequest,
     StartSessionResponse,
+    WordTimestamp,
 )
 from sessions.pipeline import analyze_audio
+from d1.d1_client import get_d1_client
+from d1.sync import upsert_session_to_d1, retry_d1_sync
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 settings = get_settings()
@@ -46,12 +50,27 @@ def _to_result(s: PracticeSession) -> SessionResult:
                 severity=item.get("severity", "tip"),
                 example=item.get("example"),
             ))
+    word_timestamps = []
+    for item in (s.word_timestamps or []):
+        if isinstance(item, dict):
+            word_timestamps.append(WordTimestamp(
+                word=str(item.get("word", "")),
+                start=float(item.get("start", 0.0)),
+                end=float(item.get("end", 0.0)),
+            ))
     return SessionResult(
         id=s.id,
+        parent_session_id=s.parent_session_id,
+        template_id=getattr(s, "template_id", None),
+        structure_score=getattr(s, "structure_score", None),
+        template_sections_detected=getattr(s, "template_sections_detected", None) or [],
+        template_sections_missing=getattr(s, "template_sections_missing", None) or [],
         mode=s.mode,
         topic_or_question=s.topic_or_question,
         duration_seconds=s.duration_seconds or 0.0,
         transcript=s.transcript,
+        word_timestamps=word_timestamps,
+        audio_offset_seconds=getattr(s, "audio_offset_seconds", 0.0) or 0.0,
         wpm=s.wpm or 0.0,
         filler_word_count=s.filler_word_count or 0,
         filler_word_breakdown=s.filler_word_breakdown or {},
@@ -62,25 +81,41 @@ def _to_result(s: PracticeSession) -> SessionResult:
         overall_score=s.overall_score or 0.0,
         ai_feedback=feedback,
         created_at=s.created_at,
+        local_date=s.local_date,
+        tz_offset_minutes=s.tz_offset_minutes,
         is_analyzed=s.is_analyzed,
         analysis_failed=s.analysis_failed,
         failure_reason=s.failure_reason,
+        audio_url=f"/sessions/{s.id}/audio" if _audio_exists(s.audio_url) else None,
+        energy_curve=getattr(s, "energy_curve", None) or [],
+        pitch_variation_score=getattr(s, "pitch_variation_score", None),
+        volume_consistency_score=getattr(s, "volume_consistency_score", None),
     )
 
 
 def _to_summary(s: PracticeSession) -> SessionSummary:
     return SessionSummary(
         id=s.id,
+        parent_session_id=s.parent_session_id,
+        template_id=getattr(s, "template_id", None),
+        structure_score=getattr(s, "structure_score", None),
         mode=s.mode,
         topic_or_question=s.topic_or_question,
         duration_seconds=s.duration_seconds or 0.0,
         overall_score=s.overall_score or 0.0,
         confidence_score=s.confidence_score or 0.0,
         created_at=s.created_at,
+        local_date=s.local_date,
+        tz_offset_minutes=s.tz_offset_minutes,
         is_analyzed=s.is_analyzed,
         analysis_failed=s.analysis_failed,
         failure_reason=s.failure_reason,
     )
+
+
+def _save_file(path: str, data: bytes) -> None:
+    with open(path, "wb") as f:
+        f.write(data)
 
 
 def _audio_exists(ref: Optional[str]) -> bool:
@@ -130,6 +165,9 @@ def _run_pipeline_bg(
         if not doc.exists:
             return
 
+        doc_data = doc.to_dict() or {}
+        template_id = doc_data.get("template_id")
+
         local_path, is_temp = _fetch_audio(audio_ref)
         analysis = analyze_audio(
             audio_path=local_path,
@@ -138,10 +176,20 @@ def _run_pipeline_bg(
             groq_api_key=get_groq_key("audio"),
             whisper_model=settings.GROQ_WHISPER_MODEL,
             llm_model=settings.GROQ_LLM_MODEL,
+            template_id=template_id,
         )
 
         doc_ref.update({
             "transcript": analysis.transcript,
+            "word_timestamps": [
+                {
+                    "word": wt.word,
+                    "start": round(wt.start, 2),
+                    "end": round(wt.end, 2),
+                }
+                for wt in analysis.word_timestamps
+            ],
+            "audio_offset_seconds": 0.0,
             "wpm": analysis.wpm,
             "filler_word_count": analysis.filler.total_count,
             "filler_word_breakdown": analysis.filler.breakdown,
@@ -150,6 +198,10 @@ def _run_pipeline_bg(
             "clarity_score": analysis.clarity_score,
             "confidence_score": analysis.confidence_score,
             "overall_score": analysis.overall_score,
+            "structure_score": analysis.structure_score,
+            "template_sections_detected": analysis.template_sections_detected,
+            "template_sections_missing": analysis.template_sections_missing,
+            "template_id": analysis.template_id,
             "duration_seconds": analysis.duration_seconds,
             "ai_feedback": [
                 {
@@ -160,15 +212,48 @@ def _run_pipeline_bg(
                 }
                 for f in analysis.ai_feedback
             ],
+            "metrics": {
+                "wpm": analysis.wpm,
+                "overall": analysis.overall_score,
+                "clarity": analysis.clarity_score,
+                "confidence": analysis.confidence_score,
+                "structure_score": analysis.structure_score,
+                "pause_count": analysis.pauses.count,
+                "duration": analysis.duration_seconds,
+                "filler_count": analysis.filler.total_count,
+            },
+            "stage": "done",
             "is_analyzed": True,
         })
         logger.info("[pipeline] Session %s analyzed OK. Score=%.1f", session_id, analysis.overall_score)
+
+        # Dual write to D1
+        try:
+            from d1.sync import upsert_session_to_d1
+            session_data = doc_ref.get().to_dict() or {}
+            session_data["id"] = session_id
+            d1_ok = upsert_session_to_d1(session_data)
+            doc_ref.update({"d1_pending": not d1_ok})
+        except Exception as d1_err:
+            logger.warning("[pipeline] D1 dual write failed for session %s: %s", session_id, d1_err)
+            try:
+                doc_ref.update({"d1_pending": True})
+            except Exception:
+                pass
+
+        # Evaluate unlock rules after each analyzed session
+        try:
+            from achievements.service import evaluate_user_achievements
+            evaluate_user_achievements(user_id, db=db)
+        except Exception as ach_err:
+            logger.warning("[pipeline] Achievement evaluation error: %s", ach_err)
 
     except Exception as exc:
         logger.error("[pipeline] ERROR for session %s: %s", session_id, exc)
         # Stop the app polling, but flag the failure so stats ignore the zero scores
         try:
             db.collection(SESSIONS_COL).document(session_id).update({
+                "stage": "failed",
                 "is_analyzed": True,
                 "analysis_failed": True,
                 "failure_reason": str(exc),
@@ -186,6 +271,211 @@ def _run_pipeline_bg(
 
 from quota import check_and_increment_daily_quota
 
+@router.post("", response_model=SessionResult)
+async def create_session(
+    background_tasks: BackgroundTasks,
+    audio_file: UploadFile = File(...),
+    session_id: Optional[str] = Form(None),
+    parent_session_id: Optional[str] = Form(None),
+    template_id: Optional[str] = Form(None),
+    mode: str = Form("interview"),
+    topic_or_question: str = Form("Tell me about yourself."),
+    duration_seconds: float = Form(0.0),
+    local_date: Optional[str] = Form(None),
+    tz_offset_minutes: Optional[int] = Form(0),
+    current_user: User = Depends(get_current_user),
+    db: fs.Client = Depends(get_db),
+):
+    """
+    POST /sessions (Phase 1 dual-write flow):
+    (1) Verify token & derive user_id from uid
+    (2) Analyze audio
+    (3) Write Firestore first (rich data plus metrics snapshot)
+    (4) Upsert into D1 (session_metrics)
+    (5) Upsert session_fillers into D1
+    (6) Return the metrics. If D1 write fails, set d1_pending=true & retry in bg.
+    """
+    # 1. Validate session_id
+    if session_id:
+        try:
+            uuid.UUID(session_id)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="session_id must be a valid UUID")
+    else:
+        session_id = str(uuid.uuid4())
+
+    doc_ref = db.collection(SESSIONS_COL).document(session_id)
+    existing_doc = doc_ref.get()
+    if existing_doc.exists:
+        data = existing_doc.to_dict()
+        if data.get("user_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        if data.get("is_analyzed") and not data.get("analysis_failed"):
+            # Idempotent response: return existing analyzed session
+            return _to_result(PracticeSession.from_dict(data))
+        if data.get("stage") == "analyzing":
+            # Idempotent response: return existing in-progress session without duplicate queueing
+            return _to_result(PracticeSession.from_dict(data))
+
+    # Validate dates
+    now_utc = datetime.now(timezone.utc)
+    tz_offset = tz_offset_minutes if tz_offset_minutes is not None else 0
+    if not (-720 <= tz_offset <= 840):
+        raise HTTPException(status_code=422, detail="tz_offset_minutes must be between -720 and 840")
+
+    if local_date:
+        local_date = local_date.strip()
+        try:
+            parsed_date = datetime.strptime(local_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=422, detail="local_date must be in YYYY-MM-DD format")
+        local_now = (now_utc + timedelta(minutes=tz_offset)).date()
+        if abs((parsed_date - local_now).days) > 2:
+            raise HTTPException(status_code=400, detail="local_date is outside the acceptable range")
+    else:
+        local_date = (now_utc + timedelta(minutes=tz_offset)).strftime("%Y-%m-%d")
+
+    check_and_increment_daily_quota(current_user.id, "sessions", settings.MAX_SESSIONS_PER_DAY)
+
+    # 2. Audio validation & save
+    raw_name = audio_file.filename or "recording.m4a"
+    ext = os.path.splitext(raw_name)[1].lower() or ".m4a"
+    if ext not in _ALLOWED_AUDIO_EXTS:
+        raise HTTPException(status_code=400, detail="Unsupported audio format")
+
+    max_bytes = settings.MAX_AUDIO_UPLOAD_MB * 1024 * 1024
+    content = await audio_file.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=413, detail="Audio file is too large")
+    if not content:
+        raise HTTPException(status_code=400, detail="Audio file is empty")
+
+    stored_ref = None
+    if settings.FIREBASE_STORAGE_BUCKET:
+        candidate_ref = f"audio/{current_user.id}/{session_id}{ext}"
+        try:
+            await run_in_threadpool(
+                lambda: get_bucket().blob(candidate_ref).upload_from_string(
+                    content, content_type=audio_file.content_type or "audio/mp4"
+                )
+            )
+            stored_ref = candidate_ref
+        except Exception as exc:
+            logger.warning("[storage] Firebase upload failed for session %s: %s; falling back to local disk", session_id, exc)
+
+    temp_path = None
+    if not stored_ref:
+        upload_dir = os.path.abspath(settings.AUDIO_UPLOAD_DIR)
+        os.makedirs(upload_dir, exist_ok=True)
+        stored_ref = os.path.join(upload_dir, f"{session_id}{ext}")
+        await run_in_threadpool(lambda: _save_file(stored_ref, content))
+        analysis_audio_path = stored_ref
+    else:
+        fd, temp_path = tempfile.mkstemp(suffix=ext)
+        os.close(fd)
+        with open(temp_path, "wb") as f:
+            f.write(content)
+        analysis_audio_path = temp_path
+
+    # Analyze
+    try:
+        user_profile = {
+            "feedback_style": current_user.feedback_style,
+            "experience_level": current_user.experience_level,
+        }
+        analysis = await run_in_threadpool(
+            lambda: analyze_audio(
+                audio_path=analysis_audio_path,
+                duration_seconds=duration_seconds,
+                user_profile=user_profile,
+                groq_api_key=get_groq_key("audio"),
+                whisper_model=settings.GROQ_WHISPER_MODEL,
+                llm_model=settings.GROQ_LLM_MODEL,
+                template_id=template_id,
+            )
+        )
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+    # 3. Write Firestore first (rich data plus metrics snapshot)
+    feedback_dicts = [
+        {
+            "category": f.category,
+            "message": f.message,
+            "severity": f.severity,
+            "example": f.example,
+        }
+        for f in analysis.ai_feedback
+    ]
+    metrics_snapshot = {
+        "wpm": analysis.wpm,
+        "overall": analysis.overall_score,
+        "clarity": analysis.clarity_score,
+        "confidence": analysis.confidence_score,
+        "structure_score": analysis.structure_score,
+        "pause_count": analysis.pauses.count,
+        "duration": analysis.duration_seconds,
+        "filler_count": analysis.filler.total_count,
+    }
+
+    doc_data = {
+        "id": session_id,
+        "user_id": current_user.id,
+        "parent_session_id": parent_session_id,
+        "template_id": template_id,
+        "structure_score": analysis.structure_score,
+        "template_sections_detected": analysis.template_sections_detected,
+        "template_sections_missing": analysis.template_sections_missing,
+        "mode": mode,
+        "topic_or_question": topic_or_question,
+        "audio_url": stored_ref,
+        "duration_seconds": analysis.duration_seconds,
+        "transcript": analysis.transcript,
+        "energy_curve": analysis.energy_curve,
+        "pitch_variation_score": analysis.pitch_variation_score,
+        "volume_consistency_score": analysis.volume_consistency_score,
+        "wpm": analysis.wpm,
+        "filler_word_count": analysis.filler.total_count,
+        "filler_word_breakdown": analysis.filler.breakdown,
+        "pause_count": analysis.pauses.count,
+        "avg_pause_length": analysis.pauses.avg_length,
+        "clarity_score": analysis.clarity_score,
+        "confidence_score": analysis.confidence_score,
+        "overall_score": analysis.overall_score,
+        "ai_feedback": feedback_dicts,
+        "metrics": metrics_snapshot,
+        "stage": "done",
+        "is_analyzed": True,
+        "analysis_failed": False,
+        "failure_reason": None,
+        "local_date": local_date,
+        "tz_offset_minutes": tz_offset,
+        "created_at": now_utc,
+        "d1_pending": False,
+    }
+
+    doc_ref.set(doc_data)
+
+    # 4 & 5. Upsert into D1 (session_metrics and session_fillers)
+    d1_ok = upsert_session_to_d1(doc_data)
+    if not d1_ok:
+        doc_ref.update({"d1_pending": True})
+        doc_data["d1_pending"] = True
+        background_tasks.add_task(retry_d1_sync, session_id)
+
+    # Evaluate unlock rules after analyzed session
+    try:
+        from achievements.service import evaluate_user_achievements
+        evaluate_user_achievements(current_user.id, db=db)
+    except Exception as ach_err:
+        logger.warning("[sessions] Achievement evaluation error: %s", ach_err)
+
+    # 6. Return the metrics / SessionResult
+    session = PracticeSession.from_dict(doc_data)
+    return _to_result(session)
+
+
 @router.post("/start", response_model=StartSessionResponse)
 def start_session(
     req: StartSessionRequest,
@@ -193,15 +483,42 @@ def start_session(
     db: fs.Client = Depends(get_db),
 ):
     """Creates a session document in Firestore and returns its ID."""
+    now_utc = datetime.now(timezone.utc)
+    tz_offset = req.tz_offset_minutes if req.tz_offset_minutes is not None else 0
+    if req.local_date:
+        parsed_date = datetime.strptime(req.local_date, "%Y-%m-%d").date()
+        local_now = (now_utc + timedelta(minutes=tz_offset)).date()
+        if abs((parsed_date - local_now).days) > 2:
+            raise HTTPException(status_code=400, detail="local_date is outside the acceptable range for current timestamp.")
+        local_date = req.local_date
+    else:
+        local_date = (now_utc + timedelta(minutes=tz_offset)).strftime("%Y-%m-%d")
+
+    session_id = req.session_id or str(uuid.uuid4())
+
+    if db is not None:
+        try:
+            existing = db.collection(SESSIONS_COL).document(session_id).get()
+            if existing.exists is True:
+                return StartSessionResponse(session_id=session_id)
+        except Exception as exc:
+            logger.warning("[sessions] Error checking existing session %s: %s", session_id, exc)
+
     check_and_increment_daily_quota(current_user.id, "sessions", settings.MAX_SESSIONS_PER_DAY)
 
     session = PracticeSession(
-        id=str(uuid.uuid4()),
+        id=session_id,
         user_id=current_user.id,
+        parent_session_id=req.parent_session_id,
+        template_id=req.template_id,
         mode=req.mode,
         topic_or_question=req.topic_or_question,
+        local_date=local_date,
+        tz_offset_minutes=tz_offset,
+        created_at=now_utc,
     )
-    db.collection(SESSIONS_COL).document(session.id).set(session.to_dict())
+    if db is not None:
+        db.collection(SESSIONS_COL).document(session.id).set(session.to_dict())
     return StartSessionResponse(session_id=session.id)
 
 
@@ -228,7 +545,7 @@ async def finish_session(
     if session_data.get("user_id") != current_user.id:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Validate, then upload the recording to Firebase Storage
+    # Validate, then save the recording (Firebase Storage if configured, else local disk)
     raw_name = audio_file.filename or "recording.m4a"
     ext = os.path.splitext(raw_name)[1].lower() or ".m4a"
     if ext not in _ALLOWED_AUDIO_EXTS:
@@ -241,16 +558,36 @@ async def finish_session(
     if not content:
         raise HTTPException(status_code=400, detail="Audio file is empty")
 
-    audio_ref = f"audio/{current_user.id}/{session_id}{ext}"
-    try:
-        await run_in_threadpool(
-            lambda: get_bucket().blob(audio_ref).upload_from_string(
-                content, content_type=audio_file.content_type or "audio/mp4"
+    # ── Storage: Firebase Storage if bucket is configured, else local disk fallback ──
+    stored_ref = None
+    if settings.FIREBASE_STORAGE_BUCKET:
+        candidate_ref = f"audio/{current_user.id}/{session_id}{ext}"
+        try:
+            await run_in_threadpool(
+                lambda: get_bucket().blob(candidate_ref).upload_from_string(
+                    content, content_type=audio_file.content_type or "audio/mp4"
+                )
             )
-        )
-    except Exception as exc:
-        logger.error("[storage] upload failed for session %s: %s", session_id, exc)
-        raise HTTPException(status_code=503, detail="Could not store the recording. Please try again.")
+            stored_ref = candidate_ref
+            logger.info("[storage] Saved recording to Firebase Storage: %s", stored_ref)
+        except Exception as exc:
+            logger.warning("[storage] Firebase upload failed for session %s: %s; falling back to local disk", session_id, exc)
+
+    if not stored_ref:
+        # Local disk fallback — ensures recordings are preserved safely
+        upload_dir = os.path.abspath(settings.AUDIO_UPLOAD_DIR)
+        os.makedirs(upload_dir, exist_ok=True)
+        stored_ref = os.path.join(upload_dir, f"{session_id}{ext}")
+        try:
+            await run_in_threadpool(
+                lambda: _save_file(stored_ref, content)
+            )
+            logger.info("[storage] Saved recording locally: %s", stored_ref)
+        except Exception as exc:
+            logger.error("[storage] Local disk save failed for session %s: %s", session_id, exc)
+            raise HTTPException(status_code=503, detail="Could not store the recording. Please try again.")
+
+    audio_ref = stored_ref
 
     doc_ref.update({
         "audio_url": audio_ref,
@@ -269,6 +606,7 @@ async def finish_session(
     updated_doc = doc_ref.get()
     session = PracticeSession.from_dict(updated_doc.to_dict())
     return _to_result(session)
+
 
 
 @router.post("/{session_id}/retry", response_model=SessionResult)
@@ -368,6 +706,41 @@ def get_session(
     return _to_result(session)
 
 
+@router.get("/{session_id}/audio")
+def get_session_audio(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: fs.Client = Depends(get_db),
+):
+    """Streams the session's recorded audio for in-app playback."""
+    doc = db.collection(SESSIONS_COL).document(session_id).get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Session not found")
+    data = doc.to_dict()
+    if data.get("user_id") != current_user.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    audio_ref = data.get("audio_url")
+    if not audio_ref:
+        raise HTTPException(status_code=404, detail="No audio recorded for this session")
+
+    # Local disk playback
+    if os.path.exists(audio_ref):
+        return FileResponse(audio_ref, media_type="audio/mp4", filename=f"session_{session_id}.m4a")
+
+    # Firebase Storage playback
+    if settings.FIREBASE_STORAGE_BUCKET:
+        try:
+            blob = get_bucket().blob(audio_ref)
+            if blob.exists():
+                url = blob.generate_signed_url(expiration=timedelta(hours=2))
+                return RedirectResponse(url=url)
+        except Exception as exc:
+            logger.error("[storage] Failed to generate signed URL for %s: %s", audio_ref, exc)
+
+    raise HTTPException(status_code=404, detail="Audio file not found")
+
+
 @router.get("", response_model=List[SessionSummary])
 def list_sessions(
     mode: Optional[str] = Query(None),
@@ -405,3 +778,60 @@ def list_sessions(
     sessions = sessions[start: start + limit]
 
     return [_to_summary(s) for s in sessions]
+
+
+@router.delete("/{session_id}")
+def delete_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: fs.Client = Depends(get_db),
+):
+    """
+    DELETE /sessions/{session_id}:
+    (1) Soft delete in D1 first (so tombstones sync via /metrics/changes).
+    (2) Remove the Firestore doc.
+    (3) Remove Storage audio.
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # 1. Soft delete in D1 first
+    d1 = get_d1_client()
+    if d1.is_configured:
+        try:
+            d1.query(
+                """
+                UPDATE session_metrics
+                SET deleted_at = ?, updated_at = ?
+                WHERE id = ? AND user_id = ?;
+                """,
+                [now_iso, now_iso, session_id, current_user.id],
+            )
+            logger.info("[sessions] Soft deleted session %s in D1.", session_id)
+        except Exception as exc:
+            logger.warning("[sessions] D1 soft-delete error for session %s: %s", session_id, exc)
+
+    # 2. Check & delete Firestore doc
+    if db is not None:
+        doc_ref = db.collection(SESSIONS_COL).document(session_id)
+        doc_snap = doc_ref.get()
+        if doc_snap.exists:
+            data = doc_snap.to_dict() or {}
+            if data.get("user_id") and data.get("user_id") != current_user.id:
+                raise HTTPException(status_code=403, detail="Forbidden: session belongs to another user.")
+            doc_ref.delete()
+            logger.info("[sessions] Deleted Firestore session doc %s.", session_id)
+
+    # 3. Remove Storage audio
+    try:
+        bucket = get_bucket()
+        if bucket is not None:
+            for ext in (".m4a", ".mp3", ".wav"):
+                blob = bucket.blob(f"audio/{current_user.id}/{session_id}{ext}")
+                if blob.exists():
+                    blob.delete()
+                    logger.info("[sessions] Deleted Storage audio blob %s.", blob.name)
+                    break
+    except Exception as exc:
+        logger.warning("[sessions] Storage delete notice for session %s: %s", session_id, exc)
+
+    return {"deleted": True, "id": session_id}

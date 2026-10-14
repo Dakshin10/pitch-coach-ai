@@ -169,14 +169,25 @@ class DeckStore:
         try:
             db = get_db()
             if db is not None:
-                docs = (
-                    db.collection(SLIDE_DECKS_COL)
-                    .where("user_id", "==", user_id)
-                    .where("content_hash", "==", content_hash)
-                    .where("status", "==", "done")
-                    .limit(1)
-                    .stream()
-                )
+                try:
+                    from google.cloud.firestore_v1.base_query import FieldFilter
+                    docs = (
+                        db.collection(SLIDE_DECKS_COL)
+                        .where(filter=FieldFilter("user_id", "==", user_id))
+                        .where(filter=FieldFilter("content_hash", "==", content_hash))
+                        .where(filter=FieldFilter("status", "==", "done"))
+                        .limit(1)
+                        .stream()
+                    )
+                except Exception:
+                    docs = (
+                        db.collection(SLIDE_DECKS_COL)
+                        .where("user_id", "==", user_id)
+                        .where("content_hash", "==", content_hash)
+                        .where("status", "==", "done")
+                        .limit(1)
+                        .stream()
+                    )
                 for doc in docs:
                     deck = SlideDeck.from_dict(doc.to_dict())
                     self._update_cache(deck)
@@ -192,11 +203,19 @@ class DeckStore:
         try:
             db = get_db()
             if db is not None:
-                docs = (
-                    db.collection(SLIDE_DECKS_COL)
-                    .where("user_id", "==", user_id)
-                    .stream()
-                )
+                try:
+                    from google.cloud.firestore_v1.base_query import FieldFilter
+                    docs = (
+                        db.collection(SLIDE_DECKS_COL)
+                        .where(filter=FieldFilter("user_id", "==", user_id))
+                        .stream()
+                    )
+                except Exception:
+                    docs = (
+                        db.collection(SLIDE_DECKS_COL)
+                        .where("user_id", "==", user_id)
+                        .stream()
+                    )
                 for doc in docs:
                     decks.append(SlideDeck.from_dict(doc.to_dict()))
         except Exception as e:
@@ -205,6 +224,19 @@ class DeckStore:
         # Fallback to local memory if firestore failed or returned empty
         if not decks:
             decks = [d for d in self._memory_cache.values() if d.user_id == user_id]
+
+        # Also inspect local disk if memory has nothing
+        if not decks and os.path.exists(self.base_dir):
+            try:
+                for entry in os.listdir(self.base_dir):
+                    meta_path = os.path.join(self.base_dir, entry, "metadata.json")
+                    if os.path.exists(meta_path):
+                        with open(meta_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            if data.get("user_id") == user_id:
+                                decks.append(SlideDeck.from_dict(data))
+            except Exception as e:
+                logger.warning("Local disk deck listing fallback error: %s", e)
 
         decks.sort(key=lambda d: d.created_at, reverse=True)
         return decks

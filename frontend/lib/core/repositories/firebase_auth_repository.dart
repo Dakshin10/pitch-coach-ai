@@ -48,7 +48,10 @@ class FirebaseAuthRepository {
     required String password,
   }) async {
     try {
-      final user = await _service.signInWithEmail(email: email, password: password);
+      final user = await _service.signInWithEmail(
+        email: email,
+        password: password,
+      );
       return _userToMap(user)!;
     } on FirebaseAuthException catch (e) {
       throw Exception(FirebaseAuthService.friendlyMessage(e));

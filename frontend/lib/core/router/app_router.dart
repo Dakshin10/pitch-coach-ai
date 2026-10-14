@@ -13,6 +13,10 @@ import '../../features/learn/lessons_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/profile_setup_screen.dart';
+import '../../features/profile/screens/notification_preferences_screen.dart';
+import '../../features/profile/screens/pro_upgrade_screen.dart';
+import '../../features/profile/screens/help_center_screen.dart';
+import '../../features/profile/screens/send_feedback_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/results/results_screen.dart';
 import '../../features/slide_coach/screens/slide_upload_screen.dart';
@@ -20,6 +24,7 @@ import '../../features/slide_coach/screens/slide_processing_screen.dart';
 import '../../features/slide_coach/screens/deck_review_screen.dart';
 import '../../features/slide_coach/screens/slide_rehearsal_screen.dart';
 import '../../features/slide_coach/screens/slide_qa_screen.dart';
+import '../widgets/main_shell_scaffold.dart';
 
 abstract class AppRouter {
   static const String onboarding = '/';
@@ -31,6 +36,10 @@ abstract class AppRouter {
   static const String results = '/results';
   static const String progress = '/progress';
   static const String profile = '/profile';
+  static const String profileNotifications = '/profile/notifications';
+  static const String profilePro = '/profile/pro';
+  static const String profileHelp = '/profile/help';
+  static const String profileFeedback = '/profile/feedback';
   static const String demo = '/demo';
   static const String lessons = '/lessons';
   static const String lessonDetail = '/lessons/detail';
@@ -43,12 +52,7 @@ abstract class AppRouter {
   static const String slideCoachQa = '/slide-coach/qa';
 
   /// Bottom-tab destinations — no transition so phone nav stays responsive.
-  static const Set<String> _tabPaths = {
-    home,
-    history,
-    progress,
-    profile,
-  };
+  static const Set<String> _tabPaths = {home, history, progress, profile};
 
   static Page<T> _buildPage<T>({
     required BuildContext context,
@@ -57,10 +61,7 @@ abstract class AppRouter {
   }) {
     if (_tabPaths.contains(state.matchedLocation) ||
         _tabPaths.contains(state.uri.path)) {
-      return NoTransitionPage<T>(
-        key: state.pageKey,
-        child: child,
-      );
+      return NoTransitionPage<T>(key: state.pageKey, child: child);
     }
 
     // Lightweight fade only — avoid undisposed CurvedAnimations and
@@ -107,21 +108,48 @@ abstract class AppRouter {
           child: const ProfileSetupScreen(),
         ),
       ),
-      GoRoute(
-        path: home,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const HomeScreen(),
-        ),
-      ),
-      GoRoute(
-        path: history,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const HistoryScreen(),
-        ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return MainShellScaffold(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: home,
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: HomeScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: history,
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: HistoryScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: progress,
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ProgressScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: profile,
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ProfileScreen()),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: interview,
@@ -145,29 +173,21 @@ abstract class AppRouter {
       GoRoute(
         path: results,
         pageBuilder: (context, state) {
-          final sessionId = state.extra as String?;
+          String? sessionId;
+          if (state.extra is String) {
+            sessionId = state.extra as String;
+          } else if (state.extra is Map<String, dynamic>) {
+            final map = state.extra as Map<String, dynamic>;
+            sessionId =
+                (map['session_id'] as String?) ?? (map['id'] as String?);
+          }
+          sessionId ??= state.uri.queryParameters['session_id'];
           return _buildPage(
             context: context,
             state: state,
             child: ResultsScreen(sessionId: sessionId),
           );
         },
-      ),
-      GoRoute(
-        path: progress,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const ProgressScreen(),
-        ),
-      ),
-      GoRoute(
-        path: profile,
-        pageBuilder: (context, state) => _buildPage(
-          context: context,
-          state: state,
-          child: const ProfileScreen(),
-        ),
       ),
       if (kDebugMode)
         GoRoute(
@@ -184,6 +204,38 @@ abstract class AppRouter {
           context: context,
           state: state,
           child: const LessonsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: profileNotifications,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const NotificationPreferencesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: profilePro,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const ProUpgradeScreen(),
+        ),
+      ),
+      GoRoute(
+        path: profileHelp,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const HelpCenterScreen(),
+        ),
+      ),
+      GoRoute(
+        path: profileFeedback,
+        pageBuilder: (context, state) => _buildPage(
+          context: context,
+          state: state,
+          child: const SendFeedbackScreen(),
         ),
       ),
       GoRoute(

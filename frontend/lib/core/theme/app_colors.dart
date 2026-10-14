@@ -23,6 +23,8 @@ abstract class AppColors {
   static const Color gradientPurpleStart = Color(0xFF8B7CFF);
   static const Color gradientPurpleEnd = Color(0xFFC084FC);
   static const Color auroraCyan = Color(0xFF22D3EE);
+  static const Color secondaryCyan = auroraCyan;
+  static const Color cardLight = surfaceLightElevated;
   static const Color auroraPink = Color(0xFFF472B6);
   static const Color auroraIndigo = Color(0xFF6366F1);
 
@@ -37,6 +39,8 @@ abstract class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static const LinearGradient accentGradient = auroraGradient;
 
   static const LinearGradient heroDarkGradient = LinearGradient(
     colors: [Color(0xFF07070F), Color(0xFF12101F), Color(0xFF0A1020)],
@@ -75,6 +79,7 @@ abstract class AppColors {
   static const Color successGreen = Color(0xFF34D399);
   static const Color warningAmber = Color(0xFFFBBF24);
   static const Color dangerRed = Color(0xFFF87171);
+  static const Color errorRed = dangerRed;
 
   // UI chrome
   static const Color divider = Color(0xFFE7E5F0);
@@ -107,6 +112,20 @@ abstract class AppColors {
 
   static LinearGradient heroOf(BuildContext context) =>
       isDark(context) ? heroDarkGradient : heroLightGradient;
+
+  static Color dividerOf(BuildContext context) =>
+      isDark(context) ? dividerDark : divider;
+
+  static Color iconButtonBgOf(BuildContext context) => isDark(context)
+      ? Colors.white.withValues(alpha: 0.08)
+      : const Color(0xFFEBEBF5);
+
+  static Color chipBgOf(BuildContext context) =>
+      isDark(context) ? cardDark : surfaceLightElevated;
+
+  static Color surfaceSubtleOf(BuildContext context) => isDark(context)
+      ? Colors.white.withValues(alpha: 0.05)
+      : Colors.black.withValues(alpha: 0.04);
 
   static List<BoxShadow> softShadowOf(BuildContext context) {
     if (isDark(context)) {

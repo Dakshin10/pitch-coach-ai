@@ -14,8 +14,12 @@ class StatsRepository {
   }
 
   Future<List<TrendPoint>> getTrend({String range = 'week'}) async {
-    final raw = await _api.get('/stats/trend', params: {'range': range}) as List<dynamic>;
-    return raw.map((e) => TrendPoint.fromJson(e as Map<String, dynamic>)).toList();
+    final raw =
+        await _api.get('/stats/trend', params: {'range': range})
+            as List<dynamic>;
+    return raw
+        .map((e) => TrendPoint.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<SkillBreakdown> getSkills() async {
@@ -25,6 +29,8 @@ class StatsRepository {
 
   Future<List<Achievement>> getAchievements() async {
     final raw = await _api.get('/achievements') as List<dynamic>;
-    return raw.map((e) => Achievement.fromJson(e as Map<String, dynamic>)).toList();
+    return raw
+        .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

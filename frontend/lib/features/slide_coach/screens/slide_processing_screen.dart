@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/slide_coach_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/theme_toggle_button.dart';
 
 class SlideProcessingScreen extends StatefulWidget {
   const SlideProcessingScreen({super.key});
@@ -64,7 +65,17 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
         title: const Text('AI Analysis in Progress'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          tooltip: 'Minimize & Run in Background',
+          onPressed: () => context.go('/home'),
+        ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: ThemeToggleButton(size: 38, compact: true),
+          ),
+        ],
       ),
       body: Center(
         child: Padding(
@@ -73,13 +84,22 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (error != null) ...[
-                const Icon(Icons.error_outline, size: 64, color: AppColors.dangerRed),
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: AppColors.dangerRed,
+                ),
                 const SizedBox(height: 18),
-                Text('Analysis Error', style: AppTextStyles.headingM),
+                Text(
+                  'Analysis Error',
+                  style: AppTextStyles.headingMOf(context),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   error,
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondaryOf(context)),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -91,8 +111,13 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
                       context.pop();
                     }
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple),
-                  child: const Text('Retry Analysis', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryPurple,
+                  ),
+                  child: const Text(
+                    'Retry Analysis',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => context.pop(),
@@ -115,7 +140,9 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
                     ),
                     Text(
                       '${(progress * 100).toInt()}%',
-                      style: AppTextStyles.headingL.copyWith(color: AppColors.primaryPurple),
+                      style: AppTextStyles.headingL.copyWith(
+                        color: AppColors.primaryPurple,
+                      ),
                     ),
                   ],
                 ),
@@ -124,7 +151,7 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
 
                 Text(
                   _getStageTitle(stage),
-                  style: AppTextStyles.headingM,
+                  style: AppTextStyles.headingMOf(context),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
@@ -162,6 +189,26 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
                   isDone: progress >= 1.0,
                   isActive: stage == 'writing_coaching',
                 ),
+
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: () => context.go('/home'),
+                  icon: const Icon(Icons.downloading_rounded, size: 18),
+                  label: const Text('Minimize & Run in Background'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primaryPurple,
+                    side: BorderSide(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.5),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
               ],
             ],
           ),
@@ -196,7 +243,9 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
         color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? AppColors.primaryPurple.withValues(alpha: 0.5) : AppColors.borderOf(context),
+          color: isActive
+              ? AppColors.primaryPurple.withValues(alpha: 0.5)
+              : AppColors.borderOf(context),
         ),
       ),
       child: Row(
@@ -206,7 +255,9 @@ class _SlideProcessingScreenState extends State<SlideProcessingScreen> {
           Text(
             title,
             style: AppTextStyles.bodyBold.copyWith(
-              color: isDone || isActive ? AppColors.textPrimaryOf(context) : AppColors.textSecondaryOf(context),
+              color: isDone || isActive
+                  ? AppColors.textPrimaryOf(context)
+                  : AppColors.textSecondaryOf(context),
             ),
           ),
         ],

@@ -6,6 +6,7 @@ import '../../core/widgets/bottom_nav_bar.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
 import '../../core/widgets/gradient_button.dart';
 import '../../core/widgets/stat_card.dart';
+import '../../core/widgets/theme_toggle_button.dart';
 
 class DesignSystemDemoPage extends StatefulWidget {
   const DesignSystemDemoPage({super.key});
@@ -31,6 +32,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             tooltip: 'Go to Onboarding',
             onPressed: () => context.push('/onboarding'),
           ),
+          const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: ThemeToggleButton(size: 38, compact: true),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -39,13 +44,19 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Text('Typography & Theme', style: AppTextStyles.headingXL),
+            Text(
+              'Typography & Theme',
+              style: AppTextStyles.headingXLOf(context),
+            ),
             const SizedBox(height: 8),
-            Text('Dark Indigo/Violet palette preview and design tokens.', style: AppTextStyles.bodyM),
+            Text(
+              'Dark Indigo/Violet palette preview and design tokens.',
+              style: AppTextStyles.bodyM,
+            ),
             const SizedBox(height: 20),
 
             // Color Palette Swatches
-            Text('Color Palette', style: AppTextStyles.headingL),
+            Text('Color Palette', style: AppTextStyles.headingLOf(context)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 12,
@@ -64,7 +75,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             const SizedBox(height: 32),
 
             // 1. GradientButton Component
-            Text('1. GradientButton Variants', style: AppTextStyles.headingL),
+            Text(
+              '1. GradientButton Variants',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 12),
             GradientButton(
               text: 'Primary CTA Button',
@@ -88,7 +102,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             const SizedBox(height: 32),
 
             // 2. StatCard Component
-            Text('2. StatCard Component', style: AppTextStyles.headingL),
+            Text(
+              '2. StatCard Component',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 12),
             const Row(
               children: [
@@ -140,7 +157,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             const SizedBox(height: 32),
 
             // 3. CircularGaugePainter Component
-            Text('3. CircularGaugePainter Component', style: AppTextStyles.headingL),
+            Text(
+              '3. CircularGaugePainter Component',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 16),
             Center(
               child: Column(
@@ -170,7 +190,10 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
             const SizedBox(height: 32),
 
             // 4. Route Navigation Shortcuts
-            Text('4. Screen Navigation Routes', style: AppTextStyles.headingL),
+            Text(
+              '4. Screen Navigation Routes',
+              style: AppTextStyles.headingLOf(context),
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -219,9 +242,9 @@ class _DesignSystemDemoPageState extends State<DesignSystemDemoPage> {
       width: 100,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardOf(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: AppColors.borderOf(context)),
       ),
       child: Column(
         children: [

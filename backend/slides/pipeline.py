@@ -5,13 +5,16 @@ import json
 import logging
 import math
 import os
+import random
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+import concurrent.futures
 
 import pymupdf  # PyMuPDF
 from groq import Groq
 from pydantic import ValidationError
+from utils.sanitizer import sanitize_obj
 
 from config import get_settings
 from slides.schemas import (
@@ -29,7 +32,7 @@ GROQ_MAX_VISION_BATCH = 5
 # Concurrent batch semaphore to respect rate limits
 VISION_SEMAPHORE_LIMIT = 2
 # Max retries for API calls
-MAX_API_RETRIES = 3
+MAX_API_RETRIES = 10
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -59,9 +62,9 @@ def validate_and_render_pdf(
     if page_count < 1:
         doc.close()
         raise ValueError("The PDF document is empty (0 pages).")
-    if page_count > 60:
+    if page_count > 20:
         doc.close()
-        raise ValueError(f"Deck exceeds maximum page limit (found {page_count} pages, limit is 60).")
+        raise ValueError(f"Deck exceeds maximum page limit (found {page_count} pages, limit is 20).")
 
     os.makedirs(output_dir, exist_ok=True)
     image_paths: List[str] = []
@@ -85,6 +88,62 @@ def validate_and_render_pdf(
     return page_count, image_paths
 
 
+def convert_pptx_to_pdf(pptx_bytes: bytes) -> bytes:
+    """
+    Converts a PPTX presentation to PDF bytes preserving text layout, hierarchy, and images.
+    Uses python-pptx to parse slides and PyMuPDF to render into a structured PDF document.
+    """
+    import io
+    import pptx
+
+    prs = pptx.Presentation(io.BytesIO(pptx_bytes))
+    doc = pymupdf.open()
+
+    width_pt = prs.slide_width / 12700 if prs.slide_width else 720
+    height_pt = prs.slide_height / 12700 if prs.slide_height else 405
+
+    for slide in prs.slides:
+        page = doc.new_page(width=width_pt, height=height_pt)
+        # Background: soft subtle background for presentation
+        page.draw_rect(page.rect, color=(0.97, 0.97, 0.98), fill=(0.97, 0.97, 0.98))
+
+        for shape in slide.shapes:
+            # Handle picture shapes
+            try:
+                if shape.shape_type == pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE and hasattr(shape, "image"):
+                    image_bytes = shape.image.blob
+                    x0 = shape.left / 12700
+                    y0 = shape.top / 12700
+                    x1 = x0 + (shape.width / 12700)
+                    y1 = y0 + (shape.height / 12700)
+                    img_rect = pymupdf.Rect(x0, y0, x1, y1)
+                    page.insert_image(img_rect, stream=image_bytes)
+            except Exception as e:
+                logger.debug("Could not render PPTX image shape: %s", e)
+
+            # Handle text shapes & placeholders
+            try:
+                if shape.has_text_frame:
+                    x0 = shape.left / 12700
+                    y0 = shape.top / 12700
+                    x1 = x0 + (shape.width / 12700)
+                    y1 = y0 + (shape.height / 12700)
+                    rect = pymupdf.Rect(x0, y0, x1, y1)
+
+                    full_text = "\n".join(p.text for p in shape.text_frame.paragraphs if p.text.strip())
+                    if full_text:
+                        is_title = (shape == slide.shapes.title or "title" in getattr(shape, "name", "").lower())
+                        fontsize = 20 if is_title else 13
+                        color = (0.08, 0.1, 0.18) if is_title else (0.18, 0.2, 0.25)
+                        page.insert_textbox(rect, full_text, fontsize=fontsize, color=color)
+            except Exception as e:
+                logger.debug("Could not render PPTX text shape: %s", e)
+
+    pdf_bytes = doc.tobytes()
+    doc.close()
+    return pdf_bytes
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage B: Vision Extraction (Batches of <= 5 images)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -101,7 +160,7 @@ def _call_groq_with_backoff(
     response_format: Optional[Dict[str, str]] = None,
     max_retries: int = MAX_API_RETRIES,
 ) -> str:
-    """Invokes Groq API with exponential backoff on 429 / 5xx."""
+    """Invokes Groq API with header/message-aware dynamic backoff on 429 / 5xx."""
     last_err = None
     for attempt in range(max_retries):
         try:
@@ -117,9 +176,25 @@ def _call_groq_with_backoff(
         except Exception as e:
             last_err = e
             err_msg = str(e).lower()
-            if "429" in err_msg or "rate limit" in err_msg or "500" in err_msg or "503" in err_msg:
-                backoff = (2 ** attempt) + 1.0
-                logger.warning("Groq call attempt %d failed (%s). Retrying in %.1fs...", attempt + 1, e, backoff)
+            if "429" in err_msg or "rate limit" in err_msg or "500" in err_msg or "503" in err_msg or "overloaded" in err_msg:
+                # Dynamic extraction of requested retry duration from Groq response
+                # Groq returns messages like: "Please try again in 18.137142857s." or "Please try again in 531.428571ms."
+                match_s = re.search(r"try again in (\d+(?:\.\d+)?)\s*s", str(e), re.IGNORECASE)
+                match_ms = re.search(r"try again in (\d+(?:\.\d+)?)\s*ms", str(e), re.IGNORECASE)
+                if match_s:
+                    backoff = float(match_s.group(1)) + 1.5
+                elif match_ms:
+                    backoff = (float(match_ms.group(1)) / 1000.0) + 1.0
+                else:
+                    backoff = min(60.0, max(4.0, (2.0 ** attempt) * 1.5 + random.uniform(0.5, 2.0)))
+
+                logger.warning(
+                    "Groq rate limit / transient error on attempt %d/%d (%s). Waiting %.2fs before retrying...",
+                    attempt + 1,
+                    max_retries,
+                    e,
+                    backoff,
+                )
                 time.sleep(backoff)
             else:
                 # Fatal request error (e.g. 400 Bad Request)
@@ -127,43 +202,46 @@ def _call_groq_with_backoff(
     raise RuntimeError(f"Groq API failed after {max_retries} attempts: {last_err}")
 
 
-def _extract_batch_vision(
+def _extract_single_slide_vision(
     client: Groq,
     model: str,
-    batch_slides: List[Tuple[int, str]],  # (slide_number, image_path)
-) -> List[SlideVisionDescription]:
-    """Analyzes a batch of <= 5 slides using VISION_MODEL in JSON mode."""
-    slide_numbers = [s[0] for s in batch_slides]
+    slide_num: int,
+    img_path: str,
+) -> SlideVisionDescription:
+    """
+    Analyzes a single slide image using Groq vision model with strict JSON formatting.
+    Sending 1 image per request respects Groq's 3-image ceiling and delivers deep per-slide analysis.
+    """
     system_prompt = (
-        "You are an expert presentation visual analyst. You only describe what is visible on each slide.\n"
+        "You are an expert presentation visual analyst. Describe what is visible on this slide accurately. "
+        "Perform a thorough slide design critique assessing text density, headline strength, call to action, and visual hierarchy. "
+        "Do not use emojis in your response.\n"
         "Return ONLY a JSON object with this exact schema:\n"
         "{\n"
-        '  "slides": [\n'
-        "    {\n"
-        '      "slide_number": int,\n'
-        '      "title": "Slide header or headline",\n'
-        '      "main_message": "Core concept communicated by this slide",\n'
-        '      "visible_text": "Key text, bullets, labels, or numbers present",\n'
-        '      "visuals": "Describe charts, diagrams, product mockups, trend direction, and metrics",\n'
-        '      "text_density": "low" | "medium" | "high",\n'
-        '      "readability_issues": ["list any font size, contrast, or clutter issues"]\n'
-        "    }\n"
-        "  ]\n"
+        '  "slide_number": int,\n'
+        '  "title": "Slide header or headline",\n'
+        '  "main_message": "Core concept communicated by this slide",\n'
+        '  "visible_text": "Key text, bullets, labels, or numbers present",\n'
+        '  "visuals": "Describe charts, diagrams, product mockups, trend direction, and metrics",\n'
+        '  "text_density": "low" | "medium" | "high",\n'
+        '  "readability_issues": ["list any font size, contrast, or clutter issues"],\n'
+        '  "too_much_text": true | false (true if more than 6 bullet points or overly dense text),\n'
+        '  "weak_title": true | false (true if title is missing, generic like Overview, or lacks impact),\n'
+        '  "missing_cta": true | false (true if slide is closing or proposes an initiative without clear next step),\n'
+        '  "visual_hierarchy_rating": "poor" | "fair" | "good" | "excellent",\n'
+        '  "design_critique": ["concise actionable design critique observations"]\n'
         "}\n"
-        f"You are analyzing slides {slide_numbers}. Provide an entry for each slide."
+        f"You are analyzing Slide {slide_num}."
     )
 
+    b64 = _encode_image_b64(img_path)
     user_content: List[Dict[str, Any]] = [
-        {"type": "text", "text": f"Analyze these {len(batch_slides)} slides in order and describe them strictly in JSON."}
-    ]
-
-    for slide_num, img_path in batch_slides:
-        b64 = _encode_image_b64(img_path)
-        user_content.append({"type": "text", "text": f"--- Slide {slide_num} ---"})
-        user_content.append({
+        {"type": "text", "text": f"Analyze Slide {slide_num} and describe it strictly in JSON according to the schema."},
+        {
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
-        })
+        }
+    ]
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -171,78 +249,117 @@ def _extract_batch_vision(
     ]
 
     # Attempt 1
-    raw = _call_groq_with_backoff(
-        client=client,
-        model=model,
-        messages=messages,
-        response_format={"type": "json_object"},
-    )
-
     try:
-        data = json.loads(raw)
-        parsed = BatchVisionResponse.model_validate(data)
-        if parsed.slides:
-            return parsed.slides
+        raw = _call_groq_with_backoff(
+            client=client,
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        data = sanitize_obj(json.loads(raw))
+        if "slides" in data and isinstance(data["slides"], list) and len(data["slides"]) > 0:
+            matched = next((s for s in data["slides"] if isinstance(s, dict) and s.get("slide_number") == slide_num), None)
+            if matched:
+                data = matched
+            elif 0 <= slide_num - 1 < len(data["slides"]):
+                data = data["slides"][slide_num - 1]
+            else:
+                data = data["slides"][0]
+        data["slide_number"] = slide_num
+        return SlideVisionDescription.model_validate(data)
     except Exception as exc:
-        logger.warning("Stage B batch %s initial parse failed (%s). Attempting repair prompt...", slide_numbers, exc)
+        logger.warning("Stage B slide %d initial parse failed (%s). Attempting repair prompt...", slide_num, exc)
 
     # Attempt 2: Repair prompt
-    repair_messages = messages + [
-        {"role": "assistant", "content": raw},
-        {"role": "user", "content": "Your previous response was not valid JSON conforming to the requested schema. Return valid JSON only with the key 'slides'."}
-    ]
-    raw_repair = _call_groq_with_backoff(
-        client=client,
-        model=model,
-        messages=repair_messages,
-        response_format={"type": "json_object"},
-    )
-    data_repair = json.loads(raw_repair)
-    parsed_repair = BatchVisionResponse.model_validate(data_repair)
-    return parsed_repair.slides
+    try:
+        repair_messages = messages + [
+            {"role": "user", "content": f"Return valid JSON only conforming to the schema for Slide {slide_num}."}
+        ]
+        raw_repair = _call_groq_with_backoff(
+            client=client,
+            model=model,
+            messages=repair_messages,
+            response_format={"type": "json_object"},
+        )
+        data_repair = json.loads(raw_repair)
+        if "slides" in data_repair and isinstance(data_repair["slides"], list) and len(data_repair["slides"]) > 0:
+            matched_repair = next((s for s in data_repair["slides"] if isinstance(s, dict) and s.get("slide_number") == slide_num), None)
+            if matched_repair:
+                data_repair = matched_repair
+            elif 0 <= slide_num - 1 < len(data_repair["slides"]):
+                data_repair = data_repair["slides"][slide_num - 1]
+            else:
+                data_repair = data_repair["slides"][0]
+        data_repair["slide_number"] = slide_num
+        return SlideVisionDescription.model_validate(data_repair)
+    except Exception as exc:
+        logger.error("Stage B slide %d repair failed (%s). Using fallback description.", slide_num, exc)
+        return SlideVisionDescription(
+            slide_number=slide_num,
+            title=f"Slide {slide_num}",
+            main_message="Presentation slide content",
+            visible_text="",
+            visuals="Visual slide diagram",
+            text_density="medium",
+            readability_issues=[],
+            too_much_text=False,
+            weak_title=False,
+            missing_cta=False,
+            visual_hierarchy_rating="good",
+            design_critique=[],
+        )
 
 
 def extract_all_slides_vision(
     image_paths: List[str],
     client: Groq,
     model: str,
+    on_progress: Optional[Callable[[int, int], None]] = None,
 ) -> List[SlideVisionDescription]:
-    """Runs Stage B across all slides in batches of <= 5."""
+    """Runs Stage B across all slides in parallel using ThreadPoolExecutor for high throughput."""
     start_time = time.time()
     total_slides = len(image_paths)
     all_slides_numbered = [(i + 1, path) for i, path in enumerate(image_paths)]
 
-    # Chunk into batches of <= 5
-    batches: List[List[Tuple[int, str]]] = []
-    for i in range(0, total_slides, GROQ_MAX_VISION_BATCH):
-        batches.append(all_slides_numbered[i: i + GROQ_MAX_VISION_BATCH])
-
     descriptions: List[SlideVisionDescription] = []
+    completed_count = 0
 
-    for batch in batches:
-        batch_results = _extract_batch_vision(client, model, batch)
-        descriptions.extend(batch_results)
+    # Parallel execution with bounded concurrency (2 workers with gentle pacing to stay under 7000 ITPM limit)
+    max_workers = min(2, max(1, total_slides))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_num = {}
+        for num, path in all_slides_numbered:
+            future = executor.submit(_extract_single_slide_vision, client, model, num, path)
+            future_to_num[future] = num
+            if total_slides > 1:
+                time.sleep(0.8)  # Gentle spacing to avoid burst TPM/ITPM limit spikes
 
-    # Sort and verify slide numbering
+        for future in concurrent.futures.as_completed(future_to_num):
+            slide_num = future_to_num[future]
+            try:
+                desc = future.result()
+                descriptions.append(desc)
+            except Exception as exc:
+                logger.error("Slide %d extraction unhandled exception: %s", slide_num, exc)
+                descriptions.append(SlideVisionDescription(
+                    slide_number=slide_num,
+                    title=f"Slide {slide_num}",
+                    main_message="Presentation slide",
+                    visible_text="",
+                    visuals="Slide graphic",
+                    text_density="medium",
+                    readability_issues=[]
+                ))
+            completed_count += 1
+            if on_progress:
+                try:
+                    on_progress(completed_count, total_slides)
+                except Exception as p_err:
+                    logger.debug("Vision progress callback error: %s", p_err)
+
     descriptions.sort(key=lambda s: s.slide_number)
-
-    # If any slide was missed in model output, fill in a fallback entry
-    existing_nums = {s.slide_number for s in descriptions}
-    for i in range(1, total_slides + 1):
-        if i not in existing_nums:
-            descriptions.append(SlideVisionDescription(
-                slide_number=i,
-                title=f"Slide {i}",
-                main_message="Presentation slide",
-                visible_text="",
-                visuals="Slide graphic",
-                text_density="medium",
-                readability_issues=[]
-            ))
-    descriptions.sort(key=lambda s: s.slide_number)
-
     elapsed = time.time() - start_time
-    logger.info("Stage B (Vision Extraction): extracted %d slides in %.2fs", total_slides, elapsed)
+    logger.info("Stage B (Vision Extraction): extracted %d slides in %.2fs (parallel)", total_slides, elapsed)
     return descriptions
 
 
@@ -281,6 +398,67 @@ def rescale_durations(slides: List[Dict[str, Any]], total_target_seconds: int) -
         s["target_duration_seconds"] = scaled[i]
 
 
+def audit_deck_story_arc(
+    descriptions: List[SlideVisionDescription],
+    deck_summary: DeckSummary,
+) -> DeckSummary:
+    """
+    Audits the deck against the 4 core narrative pillars: Problem, Solution, Traction, and Ask.
+    Cross-checks LLM output with deterministic text/title keyword inspection across all slides.
+    Guarantees that missing pillars (especially missing 'ask') are reliably flagged.
+    """
+    all_text = " ".join(
+        f"{d.title} {d.main_message} {d.visible_text}".lower()
+        for d in descriptions
+    )
+
+    # Keywords for each pillar
+    has_problem = deck_summary.has_problem or any(
+        kw in all_text for kw in ["problem", "pain", "challenge", "frustration", "inefficiency", "broken"]
+    )
+    has_solution = deck_summary.has_solution or any(
+        kw in all_text for kw in ["solution", "product", "platform", "how it works", "features", "solve"]
+    )
+    has_traction = deck_summary.has_traction or any(
+        kw in all_text for kw in ["traction", "revenue", "growth", "metrics", "users", "kpi", "milestone", "pilot", "retention"]
+    )
+    has_ask = deck_summary.has_ask or any(
+        kw in all_text for kw in ["ask", "raising", "raise", "funding", "investment", "seed", "series a", "series b", "capital", "call to action", "partner with us", "next steps"]
+    )
+
+    missing_pillars = []
+    warnings = list(deck_summary.story_arc_warnings)
+
+    if not has_problem:
+        missing_pillars.append("Problem")
+        warnings.append("Missing Problem Slide: Your audience needs to understand the exact pain point being solved.")
+    if not has_solution:
+        missing_pillars.append("Solution")
+        warnings.append("Missing Solution Slide: Clearly demonstrate how your product resolves the user's pain.")
+    if not has_traction:
+        missing_pillars.append("Traction")
+        warnings.append("Missing Traction Slide: Include measurable validation, user adoption, or key metrics.")
+    if not has_ask:
+        missing_pillars.append("Ask")
+        warnings.append("Missing Ask Slide: Decks must close with a clear call-to-action or funding/partnership ask.")
+
+    # Deduplicate and ensure missing sections reflect missing pillars
+    missing_sections = list(deck_summary.missing_sections)
+    for p in missing_pillars:
+        if p not in missing_sections and p.lower() not in [s.lower() for s in missing_sections]:
+            missing_sections.append(p)
+
+    deck_summary.has_problem = has_problem
+    deck_summary.has_solution = has_solution
+    deck_summary.has_traction = has_traction
+    deck_summary.has_ask = has_ask
+    deck_summary.missing_pillars = missing_pillars
+    deck_summary.story_arc_warnings = warnings
+    deck_summary.missing_sections = missing_sections
+
+    return deck_summary
+
+
 def synthesize_deck_coaching(
     descriptions: List[SlideVisionDescription],
     audience: str,
@@ -305,7 +483,8 @@ def synthesize_deck_coaching(
             f"  Visuals: {d.visuals}\n"
             f"  Visible text: {d.visible_text}\n"
             f"  Text density: {d.text_density}\n"
-            f"  Readability issues: {', '.join(d.readability_issues) if d.readability_issues else 'None'}"
+            f"  Readability issues: {', '.join(d.readability_issues) if d.readability_issues else 'None'}\n"
+            f"  Too much text: {d.too_much_text}, Weak title: {d.weak_title}, Missing CTA: {d.missing_cta}, Hierarchy: {d.visual_hierarchy_rating}"
         )
     formatted_slides = "\n\n".join(desc_items)
 
@@ -315,7 +494,7 @@ def synthesize_deck_coaching(
         formatted_slides = formatted_slides[:25000]
 
     system_prompt = (
-        "You are an elite pitch coach preparing a speaker for a high-stakes presentation.\n"
+        "You are an elite pitch coach preparing a speaker for a high-stakes presentation. Do not use emojis in your response.\n"
         f"AUDIENCE: {audience}\n"
         f"GOAL: {goal or 'Deliver a persuasive presentation'}\n"
         f"TOTAL TIME LIMIT: {time_limit_seconds} seconds ({math.ceil(time_limit_seconds / 60)} minutes)\n"
@@ -330,7 +509,13 @@ def synthesize_deck_coaching(
         '    "story_arc": "3-4 concise sentences describing the overall narrative arc and flow.",\n'
         '    "missing_sections": ["e.g. Problem, Solution, Traction, Market, Unit Economics, Team, Ask"],\n'
         '    "overall_score": int between 0 and 100,\n'
-        '    "top_3_fixes": ["3 most impactful strategic improvements to make"]\n'
+        '    "top_3_fixes": ["3 most impactful strategic improvements to make"],\n'
+        '    "has_problem": bool,\n'
+        '    "has_solution": bool,\n'
+        '    "has_traction": bool,\n'
+        '    "has_ask": bool,\n'
+        '    "missing_pillars": ["Problem", "Solution", "Traction", "Ask"],\n'
+        '    "story_arc_warnings": ["warnings regarding missing narrative components"]\n'
         "  },\n"
         '  "slides": [\n'
         "    {\n"
@@ -370,7 +555,7 @@ def synthesize_deck_coaching(
 
     result: Optional[DeckCoachingResult] = None
     try:
-        data = json.loads(raw)
+        data = sanitize_obj(json.loads(raw))
         result = DeckCoachingResult.model_validate(data)
     except Exception as exc:
         logger.warning("Stage C initial parse failed (%s). Retrying with repair...", exc)
@@ -385,7 +570,7 @@ def synthesize_deck_coaching(
                 messages=repair_messages,
                 response_format={"type": "json_object"},
             )
-            data = json.loads(raw_repair)
+            data = sanitize_obj(json.loads(raw_repair))
             result = DeckCoachingResult.model_validate(data)
         except Exception as repair_exc:
             logger.error("Stage C repair also failed (%s). Generating fallback coaching result.", repair_exc)
@@ -399,6 +584,11 @@ def synthesize_deck_coaching(
                     suggested_script=None,
                     transition_to_next="",
                     slide_critique=[],
+                    too_much_text=d.too_much_text,
+                    weak_title=d.weak_title,
+                    missing_cta=d.missing_cta,
+                    visual_hierarchy_rating=d.visual_hierarchy_rating,
+                    design_critique=d.design_critique,
                 )
                 for d in descriptions
             ]
@@ -428,9 +618,17 @@ def synthesize_deck_coaching(
             s_dict["visuals"] = desc.visuals
             s_dict["text_density"] = desc.text_density
             s_dict["readability_issues"] = desc.readability_issues
+            s_dict["too_much_text"] = desc.too_much_text
+            s_dict["weak_title"] = desc.weak_title
+            s_dict["missing_cta"] = desc.missing_cta
+            s_dict["visual_hierarchy_rating"] = desc.visual_hierarchy_rating
+            s_dict["design_critique"] = desc.design_critique
         rehydrated_slides.append(SlideCoaching.model_validate(s_dict))
 
     result.slides = rehydrated_slides
+
+    # Rigorous story arc audit across all 4 core pillars
+    result.deck_summary = audit_deck_story_arc(descriptions, result.deck_summary)
 
     elapsed = time.time() - start_time
     logger.info("Stage C (Coaching Synthesis): completed in %.2fs", elapsed)
@@ -556,7 +754,7 @@ def check_talking_points_coverage(
             ],
             response_format={"type": "json_object"},
         )
-        data = json.loads(raw)
+        data = sanitize_obj(json.loads(raw))
         cov_list = data.get("coverage", [])
         if not cov_list:
             raise ValueError("Empty coverage list")
@@ -755,7 +953,7 @@ def generate_qa_questions(
             ],
             response_format={"type": "json_object"},
         )
-        data = json.loads(raw)
+        data = sanitize_obj(json.loads(raw))
         questions = data.get("questions", [])
         if isinstance(questions, list) and len(questions) > 0:
             return questions
@@ -822,7 +1020,7 @@ def evaluate_qa_answer(
             ],
             response_format={"type": "json_object"},
         )
-        eval_data = json.loads(raw)
+        eval_data = sanitize_obj(json.loads(raw))
         eval_data["spoken_transcript"] = transcript
         return eval_data
     except Exception as exc:

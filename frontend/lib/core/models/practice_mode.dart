@@ -17,20 +17,20 @@ class PracticePrompt {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'text': text,
-        'category': category,
-        'hint': hint,
-        'target_duration_seconds': targetDurationSeconds,
-      };
+    'id': id,
+    'text': text,
+    'category': category,
+    'hint': hint,
+    'target_duration_seconds': targetDurationSeconds,
+  };
 
   factory PracticePrompt.fromJson(Map<String, dynamic> json) => PracticePrompt(
-        id: json['id'] as String,
-        text: json['text'] as String,
-        category: json['category'] as String? ?? 'General',
-        hint: json['hint'] as String? ?? '',
-        targetDurationSeconds: json['target_duration_seconds'] as int? ?? 60,
-      );
+    id: json['id'] as String,
+    text: json['text'] as String,
+    category: json['category'] as String? ?? 'General',
+    hint: json['hint'] as String? ?? '',
+    targetDurationSeconds: json['target_duration_seconds'] as int? ?? 60,
+  );
 }
 
 class PracticeMode {
@@ -66,42 +66,52 @@ class PracticeMode {
           id: 'int-1',
           text: 'Tell me about yourself and your professional journey.',
           category: 'Icebreaker',
-          hint: 'Structure with Present, Past, and Future. Highlight core strengths.',
+          hint:
+              'Structure with Present, Past, and Future. Highlight core strengths.',
           targetDurationSeconds: 90,
         ),
         PracticePrompt(
           id: 'int-2',
-          text: 'Describe a challenging conflict you faced in a team and how you resolved it.',
+          text:
+              'Describe a challenging conflict you faced in a team and how you resolved it.',
           category: 'STAR Method',
-          hint: 'Focus on Situation, Task, Action you took, and positive Result achieved.',
+          hint:
+              'Focus on Situation, Task, Action you took, and positive Result achieved.',
           targetDurationSeconds: 120,
         ),
         PracticePrompt(
           id: 'int-3',
-          text: 'Why are you interested in this position and what makes you a strong fit?',
+          text:
+              'Why are you interested in this position and what makes you a strong fit?',
           category: 'Motivation',
-          hint: 'Align your personal values and accomplishments with company goals.',
+          hint:
+              'Align your personal values and accomplishments with company goals.',
           targetDurationSeconds: 75,
         ),
         PracticePrompt(
           id: 'int-4',
-          text: 'Tell me about a project where things did not go as planned. What did you learn?',
+          text:
+              'Tell me about a project where things did not go as planned. What did you learn?',
           category: 'Resilience',
           hint: 'Take accountability, reflect on lessons, and show growth.',
           targetDurationSeconds: 90,
         ),
         PracticePrompt(
           id: 'int-5',
-          text: 'How do you prioritize competing deadlines under tight pressure?',
+          text:
+              'How do you prioritize competing deadlines under tight pressure?',
           category: 'Prioritization',
-          hint: 'Mention frameworks like Eisenhower matrix or transparent team triage.',
+          hint:
+              'Mention frameworks like Eisenhower matrix or transparent team triage.',
           targetDurationSeconds: 75,
         ),
         PracticePrompt(
           id: 'int-6',
-          text: 'Describe an initiative where you demonstrated leadership without formal authority.',
+          text:
+              'Describe an initiative where you demonstrated leadership without formal authority.',
           category: 'Leadership',
-          hint: 'Demonstrate initiative, empathy, and how you persuaded colleagues.',
+          hint:
+              'Demonstrate initiative, empathy, and how you persuaded colleagues.',
           targetDurationSeconds: 100,
         ),
       ],
@@ -115,37 +125,44 @@ class PracticeMode {
       prompts: [
         PracticePrompt(
           id: 'pres-1',
-          text: 'Deliver a 60-second elevator pitch for an innovative product idea.',
+          text:
+              'Deliver a 60-second elevator pitch for an innovative product idea.',
           category: 'Elevator Pitch',
           hint: 'State the Hook, Problem, Solution, Unique Advantage, and Ask.',
           targetDurationSeconds: 60,
         ),
         PracticePrompt(
           id: 'pres-2',
-          text: 'Brief executive stakeholders on a major quarterly milestone update.',
+          text:
+              'Brief executive stakeholders on a major quarterly milestone update.',
           category: 'Executive Briefing',
-          hint: 'Start with the bottom line first (BLUF): status, metrics, and risks.',
+          hint:
+              'Start with the bottom line first (BLUF): status, metrics, and risks.',
           targetDurationSeconds: 120,
         ),
         PracticePrompt(
           id: 'pres-3',
-          text: 'Introduce a new technical proposal and persuade senior leadership to adopt it.',
+          text:
+              'Introduce a new technical proposal and persuade senior leadership to adopt it.',
           category: 'Technical Pitch',
           hint: 'Highlight ROI, architecture advantages, and migration safety.',
           targetDurationSeconds: 150,
         ),
         PracticePrompt(
           id: 'pres-4',
-          text: 'Deliver an engaging opening hook for an all-hands company presentation.',
+          text:
+              'Deliver an engaging opening hook for an all-hands company presentation.',
           category: 'Storytelling',
-          hint: 'Use a provocative question, personal anecdote, or surprising statistic.',
+          hint:
+              'Use a provocative question, personal anecdote, or surprising statistic.',
           targetDurationSeconds: 90,
         ),
         PracticePrompt(
           id: 'pres-5',
           text: 'Close a keynote presentation with a memorable call to action.',
           category: 'Keynote Close',
-          hint: 'Inspire your audience with conviction, pacing, and clear vision.',
+          hint:
+              'Inspire your audience with conviction, pacing, and clear vision.',
           targetDurationSeconds: 90,
         ),
       ],
@@ -159,37 +176,46 @@ class PracticeMode {
       prompts: [
         PracticePrompt(
           id: 'free-1',
-          text: 'Explain a complex concept so simply a 10-year-old would understand.',
+          text:
+              'Explain a complex concept so simply a 10-year-old would understand.',
           category: 'Clarity & Analogy',
           hint: 'Avoid jargon. Use everyday analogies and tangible imagery.',
           targetDurationSeconds: 90,
         ),
         PracticePrompt(
           id: 'free-2',
-          text: 'Share a personal hobby or obsession that shaped how you view the world.',
+          text:
+              'Share a personal hobby or obsession that shaped how you view the world.',
           category: 'Personal Narrative',
-          hint: 'Let your natural enthusiasm show while keeping a coherent narrative.',
+          hint:
+              'Let your natural enthusiasm show while keeping a coherent narrative.',
           targetDurationSeconds: 90,
         ),
         PracticePrompt(
           id: 'free-3',
-          text: 'Should AI tools be integrated directly into school exams? Defend your view.',
+          text:
+              'Should AI tools be integrated directly into school exams? Defend your view.',
           category: 'Persuasive Speech',
-          hint: 'Structure your argument with a clear premise, 2 supporting points, and conclusion.',
+          hint:
+              'Structure your argument with a clear premise, 2 supporting points, and conclusion.',
           targetDurationSeconds: 100,
         ),
         PracticePrompt(
           id: 'free-4',
-          text: 'What is the best piece of advice you have ever received, and how has it guided you?',
+          text:
+              'What is the best piece of advice you have ever received, and how has it guided you?',
           category: 'Reflection',
-          hint: 'Connect the advice to a concrete inflection point in your life.',
+          hint:
+              'Connect the advice to a concrete inflection point in your life.',
           targetDurationSeconds: 90,
         ),
         PracticePrompt(
           id: 'free-5',
-          text: 'Describe what your dream workplace culture looks like in practice.',
+          text:
+              'Describe what your dream workplace culture looks like in practice.',
           category: 'Impromptu',
-          hint: 'Focus on communication patterns, psychological safety, and execution.',
+          hint:
+              'Focus on communication patterns, psychological safety, and execution.',
           targetDurationSeconds: 90,
         ),
       ],
@@ -198,10 +224,7 @@ class PracticeMode {
 
   static PracticeMode fromId(String? id) {
     if (id == null) return allModes.first;
-    return allModes.firstWhere(
-      (m) => m.id == id,
-      orElse: () => allModes.first,
-    );
+    return allModes.firstWhere((m) => m.id == id, orElse: () => allModes.first);
   }
 }
 
@@ -209,19 +232,25 @@ class PracticeMode {
 class PracticeSessionConfig {
   final String modeId;
   final PracticePrompt prompt;
+  final String? parentSessionId;
 
   const PracticeSessionConfig({
     required this.modeId,
     required this.prompt,
+    this.parentSessionId,
   });
 
   PracticeMode get mode => PracticeMode.fromId(modeId);
 
-  factory PracticeSessionConfig.defaultFor(String? modeId) {
+  factory PracticeSessionConfig.defaultFor(
+    String? modeId, {
+    String? parentSessionId,
+  }) {
     final mode = PracticeMode.fromId(modeId);
     return PracticeSessionConfig(
       modeId: mode.id,
       prompt: mode.prompts.first,
+      parentSessionId: parentSessionId,
     );
   }
 }

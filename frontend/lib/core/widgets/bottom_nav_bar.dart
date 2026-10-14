@@ -6,10 +6,7 @@ class BottomNavBarItemData {
   final IconData icon;
   final String label;
 
-  const BottomNavBarItemData({
-    required this.icon,
-    required this.label,
-  });
+  const BottomNavBarItemData({required this.icon, required this.label});
 }
 
 class BottomNavBar extends StatelessWidget {
@@ -20,7 +17,10 @@ class BottomNavBar extends StatelessWidget {
   static const List<BottomNavBarItemData> items = [
     BottomNavBarItemData(icon: Icons.home_rounded, label: 'Home'),
     BottomNavBarItemData(icon: Icons.history_rounded, label: 'History'),
-    BottomNavBarItemData(icon: Icons.mic_rounded, label: 'Practice'), // Center slot placeholder
+    BottomNavBarItemData(
+      icon: Icons.mic_rounded,
+      label: 'Practice',
+    ), // Center slot placeholder
     BottomNavBarItemData(icon: Icons.insights_rounded, label: 'Progress'),
     BottomNavBarItemData(icon: Icons.person_rounded, label: 'Profile'),
   ];
@@ -114,7 +114,9 @@ class BottomNavBar extends StatelessWidget {
 
   Widget _buildNavItem(int index, BottomNavBarItemData item) {
     final isSelected = currentIndex == index;
-    final color = isSelected ? AppColors.primaryPurple : AppColors.textSecondary;
+    final color = isSelected
+        ? AppColors.primaryPurple
+        : AppColors.textSecondary;
 
     return InkWell(
       onTap: () => onTap(index),
@@ -124,11 +126,7 @@ class BottomNavBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              item.icon,
-              color: color,
-              size: 24,
-            ),
+            Icon(item.icon, color: color, size: 24),
             const SizedBox(height: 4),
             Text(
               item.label,

@@ -16,6 +16,13 @@ from sessions.router import router as sessions_router, sweep_stuck_sessions
 from stats.router import router as stats_router
 from achievements.router import router as achievements_router
 from slides.router import router as slides_router
+from metrics.router import router as metrics_router
+from feedback.router import router as feedback_router
+from resume.router import router as resume_router
+from interviewer.router import router as interviewer_router
+from templates.router import router as templates_router
+from practice_plan.router import router as practice_plan_router
+from reports.router import router as reports_router
 from slides.store import deck_store
 
 logger = logging.getLogger(__name__)
@@ -56,8 +63,35 @@ app.include_router(sessions_router)
 app.include_router(stats_router)
 app.include_router(achievements_router)
 app.include_router(slides_router)
+app.include_router(metrics_router)
+app.include_router(feedback_router)
+app.include_router(resume_router)
+app.include_router(interviewer_router)
+app.include_router(templates_router)
+app.include_router(practice_plan_router)
+app.include_router(reports_router)
 
 
 @app.get("/health", tags=["health"])
 def health_check():
     return {"status": "ok", "version": "2.0.0", "db": "firestore"}
+
+
+from auth.dependencies import get_current_user
+from models import User
+from fastapi import Depends
+from google.cloud import firestore as fs
+
+
+@app.delete("/account", tags=["account"])
+def delete_account_root(
+    current_user: User = Depends(get_current_user),
+    db: fs.Client = Depends(get_db),
+):
+    """
+    DELETE /account:
+    Permanently deletes all user data across D1, Firestore, Storage, and Auth.
+    """
+    from auth.account_service import delete_user_account
+    result = delete_user_account(current_user, db=db)
+    return {"deleted": True, **result}

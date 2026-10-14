@@ -39,9 +39,23 @@ dependencies:
   flutter_svg: ^2.3.0
   go_router: ^17.3.0
   provider: ^6.1.5+1
+  uuid: ^4.6.0
+
+  # ── Local SQLite & Sync ───────────────────────────────────────────────────
+  sqflite: ^2.3.3+1
+  sqflite_common_ffi: ^2.3.3
+  path: ^1.9.0
+  connectivity_plus: ^6.0.5
 
   # ── File Picking ──────────────────────────────────────────────────────────
   file_picker: ^8.1.7              # PDF document picking for Slide Coach
+
+  # ── Settings & Utilities ──────────────────────────────────────────────────
+  shared_preferences: ^2.3.2       # Non-secret local settings persistence
+  image_picker: ^1.1.2             # Profile avatar image selection
+  package_info_plus: ^8.1.0        # App version and build number
+  url_launcher: ^6.3.1             # Terms, Privacy, feedback mailto links
+  in_app_review: ^2.0.9            # App store rating dialog
 
   # ── Backend / Networking ──────────────────────────────────────────────────
   dio: ^5.7.0                      # HTTP client with interceptors for JWT auth
@@ -66,6 +80,8 @@ dependencies:
   firebase_core: ^3.8.1            # Firebase initialisation (required by all Firebase packages)
   firebase_auth: ^5.3.4            # Firebase Authentication (email/password + Google)
   google_sign_in: ^6.2.2           # Google OAuth flow for Firebase Auth
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.7
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +93,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  bloc_test: ^10.0.0
 
 dependency_overrides:
   record_linux: 1.3.1
@@ -94,6 +111,8 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/icons/
+    - assets/illustrations/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

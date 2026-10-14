@@ -215,3 +215,17 @@ def upgrade_guest(
     current_user.is_guest = False
     current_user.expires_at = None
     return _build_auth_response(current_user)
+
+
+@router.delete("/account")
+def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: fs.Client = Depends(get_db),
+):
+    """
+    DELETE /auth/account:
+    Permanently deletes all user data across D1, Firestore, Storage, and Auth.
+    """
+    from auth.account_service import delete_user_account
+    result = delete_user_account(current_user, db=db)
+    return {"deleted": True, **result}

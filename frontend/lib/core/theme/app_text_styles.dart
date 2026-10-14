@@ -5,90 +5,124 @@ import 'app_colors.dart';
 /// Typography using Plus Jakarta Sans for a sharper, more modern voice.
 abstract class AppTextStyles {
   static TextStyle get displayLarge => GoogleFonts.plusJakartaSans(
-        fontSize: 34,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textPrimaryDark,
-        height: 1.15,
-        letterSpacing: -0.6,
-      );
+    fontSize: 34,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textPrimaryDark,
+    height: 1.15,
+    letterSpacing: -0.6,
+  );
 
   static TextStyle get headingXL => GoogleFonts.plusJakartaSans(
-        fontSize: 26,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textPrimaryDark,
-        height: 1.2,
-        letterSpacing: -0.4,
-      );
+    fontSize: 26,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textPrimaryDark,
+    height: 1.2,
+    letterSpacing: -0.4,
+  );
 
   static TextStyle get headingL => GoogleFonts.plusJakartaSans(
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimaryDark,
-        height: 1.25,
-        letterSpacing: -0.2,
-      );
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimaryDark,
+    height: 1.25,
+    letterSpacing: -0.2,
+  );
 
   static TextStyle get headingM => GoogleFonts.plusJakartaSans(
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimaryDark,
-        height: 1.3,
-      );
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimaryDark,
+    height: 1.3,
+  );
 
   static TextStyle get bodyM => GoogleFonts.plusJakartaSans(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: AppColors.textSecondary,
-        height: 1.45,
-      );
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textSecondary,
+    height: 1.45,
+  );
 
   static TextStyle get bodySmallBold => GoogleFonts.plusJakartaSans(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textSecondary,
-        height: 1.4,
-      );
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textSecondary,
+    height: 1.4,
+  );
 
   static TextStyle get label => GoogleFonts.plusJakartaSans(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textPrimaryDark,
-        height: 1.3,
-      );
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimaryDark,
+    height: 1.3,
+  );
 
   static TextStyle get button => GoogleFonts.plusJakartaSans(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: Colors.white,
-        height: 1.2,
-        letterSpacing: 0.1,
-      );
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    color: Colors.white,
+    height: 1.2,
+    letterSpacing: 0.1,
+  );
 
   static TextStyle get caption => GoogleFonts.plusJakartaSans(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        color: AppColors.textSecondary,
-        height: 1.4,
-      );
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textSecondary,
+    height: 1.4,
+  );
 
   static TextStyle get sectionHeader => GoogleFonts.plusJakartaSans(
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimaryDark,
-        height: 1.3,
-      );
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimaryDark,
+    height: 1.3,
+  );
 
   static TextStyle get bodyBold => GoogleFonts.plusJakartaSans(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimaryDark,
-        height: 1.4,
-      );
+    fontSize: 14,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimaryDark,
+    height: 1.4,
+  );
 
   static TextStyle get bodyText => GoogleFonts.plusJakartaSans(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        color: AppColors.textSecondary,
-        height: 1.45,
-      );
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textSecondary,
+    height: 1.45,
+  );
+
+  // Context-aware theme-responsive text style getters
+  static TextStyle displayLargeOf(BuildContext context) =>
+      displayLarge.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle headingXLOf(BuildContext context) =>
+      headingXL.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle headingLOf(BuildContext context) =>
+      headingL.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle headingMOf(BuildContext context) =>
+      headingM.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle bodyMOf(BuildContext context) =>
+      bodyM.copyWith(color: AppColors.textSecondaryOf(context));
+
+  static TextStyle bodyBoldOf(BuildContext context) =>
+      bodyBold.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle bodySmallBoldOf(BuildContext context) =>
+      bodySmallBold.copyWith(color: AppColors.textSecondaryOf(context));
+
+  static TextStyle captionOf(BuildContext context) =>
+      caption.copyWith(color: AppColors.textSecondaryOf(context));
+
+  static TextStyle sectionHeaderOf(BuildContext context) =>
+      sectionHeader.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle labelOf(BuildContext context) =>
+      label.copyWith(color: AppColors.textPrimaryOf(context));
+
+  static TextStyle bodyTextOf(BuildContext context) =>
+      bodyText.copyWith(color: AppColors.textSecondaryOf(context));
 }

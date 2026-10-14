@@ -17,7 +17,7 @@ class ApiClient {
     final d = Dio(
       BaseOptions(
         baseUrl: AppConfig.apiBaseUrl,
-        connectTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 4),
         receiveTimeout: const Duration(seconds: 60), // longer for audio uploads
         contentType: 'application/json',
       ),
@@ -25,6 +25,10 @@ class ApiClient {
     d.interceptors.add(_AuthInterceptor(d, _storage));
     if (kDebugMode) d.interceptors.add(_SafeNetworkLogger());
     return d;
+  }
+
+  void updateBaseUrl(String newUrl) {
+    dio.options.baseUrl = newUrl;
   }
 
   // ── Convenience wrappers ──────────────────────────────────────────────────
@@ -42,15 +46,14 @@ class ApiClient {
     String path,
     FormData formData, {
     void Function(int, int)? onSendProgress,
-  }) =>
-      dio
-          .post(
-            path,
-            data: formData,
-            onSendProgress: onSendProgress,
-            options: Options(contentType: 'multipart/form-data'),
-          )
-          .then((r) => r.data);
+  }) => dio
+      .post(
+        path,
+        data: formData,
+        onSendProgress: onSendProgress,
+        options: Options(contentType: 'multipart/form-data'),
+      )
+      .then((r) => r.data);
 
   // ── Token helpers ─────────────────────────────────────────────────────────
 
@@ -69,8 +72,7 @@ class ApiClient {
     await _storage.delete(key: 'refresh_token');
   }
 
-  static Future<String?> getAccessToken() =>
-      _storage.read(key: 'access_token');
+  static Future<String?> getAccessToken() => _storage.read(key: 'access_token');
 
   static Future<String?> getRefreshToken() =>
       _storage.read(key: 'refresh_token');
@@ -80,8 +82,10 @@ class ApiClient {
 class _SafeNetworkLogger extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    debugPrint('API ${err.requestOptions.method} ${err.requestOptions.path} '
-        'failed with HTTP ${err.response?.statusCode ?? 'network'}');
+    debugPrint(
+      'API ${err.requestOptions.method} ${err.requestOptions.path} '
+      'failed with HTTP ${err.response?.statusCode ?? 'network'}',
+    );
     handler.next(err);
   }
 }

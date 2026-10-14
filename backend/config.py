@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = ""
     ADMIN_USER_IDS: str = ""
 
+    # Cloudflare D1 (SQL storage for metrics and aggregates)
+    CF_ACCOUNT_ID: str = ""
+    CF_D1_DATABASE_ID: str = ""
+    CF_API_TOKEN: str = ""
+
     @property
     def allowed_origins_list(self) -> List[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
@@ -56,6 +61,11 @@ class Settings(BaseSettings):
 
     # Uploads larger than this are rejected (recordings are small AAC files)
     MAX_AUDIO_UPLOAD_MB: int = 25
+
+    # Audio storage directory fallback for local disk
+    AUDIO_UPLOAD_DIR: str = "./audio_files"
+    # Audio retention policy in days (0 = delete audio after analysis, 30 = 30-day retention)
+    AUDIO_RETENTION_DAYS: int = 30
 
     # Slide Coach Groq models
     # Groq deprecated llama-4-scout and llama-3.3-70b-versatile in mid-2026.

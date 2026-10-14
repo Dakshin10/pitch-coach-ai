@@ -18,6 +18,7 @@ import re
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from groq import Groq
+from utils.sanitizer import sanitize_obj
 
 Word = Tuple[str, float, float]
 
@@ -32,7 +33,7 @@ before giving advice. Then reply with ONLY a JSON object:
                 "message": one concise actionable sentence (<= 20 words),
                 "severity": one of [positive, warning, tip],
                 "example": a short quoted phrase from the transcript, or null } x exactly 3 ]}
-Be specific, never invent quotes, and match the requested coaching style."""
+Be specific, never invent quotes, and match the requested coaching style. Do not use emojis in your response."""
 
 _TOOLS = [
     {
@@ -76,6 +77,58 @@ _TOOLS = [
                     "end_seconds": {"type": "number"},
                 },
                 "required": ["start_seconds", "end_seconds"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "json",
+            "description": "Submit final JSON feedback array with exactly 3 items.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "feedback": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "category": {"type": "string"},
+                                "message": {"type": "string"},
+                                "severity": {"type": "string"},
+                                "example": {"type": ["string", "null"]},
+                            },
+                            "required": ["category", "message", "severity"],
+                        },
+                    }
+                },
+                "required": ["feedback"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "submit_feedback",
+            "description": "Submit final JSON feedback array with exactly 3 items.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "feedback": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "category": {"type": "string"},
+                                "message": {"type": "string"},
+                                "severity": {"type": "string"},
+                                "example": {"type": ["string", "null"]},
+                            },
+                            "required": ["category", "message", "severity"],
+                        },
+                    }
+                },
+                "required": ["feedback"],
             },
         },
     },
@@ -159,7 +212,9 @@ def _parse_feedback(raw: str) -> Optional[List[dict]]:
         items = json.loads(match.group(0)).get("feedback")
     except (json.JSONDecodeError, AttributeError):
         return None
-    return items if isinstance(items, list) and items else None
+    if isinstance(items, list) and items:
+        return sanitize_obj(items)
+    return None
 
 
 def run_feedback_agent(
@@ -189,7 +244,7 @@ def run_feedback_agent(
     for _ in range(MAX_AGENT_STEPS):
         resp = client.chat.completions.create(
             model=model, messages=messages, tools=_TOOLS,
-            tool_choice="auto", temperature=0.3, max_tokens=700,
+            tool_choice="auto", temperature=0.3, max_tokens=1500,
         )
         msg = resp.choices[0].message
 
@@ -198,6 +253,17 @@ def run_feedback_agent(
             if parsed:
                 return parsed
             break  # no tools and no usable answer → force a final answer below
+
+        # Check if the model submitted final feedback via tool call directly
+        for call in msg.tool_calls:
+            if call.function.name in ("json", "submit_feedback"):
+                try:
+                    args = json.loads(call.function.arguments or "{}")
+                    items = args.get("feedback")
+                    if isinstance(items, list) and items:
+                        return sanitize_obj(items)
+                except Exception:
+                    pass
 
         messages.append({
             "role": "assistant",
@@ -223,7 +289,7 @@ def run_feedback_agent(
     # Step budget used up (or no valid answer): demand the final JSON, no tools.
     messages.append({"role": "user", "content": "Now give the final JSON feedback."})
     final = client.chat.completions.create(
-        model=model, messages=messages, temperature=0.3, max_tokens=700,
+        model=model, messages=messages, temperature=0.3, max_tokens=1500,
         response_format={"type": "json_object"},
     )
     return _parse_feedback(final.choices[0].message.content or "")

@@ -87,10 +87,7 @@ class FirebaseAuthService {
 
   /// Signs out from both Firebase and Google (if Google was used).
   Future<void> signOut() async {
-    await Future.wait([
-      _auth.signOut(),
-      _googleSignIn.signOut(),
-    ]);
+    await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

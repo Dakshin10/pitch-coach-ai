@@ -13,6 +13,11 @@ class SlideVisionDescription(BaseModel):
     visuals: str = ""
     text_density: str = "medium"  # "low" | "medium" | "high"
     readability_issues: List[str] = Field(default_factory=list)
+    too_much_text: bool = False
+    weak_title: bool = False
+    missing_cta: bool = False
+    visual_hierarchy_rating: str = "good"  # "poor" | "fair" | "good" | "excellent"
+    design_critique: List[str] = Field(default_factory=list)
 
 
 class BatchVisionResponse(BaseModel):
@@ -26,6 +31,12 @@ class DeckSummary(BaseModel):
     missing_sections: List[str] = Field(default_factory=list)
     overall_score: int = Field(ge=0, le=100)
     top_3_fixes: List[str] = Field(default_factory=list)
+    has_problem: bool = False
+    has_solution: bool = False
+    has_traction: bool = False
+    has_ask: bool = False
+    missing_pillars: List[str] = Field(default_factory=list)
+    story_arc_warnings: List[str] = Field(default_factory=list)
 
 
 class SlideCoaching(BaseModel):
@@ -41,6 +52,11 @@ class SlideCoaching(BaseModel):
     visuals: Optional[str] = None
     text_density: Optional[str] = None
     readability_issues: List[str] = Field(default_factory=list)
+    too_much_text: bool = False
+    weak_title: bool = False
+    missing_cta: bool = False
+    visual_hierarchy_rating: str = "good"
+    design_critique: List[str] = Field(default_factory=list)
 
 
 class DeckCoachingResult(BaseModel):
