@@ -1,167 +1,161 @@
-# Pitch Coach
+# 🎯 Pitch Coach
 
-A modern Flutter app for practicing public speaking, pitch presentations, and interview skills — featuring comprehensive speech metrics, automated AI coaching upon recording completion, multimodal pitch deck analysis, and a polished light/dark design system.
-
----
-
-## Features
-
-- **Interactive Onboarding**: Brand-forward intro with animated sound waves and guest / login entry points.
-- **Home Dashboard**: Practice modes, weekly progress stats, recent sessions, and quick lesson chips.
-- **Interview & Pitch Practice**: Timed practice with audio recording and AI-backed feedback (via backend).
-- **Performance Analytics**: Charts and metrics for clarity, pace, confidence, and filler words.
-- **History & Progress**: Session history, trends, achievements, and skill breakdowns.
-- **Profile & Settings**: Editable profile, reminders, and preferences.
-- **Slide Coach (Multimodal Deck Vision)**:
-  - **Upload & Vision Extraction**: Upload a pitch deck (PDF) to scan charts, KPIs, diagrams, and text density with Groq Vision.
-  - **AI Talking Points & Scripts**: Tailored talking points, transition hooks, and word-for-word scripts matching your exact time budget.
-  - **Slide-Aligned Rehearsal**: Landscape-friendly rehearsal recorder that splits audio per slide, tracks WPM, counts fillers (including Hinglish/Tamil), checks talking points coverage, and provides coach agent feedback.
-  - **Audience Q&A Prep**: Generates 5-8 tough audience-specific questions with reasoning, transcribes your answers, and grades clarity, directness, evidence, and confidence.
-- **Light / Dark Theme**: Animated theme toggle on onboarding, home, profile, and edit profile. Preference is stored locally and survives restarts.
-- **Web (Chrome) Support**: Startup is hardened for Flutter web (notifications skipped; Firebase failures no longer blank the screen).
+A modern, intuitive Flutter mobile application designed to help users prepare, practice, and master their public speaking, pitch presentations, and job interview skills with real-time feedback and detailed performance analytics.
 
 ---
 
-## Tech Stack
+## 🚀 Features
+
+- **🎬 Interactive Onboarding**: Seamless introduction guiding users through core features and personalized goal setting.
+- **📊 Home Dashboard**: Quick overview of recent activity, upcoming practice sessions, and recommended pitch modules.
+- **🎙️ Real-Time Interview & Pitch Practice**: Dedicated practice room equipped with timers, prompt triggers, audio recording, and interactive feedback.
+- **📈 Advanced Performance Analytics**: Detailed charts and broken-down metrics (powered by `fl_chart`) covering clarity, pace, confidence, and filler word usage.
+- **🗓️ History & Session Tracking**: Revisit past practice sessions, review recorded performance stats, and track improvements over time.
+- **📈 Progress Metrics**: Track growth trends, personal milestones, and long-term pitch performance evolution.
+- **👤 Profile & Settings**: Custom user settings, preference toggles, and performance summary.
+- **🎨 Custom Design System**: Supports both Light and Dark modes with custom typography (`Google Fonts`), smooth route transitions, and responsive layouts.
+
+---
+
+## 🛠️ Tech Stack & Dependencies
 
 ### Frontend (Flutter)
-- Flutter / Dart (`^3.10.0`)
-- `go_router`, `provider`, `dio`, `fl_chart`, `file_picker`
-- `flutter_secure_storage` (tokens + local theme preference)
-- `record`, `audioplayers`, `video_player`, `flutter_local_notifications`
-- `google_fonts` (Plus Jakarta Sans), Firebase Auth / Google Sign-In
+- **Framework**: [Flutter](https://flutter.dev/) (Dart SDK `^3.10.0`)
+- **Navigation & Routing**: [`go_router`](https://pub.dev/packages/go_router)
+- **Data Visualization**: [`fl_chart`](https://pub.dev/packages/fl_chart)
+- **State Management**: [`provider`](https://pub.dev/packages/provider)
+- **HTTP Client**: [`dio`](https://pub.dev/packages/dio)
+- **Secure Storage**: [`flutter_secure_storage`](https://pub.dev/packages/flutter_secure_storage)
+- **Audio Recording & Playback**: [`record`](https://pub.dev/packages/record), [`audioplayers`](https://pub.dev/packages/audioplayers)
+- **Video & Notifications**: [`video_player`](https://pub.dev/packages/video_player), [`flutter_local_notifications`](https://pub.dev/packages/flutter_local_notifications)
+- **Typography & Icons**: [`google_fonts`](https://pub.dev/packages/google_fonts), [`flutter_svg`](https://pub.dev/packages/flutter_svg), [`cupertino_icons`](https://pub.dev/packages/cupertino_icons)
 
 ### Backend (Python FastAPI)
-- FastAPI + Uvicorn
-- Firebase Admin SDK (Firestore & Storage)
-- PyMuPDF (`pymupdf`) & Pillow for PDF-to-image rendering
-- Groq Vision (`qwen/qwen3.8-27b`) for multimodal diagram & visual extraction
-- Groq Text LLM (`openai/gpt-oss-120b`) for coaching synthesis and evaluation
-- Groq Whisper (`whisper-large-v3-turbo`) for word-level speech transcription
+- **Framework**: FastAPI (Uvicorn server)
+- **Database**: SQLite / SQLAlchemy
+- **AI Integration**: Groq API (`GROQ_API_KEY`) for pitch evaluation & feedback
 
 ---
 
-## Project Architecture
+## 📁 Project Architecture
 
 ```
 pitch-coach/
-├── backend/                    # Python FastAPI backend
-│   ├── auth/                   # Auth routes & JWT
-│   ├── sessions/               # Audio upload & evaluation
-│   ├── slides/                 # Multimodal Slide Coach engine (Vision, PyMuPDF, Q&A)
-│   ├── users/                  # Profile & stats
-│   ├── tests/                  # Unit tests (unittest)
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── .env.example            # Template — copy to .env (never commit secrets)
-│   └── start.bat
-└── frontend/                   # Flutter application
-    ├── lib/
-    │   ├── main.dart
-    │   ├── core/
-    │   │   ├── theme/          # Colors, typography, light/dark ThemeData
-    │   │   ├── widgets/        # Atmosphere, glass surfaces, theme toggle, nav
-    │   │   ├── providers/      # User, stats, session, SlideCoachProvider
-    │   │   ├── repositories/   # ApiClient, slide coach repository
-    │   │   └── utils/          # Conditional dart:io helpers for web
-    │   └── features/
-    │       ├── onboarding/
-    │       ├── home/
-    │       ├── interview/
-    │       ├── slide_coach/    # Deck upload, vision review, rehearsal, Q&A prep
-    │       ├── history/
-    │       ├── progress/
-    │       ├── profile/
-    │       ├── auth/
-    │       ├── learn/
-    │       └── results/
-    ├── test/                   # Flutter unit & widget tests
-    └── pubspec.yaml
+├── backend/                    # Python FastAPI backend server
+│   ├── auth/                   # Authentication routes & JWT logic
+│   ├── sessions/               # Audio upload & evaluation endpoints
+│   ├── users/                  # User profile & stats endpoints
+│   ├── main.py                 # FastAPI application entry point
+│   ├── requirements.txt        # Python dependencies
+│   └── start.bat               # Windows startup script
+├── lib/                        # Flutter frontend application
+│   ├── main.dart               # Application entry point
+│   ├── core/                   # Shared app-wide core modules (router, theme, services)
+│   └── features/               # Feature-first modular architecture
+│       ├── demo/               # Design system demo & component showcase
+│       ├── history/            # Session history & past logs
+│       ├── home/               # Main dashboard screen
+│       ├── interview/          # Interactive pitch/interview practice screen
+│       ├── onboarding/         # Intro and onboarding flow
+│       ├── profile/            # User profile & settings screen
+│       ├── progress/           # Progress tracking & growth metrics
+│       └── results/            # Post-session result breakdown & analytics charts
 ```
 
 ---
 
-## How to Run
+## 🏁 How to Run
 
 ### Prerequisites
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.10.0+)
-- [Python 3.10+](https://www.python.org/)
-- Chrome (for web), Android emulator, iOS simulator, or a physical device
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.10.0 or later)
+- [Python 3.10+](https://www.python.org/) (for running the backend)
+- Android Studio / VS Code with Flutter extension
+- Android Emulator, iOS Simulator, or connected physical device
 
 ---
 
-### Step 1: Backend
+### Step 1: Start the Backend (FastAPI)
 
-#### Quick start (venv already set up)
+#### ⚡ Quick Start (If environment is already set up)
 ```powershell
 cd backend
 start.bat
 ```
-
-#### First-time setup
+*or directly with python:*
 ```powershell
 cd backend
+venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+---
+
+#### 🛠️ First-Time Setup & Run
+```powershell
+# 1. Navigate to backend directory
+cd backend
+
+# 2. Create virtual environment
 python -m venv venv
+
+# 3. Activate virtual environment
 venv\Scripts\activate
+
+# 4. Install backend dependencies
 pip install -r requirements.txt
+
+# 5. Copy environment template & edit .env with your GROQ_API_KEY
 copy .env.example .env
-# Edit .env and set GROQ_API_KEY=...
-start.bat
+
+# 6. Start the FastAPI server
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-API: `http://localhost:8000` — docs at `http://localhost:8000/docs`
+The backend server will run on `http://localhost:8000`.
+
 
 ---
 
-### Step 2: Frontend (Flutter app)
+### Step 2: Run the Flutter App
 
-Navigate to the `frontend/` directory:
+1. **Navigate back to the project root:**
+   ```powershell
+   cd ..
+   ```
 
-```powershell
-cd frontend
-flutter pub get
-```
+2. **Get Flutter dependencies:**
+   ```powershell
+   flutter pub get
+   ```
 
-**Chrome / web**
-```powershell
-flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
-```
+3. **Launch the Flutter app with your backend URL:**
 
-**Android emulator**
-```powershell
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
-```
+   - **Android Emulator**:
+     ```powershell
+     flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+     ```
 
-**Physical device (same Wi‑Fi)** — use your PC LAN IP from `ipconfig`:
-```powershell
-flutter run --dart-define=API_BASE_URL=http://192.168.1.50:8000
-```
+   - **Physical Device (Same Wi-Fi network)**:
+     Find your computer's LAN IP (e.g. `192.168.1.50`) using `ipconfig`, then run:
+     ```powershell
+     flutter run --dart-define=API_BASE_URL=http://192.168.1.50:8000
+     ```
 
-**Desktop / localhost**
-```powershell
-flutter run --dart-define=API_BASE_URL=http://localhost:8000
-```
+   - **Desktop / Web / Localhost**:
+     ```powershell
+     flutter run --dart-define=API_BASE_URL=http://localhost:8000
+     ```
 
-Without `--dart-define`, guest / local mock mode is used (no backend calls).
-
-Use the sun/moon button to switch light and dark themes. The choice is kept on device.
-
----
-
-## Recent UI / UX notes
-
-- Atmospheric gradient backgrounds with soft aurora motion in dark mode
-- Glass-style cards and theme-aware text/surfaces across home, profile, history, and progress
-- Edit Profile screen follows the active theme
-- Theme preference no longer resets after a failed backend sync
+   - **Guest Mode (Offline / Local Mock Mode)**:
+     If you run standard `flutter run` without `--dart-define`, Guest Mode is enabled, operating locally without calling the backend API.
 
 ---
 
-## Windows Build Troubleshooting
+## ⚙️ Windows Build Troubleshooting
 
-If the project drive differs from the Pub Cache drive, Kotlin incremental compilation may fail. In `android/gradle.properties`:
+If building on Windows where the project directory drive differs from the Pub Cache drive (e.g., project on `D:` and pub cache on `C:`), Kotlin incremental compilation may throw a cross-root `IllegalArgumentException`.
 
+Ensure `android/gradle.properties` contains:
 ```properties
 kotlin.incremental=false
 kotlin.incremental.usePreciseJavaTracking=false
@@ -169,176 +163,30 @@ kotlin.incremental.usePreciseJavaTracking=false
 
 ---
 
-## Command Reference
+## 🧪 Development Commands
 
-### 1. Flutter Commands (from `frontend/` directory)
+- **Run code analysis:**
+  ```bash
+  flutter analyze
+  ```
 
-#### Setup & Clean
-```powershell
-cd frontend
+- **Run unit tests:**
+  ```bash
+  flutter test
+  ```
 
-# Get dependencies
-flutter pub get
+- **Build debug APK:**
+  ```bash
+  flutter build apk --debug
+  ```
 
-# Clean build artifacts & rebuild cache
-flutter clean
-flutter pub get
-
-# Check for outdated packages
-flutter pub outdated
-```
-
-#### Devices & Emulators
-```powershell
-# List all available devices (Connected Android, Web, Windows)
-flutter devices
-
-# List available Android emulators
-flutter emulators
-
-# Launch a specific Android emulator
-flutter emulators --launch Pixel_6a
-```
-
-#### Running the App
-```powershell
-# Run on Windows Desktop
-flutter run -d windows --dart-define=API_BASE_URL=http://localhost:8000
-
-# Run on Web (Chrome)
-flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
-
-# Run on Android Emulator (10.0.2.2 points to host machine localhost)
-flutter run -d android --dart-define=API_BASE_URL=http://10.0.2.2:8000
-
-# Run on Physical Device (replace with your PC's LAN IP from ipconfig)
-flutter run -d <device-id> --dart-define=API_BASE_URL=http://192.168.1.50:8000
-```
-
-#### Analysis & Testing
-```powershell
-# Analyze code for warnings and lint errors
-flutter analyze
-
-# Run unit and widget tests
-flutter test
-```
-
-#### Build Release Artifacts
-```powershell
-# Build Android APK (Debug / Release)
-flutter build apk --debug
-flutter build apk --release
-
-# Build Android App Bundle (.aab)
-flutter build appbundle
-
-# Build Web distribution
-flutter build web
-
-# Build Windows Desktop executable
-flutter build windows
-```
+- **Build release APK (Android):**
+  ```bash
+  flutter build apk --release
+  ```
 
 ---
 
-### 2. Backend (FastAPI) Commands
-
-#### Setup (from `backend/` directory)
-```powershell
-cd backend
-
-# Create Python virtual environment
-python -m venv venv
-
-# Activate venv (Windows PowerShell)
-.\venv\Scripts\activate
-
-# Install required dependencies
-pip install -r requirements.txt
-
-# Create environment config from template
-copy .env.example .env
-```
-
-#### Running the Server
-```powershell
-# Option 1: Using startup batch script (Windows)
-.\start.bat
-
-# Option 2: Running directly via python module (Avoids Windows script execution policy issues)
-.\venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
----
-
-## Slide Coach AI Documentation
-
-### Architecture & Three-Stage Pipeline
-1. **Stage A: Render (PyMuPDF)**: Validates `%PDF` magic bytes, ensures length is between 1 and 30 pages (under 25MB), and renders crisp JPEGs at max 1024px width (quality 70).
-2. **Stage B: Vision Extraction (Groq Vision)**: Sends slides in concurrent batches of $\le 5$ images to `qwen/qwen3.8-27b` to extract titles, main messages, diagrams, trend directions, and readability issues in strict JSON mode with Pydantic validation.
-3. **Stage C: Coaching Synthesis (Groq LLM)**: Synthesizes slide visual descriptions and speaker constraints into a cohesive narrative arc, calculates slide duration budgets matching `time_limit_seconds` ($\pm 5\%$), and creates talking points and transition hooks with `openai/gpt-oss-120b`.
-4. **Rehearsal Mode**: Records audio while the presenter swipes slides, transcribes with word-level Groq Whisper timestamps, splits transcript per slide, computes WPM and filler counts (including Tamil/Hinglish fillers: *um, uh, like, actually, basically, so, ah, enna, paa*), evaluates talking points coverage, and invokes the agentic coach.
-5. **Q&A Mode**: Generates 5–8 tough, audience-tailored questions with underlying rationale and grades spoken responses on clarity, directness, evidence, and confidence.
-
-### Slide Coach Environment Variables (`backend/.env`)
-| Variable | Default | Purpose |
-| :--- | :--- | :--- |
-| `SECRET_KEY` | *(Required)* | Strong cryptographic key for HS256 JWT tokens |
-| `ALLOWED_ORIGINS` | `""` | Comma-separated list of allowed origins (e.g. `http://localhost:3000`) |
-| `ADMIN_USER_IDS` | `""` | Comma-separated list of user IDs allowed to call maintenance cleanup |
-| `GROQ_API_KEY` | *(Required)* | Primary API key for Groq LLM & Vision completions |
-| `GROQ_AUDIO_API_KEY` | `""` | Dedicated API key for Whisper audio pipeline (falls back to GROQ_API_KEY) |
-| `GROQ_VISION_MODEL` | `qwen/qwen3.8-27b` | Multimodal model for slide diagram and visual analysis |
-| `GROQ_TEXT_MODEL` | `openai/gpt-oss-120b` | Flagship text LLM with JSON mode for speech & slide coaching |
-| `GROQ_WHISPER_MODEL` | `whisper-large-v3-turbo` | Speech-to-text model with word-level timestamps |
-| `SLIDE_DECK_DIR` | `./slide_decks` | Local disk folder for rendered slide JPEGs |
-| `SLIDE_DECK_TTL_DAYS` | `7` | Retention window (1-365 days) before deck files are purged |
-| `MAX_DECKS_PER_DAY` | `10` | Daily upload limit per user to prevent quota abuse |
-| `MAX_SESSIONS_PER_DAY` | `50` | Daily session practice limit per user |
-
-### Slide Coach API Endpoints
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/slides/upload` | Multipart upload (PDF + audience + time_limit + goal) with SHA-256 deduplication and 60-page limit |
-| `GET` | `/slides/{deck_id}/status` | Polls pipeline stage (`rendering`, `reading_slides`, `writing_coaching`) and progress |
-| `GET` | `/slides/{deck_id}` | Returns full structured coaching result (story arc, score, slides, talking points) |
-| `GET` | `/slides/{deck_id}/slides/{n}/image` | Serves rendered JPEG image for slide $n$ |
-| `PATCH`| `/slides/{deck_id}/slides/{n}` | Saves user edits to talking points or script (debounced) |
-| `POST` | `/slides/{deck_id}/rehearse` | Submits audio + slide swipe timestamps for per-slide rehearsal metrics |
-| `POST` | `/slides/{deck_id}/qa/questions` | Generates 5–8 audience-specific presentation questions |
-| `POST` | `/slides/{deck_id}/qa/answer` | Grades recorded answer with Whisper + Coach scoring |
-| `POST` | `/slides/cleanup` | Cleans up decks older than configured TTL (Admin only) |
-| `DELETE`| `/slides/{deck_id}` | Deletes deck, Firestore document, and rendered assets |
-
-### Testing & Verification
-
-#### Backend Unit Tests
-```powershell
-cd backend
-# Runs full test suite (30 unit tests across pipeline, security, reliability, and quality)
-.\venv\Scripts\python.exe -m unittest discover tests
-```
-
-#### Maintenance Script
-```powershell
-cd backend
-# Purges expired guest accounts, orphaned slide decks, and expired sessions
-.\venv\Scripts\python.exe scripts/cleanup.py
-```
-
-#### Frontend Tests & Static Analysis
-```powershell
-cd frontend
-# Run static analysis
-flutter analyze
-
-# Run unit and widget test suite (21 tests)
-flutter test
-```
-
----
-
-## License
+## 📄 License
 
 This project is created for educational and development purposes.
