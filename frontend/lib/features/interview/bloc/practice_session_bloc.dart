@@ -132,6 +132,8 @@ class PracticeSessionState extends Equatable {
 
   PracticePrompt get currentPrompt => currentMode.prompts[promptIndex];
   int get totalPrompts => currentMode.prompts.length;
+  bool get hasPreviousPrompt => promptIndex > 0;
+  bool get hasNextPrompt => promptIndex < currentMode.prompts.length - 1;
 
   bool get isRecording => phase == RecordingPhase.recording;
   bool get isUploading => phase == RecordingPhase.uploading;
@@ -289,8 +291,9 @@ class PracticeSessionBloc
     Emitter<PracticeSessionState> emit,
   ) {
     if (state.isRecording || state.isUploading) return;
-    final nextIdx = (state.promptIndex + 1) % state.currentMode.prompts.length;
-    emit(state.copyWith(promptIndex: nextIdx));
+    if (state.promptIndex < state.currentMode.prompts.length - 1) {
+      emit(state.copyWith(promptIndex: state.promptIndex + 1));
+    }
   }
 
   void _onPreviousPrompt(
@@ -298,10 +301,9 @@ class PracticeSessionBloc
     Emitter<PracticeSessionState> emit,
   ) {
     if (state.isRecording || state.isUploading) return;
-    final prevIdx =
-        (state.promptIndex - 1 + state.currentMode.prompts.length) %
-        state.currentMode.prompts.length;
-    emit(state.copyWith(promptIndex: prevIdx));
+    if (state.promptIndex > 0) {
+      emit(state.copyWith(promptIndex: state.promptIndex - 1));
+    }
   }
 
   Future<void> _onStartRecording(

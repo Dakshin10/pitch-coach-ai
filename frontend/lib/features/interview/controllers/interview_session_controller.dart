@@ -144,6 +144,8 @@ class InterviewSessionController extends ChangeNotifier {
   PracticePrompt get currentPrompt =>
       _customPrompt ?? _currentMode.prompts[_promptIndex];
   int get totalPrompts => _currentMode.prompts.length;
+  bool get hasPreviousPrompt => _promptIndex > 0;
+  bool get hasNextPrompt => _promptIndex < _currentMode.prompts.length - 1;
 
   RecordingPhase get phase => _phase;
   bool get isRecording => _phase == RecordingPhase.recording;
@@ -240,20 +242,22 @@ class InterviewSessionController extends ChangeNotifier {
 
   void nextPrompt() {
     if (isRecording || isUploading) return;
-    _customPrompt = null;
-    _promptIndex = (_promptIndex + 1) % _currentMode.prompts.length;
-    resetMultiTurn();
-    notifyListeners();
+    if (_promptIndex < _currentMode.prompts.length - 1) {
+      _customPrompt = null;
+      _promptIndex++;
+      resetMultiTurn();
+      notifyListeners();
+    }
   }
 
   void previousPrompt() {
     if (isRecording || isUploading) return;
-    _customPrompt = null;
-    _promptIndex =
-        (_promptIndex - 1 + _currentMode.prompts.length) %
-        _currentMode.prompts.length;
-    resetMultiTurn();
-    notifyListeners();
+    if (_promptIndex > 0) {
+      _customPrompt = null;
+      _promptIndex--;
+      resetMultiTurn();
+      notifyListeners();
+    }
   }
 
   /// Loads tailored questions generated from a candidate's resume/JD.

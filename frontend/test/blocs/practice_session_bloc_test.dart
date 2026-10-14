@@ -42,6 +42,27 @@ void main() {
     );
 
     blocTest<PracticeSessionBloc, PracticeSessionState>(
+      'PreviousPromptEvent at index 0 does not loop to last prompt',
+      build: () => PracticeSessionBloc(),
+      act: (bloc) => bloc.add(const PreviousPromptEvent()),
+      expect: () => [],
+    );
+
+    blocTest<PracticeSessionBloc, PracticeSessionState>(
+      'PreviousPromptEvent decrements promptIndex from 1 to 0',
+      build: () => PracticeSessionBloc(),
+      seed: () => PracticeSessionState.initial().copyWith(promptIndex: 1),
+      act: (bloc) => bloc.add(const PreviousPromptEvent()),
+      expect: () => [
+        isA<PracticeSessionState>().having(
+          (s) => s.promptIndex,
+          'promptIndex',
+          equals(0),
+        ),
+      ],
+    );
+
+    blocTest<PracticeSessionBloc, PracticeSessionState>(
       'SwitchPracticeModeEvent switches mode and resets promptIndex',
       build: () => PracticeSessionBloc(),
       act: (bloc) => bloc.add(const SwitchPracticeModeEvent('presentation')),

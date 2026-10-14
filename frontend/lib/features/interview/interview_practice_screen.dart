@@ -929,24 +929,31 @@ class __InterviewPracticeContentState extends State<_InterviewPracticeContent>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton.icon(
-                  onPressed: ctrl.previousPrompt,
+                  onPressed:
+                      ctrl.hasPreviousPrompt ? ctrl.previousPrompt : null,
                   icon: const Icon(Icons.arrow_back_rounded, size: 16),
                   label: const Text('Previous'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
+                    disabledForegroundColor:
+                        AppColors.textSecondary.withValues(alpha: 0.35),
                     padding: EdgeInsets.zero,
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: ctrl.nextPrompt,
-                  icon: const Icon(Icons.shuffle_rounded, size: 16),
+                  onPressed: ctrl.hasNextPrompt ? ctrl.nextPrompt : null,
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
                   label: const Text('Next Prompt'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primaryPurpleLight,
+                    disabledForegroundColor:
+                        AppColors.textSecondary.withValues(alpha: 0.35),
                     side: BorderSide(
-                      color: AppColors.primaryPurpleLight.withValues(
-                        alpha: 0.4,
-                      ),
+                      color: ctrl.hasNextPrompt
+                          ? AppColors.primaryPurpleLight.withValues(
+                              alpha: 0.4,
+                            )
+                          : AppColors.borderOf(context).withValues(alpha: 0.3),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),

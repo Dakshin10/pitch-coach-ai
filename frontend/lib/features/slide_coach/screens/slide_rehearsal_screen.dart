@@ -554,7 +554,9 @@ class _SlideRehearsalScreenState extends State<SlideRehearsalScreen> {
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton(
-            onPressed: () => _nextSlide(slides),
+            onPressed: _activeSlideIdx < slides.length - 1
+                ? () => _nextSlide(slides)
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryPurple,
               foregroundColor: Colors.white,

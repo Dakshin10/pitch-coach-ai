@@ -72,7 +72,7 @@ void main() {
       expect(ctrl.durationWarning, isNull);
     });
 
-    test('Supports cycling prompts forward and backward', () {
+    test('Supports cycling prompts forward and backward without looping at bounds', () {
       final ctrl = InterviewSessionController(
         isGuest: true,
         initialConfig: PracticeSessionConfig.defaultFor(
@@ -81,13 +81,36 @@ void main() {
       );
 
       final initialPromptId = ctrl.currentPrompt.id;
-      ctrl.nextPrompt();
-      expect(ctrl.promptIndex, 1);
-      expect(ctrl.currentPrompt.id, isNot(initialPromptId));
+      expect(ctrl.hasPreviousPrompt, isFalse);
+      expect(ctrl.hasNextPrompt, isTrue);
 
+      // Bound check: previousPrompt at index 0 must not loop to the end
       ctrl.previousPrompt();
       expect(ctrl.promptIndex, 0);
       expect(ctrl.currentPrompt.id, initialPromptId);
+
+      // Advance to next prompt
+      ctrl.nextPrompt();
+      expect(ctrl.promptIndex, 1);
+      expect(ctrl.hasPreviousPrompt, isTrue);
+      expect(ctrl.currentPrompt.id, isNot(initialPromptId));
+
+      // Go back to first prompt
+      ctrl.previousPrompt();
+      expect(ctrl.promptIndex, 0);
+      expect(ctrl.currentPrompt.id, initialPromptId);
+
+      // Advance to the last prompt and ensure it does not loop
+      for (int i = 0; i < ctrl.totalPrompts + 3; i++) {
+        ctrl.nextPrompt();
+      }
+      expect(ctrl.promptIndex, ctrl.totalPrompts - 1);
+      expect(ctrl.hasNextPrompt, isFalse);
+      expect(ctrl.hasPreviousPrompt, isTrue);
+
+      // Next at the end should stay at the end
+      ctrl.nextPrompt();
+      expect(ctrl.promptIndex, ctrl.totalPrompts - 1);
     });
 
     test('Supports switching practice mode while idle', () {
