@@ -4,10 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/models/practice_mode.dart';
+import '../../../core/models/resume_interview.dart';
+import '../../../core/models/multi_turn_interview.dart';
+import '../../../core/models/pitch_template.dart';
 import '../../../core/repositories/session_repository.dart';
+import '../../../core/repositories/multi_turn_repository.dart';
+import '../../../core/repositories/template_repository.dart';
+import '../../../core/services/tts_service.dart';
 import '../../../core/services/local_database_service.dart';
 import '../../../core/services/outbox_worker.dart';
 import '../../../core/services/upload_queue_service.dart';
+import '../../../core/services/rolling_wpm_estimator.dart';
 import '../bloc/practice_session_bloc.dart';
 
 enum RecordingPhase { idle, recording, uploading, failed, permissionDenied }
@@ -18,6 +25,7 @@ class InterviewSessionController extends ChangeNotifier {
   final bool isGuest;
   final _sessionRepo = SessionRepository.instance;
   final _uploadQueue = UploadQueueService.instance;
+  final _wpmEstimator = RollingWpmEstimator();
 
   Timer? _timer;
   StreamSubscription<Amplitude>? _amplitudeSubscription;
@@ -46,6 +54,22 @@ class InterviewSessionController extends ChangeNotifier {
   MicPermissionState _micPermissionState = MicPermissionState.granted;
   void Function(String? sessionId)? onAutoStop;
   PracticeSessionBloc? _bloc;
+  final String? parentSessionId;
+  PracticePrompt? _customPrompt;
+
+  // ── Multi-Turn AI Interviewer State ───────────────────────────────────────
+  final _multiTurnRepo = MultiTurnRepository.instance;
+  final _ttsService = TtsService.instance;
+  bool _isMultiTurnEnabled = true;
+  int _followUpCount = 0;
+  final List<TurnMessage> _dialogueTurns = [];
+  String? _currentFollowUp;
+  String? _interviewerReason;
+  bool _isThinking = false;
+  double? _lastTurnLatencyMs;
+  ExchangeScoreResponse? _exchangeScore;
+  bool _turnEvaluationFailed = false;
+  String? _pendingTurnAudioPath;
 
   /// Exposes the reactive PracticeSessionBloc for BLoC-driven UI components.
   PracticeSessionBloc get bloc => _bloc ??= PracticeSessionBloc(
@@ -53,29 +77,72 @@ class InterviewSessionController extends ChangeNotifier {
     initialConfig: PracticeSessionConfig(
       modeId: _currentMode.id,
       prompt: currentPrompt,
+      parentSessionId: parentSessionId,
     ),
   );
 
   InterviewSessionController({
     required this.isGuest,
     PracticeSessionConfig? initialConfig,
-  }) {
+  }) : parentSessionId = initialConfig?.parentSessionId {
     if (initialConfig != null) {
       _currentMode = initialConfig.mode;
       final idx = _currentMode.prompts.indexWhere(
-        (p) => p.id == initialConfig.prompt.id,
+        (p) =>
+            p.id == initialConfig.prompt.id ||
+            p.text == initialConfig.prompt.text,
       );
-      _promptIndex = idx >= 0 ? idx : 0;
+      if (idx >= 0) {
+        _promptIndex = idx;
+      } else {
+        _customPrompt = initialConfig.prompt;
+      }
     } else {
       _currentMode = PracticeMode.allModes.first;
       _promptIndex = 0;
     }
+    loadTemplates();
+    _ttsService.addListener(notifyListeners);
+  }
+
+  // ── Pitch Template State ──────────────────────────────────────────────────
+  PitchTemplate? _selectedTemplate;
+  List<PitchTemplate> _availableTemplates = PitchTemplate.defaultTemplates;
+
+  PitchTemplate? get selectedTemplate => _selectedTemplate;
+  List<PitchTemplate> get availableTemplates => _availableTemplates;
+
+  Future<void> loadTemplates() async {
+    try {
+      final list = await TemplateRepository.instance.getTemplates();
+      if (list.isNotEmpty) {
+        _availableTemplates = list;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  void selectTemplate(PitchTemplate? template) {
+    if (isRecording || isUploading) return;
+    _selectedTemplate = template;
+    if (template != null) {
+      _customPrompt = PracticePrompt(
+        id: template.id,
+        text: '${template.title}: ${template.description}',
+        category: 'Pitch Template',
+        hint: 'Coach Focus: ${template.coachingFocus}',
+        targetDurationSeconds: template.targetDurationSeconds,
+      );
+    }
+    resetMultiTurn();
+    notifyListeners();
   }
 
   // Getters
   PracticeMode get currentMode => _currentMode;
   int get promptIndex => _promptIndex;
-  PracticePrompt get currentPrompt => _currentMode.prompts[_promptIndex];
+  PracticePrompt get currentPrompt =>
+      _customPrompt ?? _currentMode.prompts[_promptIndex];
   int get totalPrompts => _currentMode.prompts.length;
 
   RecordingPhase get phase => _phase;
@@ -98,28 +165,138 @@ class InterviewSessionController extends ChangeNotifier {
     return '$minutes:$seconds';
   }
 
+  RollingWpmEstimator get wpmEstimator => _wpmEstimator;
+  double get rollingWpm => _wpmEstimator.currentWpm;
+  PacingState get pacingState => _wpmEstimator.pacingState;
+  Color get pacingColor => _wpmEstimator.pacingColor;
+
+  @visibleForTesting
+  void setWpmForTesting(double wpm) {
+    _wpmEstimator.setWpmForTesting(wpm);
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void setRecordingPhaseForTesting(RecordingPhase phase) {
+    _phase = phase;
+    notifyListeners();
+  }
+
+  // ── Multi-Turn Getters & Controls ─────────────────────────────────────────
+  bool get isMultiTurnEnabled => _isMultiTurnEnabled;
+  int get followUpCount => _followUpCount;
+  List<TurnMessage> get dialogueTurns => List.unmodifiable(_dialogueTurns);
+  String? get currentFollowUp => _currentFollowUp;
+  String? get interviewerReason => _interviewerReason;
+  bool get isThinking => _isThinking;
+  double? get lastTurnLatencyMs => _lastTurnLatencyMs;
+  ExchangeScoreResponse? get exchangeScore => _exchangeScore;
+  bool get turnEvaluationFailed => _turnEvaluationFailed;
+  bool get isTtsEnabled => _ttsService.isEnabled;
+  bool get isTtsSpeaking => _ttsService.isSpeaking;
+  bool get showCaptions => _ttsService.showCaptions;
+  String? get currentCaption => _ttsService.currentCaption;
+
+  void toggleTts() {
+    _ttsService.toggleEnabled();
+    notifyListeners();
+  }
+
+  void toggleCaptions() {
+    _ttsService.toggleCaptions();
+    notifyListeners();
+  }
+
+  void toggleMultiTurn(bool enabled) {
+    _isMultiTurnEnabled = enabled;
+    notifyListeners();
+  }
+
+  void resetMultiTurn() {
+    _followUpCount = 0;
+    _dialogueTurns.clear();
+    _currentFollowUp = null;
+    _interviewerReason = null;
+    _isThinking = false;
+    _lastTurnLatencyMs = null;
+    _exchangeScore = null;
+    _turnEvaluationFailed = false;
+    _pendingTurnAudioPath = null;
+    notifyListeners();
+  }
+
   // ── Mode and Prompt Selection ─────────────────────────────────────────────
 
   void switchMode(String modeId) {
     if (isRecording || isUploading) return;
     _currentMode = PracticeMode.fromId(modeId);
+    _customPrompt = null;
     _promptIndex = 0;
     _durationWarning = null;
     _errorMessage = null;
+    resetMultiTurn();
     notifyListeners();
   }
 
   void nextPrompt() {
     if (isRecording || isUploading) return;
+    _customPrompt = null;
     _promptIndex = (_promptIndex + 1) % _currentMode.prompts.length;
+    resetMultiTurn();
     notifyListeners();
   }
 
   void previousPrompt() {
     if (isRecording || isUploading) return;
+    _customPrompt = null;
     _promptIndex =
         (_promptIndex - 1 + _currentMode.prompts.length) %
         _currentMode.prompts.length;
+    resetMultiTurn();
+    notifyListeners();
+  }
+
+  /// Loads tailored questions generated from a candidate's resume/JD.
+  void loadResumeQuestions(ResumeQuestionsResult questions) {
+    if (questions.allQuestions.isEmpty) return;
+    final resumePrompts = <PracticePrompt>[];
+    for (int i = 0; i < questions.technicalQuestions.length; i++) {
+      resumePrompts.add(
+        PracticePrompt(
+          id: 'resume-tech-$i',
+          text: questions.technicalQuestions[i],
+          category: 'Resume Technical',
+          hint:
+              'Anchor your answer in specific implementation decisions, architectural trade-offs, and metrics from your project.',
+          targetDurationSeconds: 90,
+        ),
+      );
+    }
+    for (int i = 0; i < questions.behavioralQuestions.length; i++) {
+      resumePrompts.add(
+        PracticePrompt(
+          id: 'resume-behav-$i',
+          text: questions.behavioralQuestions[i],
+          category: 'Resume Behavioral',
+          hint:
+              'Use the STAR framework (Situation, Task, Action, Result) with concrete quantifiable outcomes.',
+          targetDurationSeconds: 90,
+        ),
+      );
+    }
+    _currentMode = PracticeMode(
+      id: PracticeMode.interviewId,
+      title: 'Resume Interview',
+      subtitle: 'Questions tailored to your resume projects & skills',
+      icon: Icons.badge_outlined,
+      prompts: resumePrompts,
+      defaultTargetSeconds: 90,
+    );
+    _customPrompt = null;
+    _promptIndex = 0;
+    _durationWarning = null;
+    _errorMessage = null;
+    resetMultiTurn();
     notifyListeners();
   }
 
@@ -153,14 +330,17 @@ class InterviewSessionController extends ChangeNotifier {
         _sessionId = await _sessionRepo.startSession(
           mode: _currentMode.id,
           topicOrQuestion: currentPrompt.text,
+          parentSessionId: parentSessionId,
         );
       }
       _activeAudioPath = _sessionRepo.currentAudioPath;
       _phase = RecordingPhase.recording;
+      _wpmEstimator.reset();
 
       _amplitudeSubscription?.cancel();
       _amplitudeSubscription = _sessionRepo.amplitudeStream.listen((amp) {
         _audioLevel = ((amp.current + 60) / 60).clamp(0.0, 1.0);
+        _wpmEstimator.updateWithAmplitude(_audioLevel);
         notifyListeners();
       });
 
@@ -227,6 +407,202 @@ class InterviewSessionController extends ChangeNotifier {
     }
 
     final audioPath = await _sessionRepo.stopAudioRecorder();
+    _activeAudioPath = audioPath;
+
+    final isInterview = _currentMode.id == PracticeMode.interviewId ||
+        _currentMode.title.toLowerCase().contains('interview');
+
+    if (_isMultiTurnEnabled && isInterview) {
+      _isThinking = true;
+      notifyListeners();
+
+      final sw = Stopwatch()..start();
+      try {
+        final evalResult = await _multiTurnRepo.evaluateTurnAudio(
+          audioPath: audioPath ?? '',
+          question: _currentFollowUp ?? currentPrompt.text,
+          turnHistory: _dialogueTurns,
+          followUpCount: _followUpCount,
+        );
+        sw.stop();
+        _lastTurnLatencyMs =
+            evalResult.latencyMs ?? sw.elapsedMilliseconds.toDouble();
+        _turnEvaluationFailed = false;
+        _pendingTurnAudioPath = null;
+
+        // If vague and follow-up cap not reached, present follow-up!
+        if (!evalResult.moveOn &&
+            evalResult.followUp != null &&
+            _followUpCount < 2) {
+          _followUpCount++;
+          _currentFollowUp = evalResult.followUp;
+          _interviewerReason = evalResult.reason;
+          _dialogueTurns.add(
+            TurnMessage(
+              role: TurnRole.candidate,
+              content: evalResult.transcription ?? 'Candidate answer',
+            ),
+          );
+          _dialogueTurns.add(
+            TurnMessage(
+              role: TurnRole.interviewer,
+              content: evalResult.followUp!,
+            ),
+          );
+          _isThinking = false;
+          _phase = RecordingPhase.idle;
+          notifyListeners();
+          if (_ttsService.isEnabled) {
+            _ttsService.speak(evalResult.followUp!);
+          }
+          return;
+        }
+
+        // Strong answer or reached max 2 follow-ups -> score full exchange
+        _dialogueTurns.add(
+          TurnMessage(
+            role: TurnRole.candidate,
+            content: evalResult.transcription ?? 'Candidate answer',
+          ),
+        );
+
+        try {
+          _exchangeScore = await _multiTurnRepo.scoreExchange(
+            question: currentPrompt.text,
+            turns: _dialogueTurns,
+          );
+        } catch (scoreErr) {
+          debugPrint(
+            '[InterviewSessionController] scoreExchange notice: $scoreErr',
+          );
+        }
+
+        _isThinking = false;
+        notifyListeners();
+      } catch (evalErr) {
+        sw.stop();
+        _isThinking = false;
+        _phase = RecordingPhase.failed;
+        _turnEvaluationFailed = true;
+        _pendingTurnAudioPath = audioPath;
+        _errorMessage =
+            'Network issue while evaluating answer. Your recording is preserved. Tap Retry Evaluation to submit.';
+        notifyListeners();
+        return;
+      }
+    }
+
+    await _finalizeSessionUpload(audioPath, onComplete);
+  }
+
+  /// Retries evaluating the turn answer if connection failed mid-turn.
+  Future<void> retryTurnEvaluation(
+    void Function(String? sessionId) onComplete,
+  ) async {
+    if (_pendingTurnAudioPath == null) return;
+    final audioPath = _pendingTurnAudioPath;
+    _phase = RecordingPhase.uploading;
+    _isThinking = true;
+    _errorMessage = null;
+    _turnEvaluationFailed = false;
+    notifyListeners();
+
+    final sw = Stopwatch()..start();
+    try {
+      final evalResult = await _multiTurnRepo.evaluateTurnAudio(
+        audioPath: audioPath!,
+        question: _currentFollowUp ?? currentPrompt.text,
+        turnHistory: _dialogueTurns,
+        followUpCount: _followUpCount,
+      );
+      sw.stop();
+      _lastTurnLatencyMs =
+          evalResult.latencyMs ?? sw.elapsedMilliseconds.toDouble();
+      _pendingTurnAudioPath = null;
+
+      if (!evalResult.moveOn &&
+          evalResult.followUp != null &&
+          _followUpCount < 2) {
+        _followUpCount++;
+        _currentFollowUp = evalResult.followUp;
+        _interviewerReason = evalResult.reason;
+        _dialogueTurns.add(
+          TurnMessage(
+            role: TurnRole.candidate,
+            content: evalResult.transcription ?? 'Candidate answer',
+          ),
+        );
+        _dialogueTurns.add(
+          TurnMessage(
+            role: TurnRole.interviewer,
+            content: evalResult.followUp!,
+          ),
+        );
+        _isThinking = false;
+        _phase = RecordingPhase.idle;
+        notifyListeners();
+        if (_ttsService.isEnabled) {
+          _ttsService.speak(evalResult.followUp!);
+        }
+        return;
+      }
+
+      _dialogueTurns.add(
+        TurnMessage(
+          role: TurnRole.candidate,
+          content: evalResult.transcription ?? 'Candidate answer',
+        ),
+      );
+
+      try {
+        _exchangeScore = await _multiTurnRepo.scoreExchange(
+          question: currentPrompt.text,
+          turns: _dialogueTurns,
+        );
+      } catch (_) {}
+
+      _isThinking = false;
+      notifyListeners();
+      await _finalizeSessionUpload(audioPath, onComplete);
+    } catch (e) {
+      sw.stop();
+      _isThinking = false;
+      _phase = RecordingPhase.failed;
+      _turnEvaluationFailed = true;
+      _pendingTurnAudioPath = audioPath;
+      _errorMessage =
+          'Retry failed. Your recording is preserved. Tap Retry to try again.';
+      notifyListeners();
+    }
+  }
+
+  /// Concludes multi-turn dialogue early and scores current turns.
+  Future<void> skipFollowUpAndFinish(
+    void Function(String? sessionId) onComplete,
+  ) async {
+    if (isRecording) {
+      await stopRecording(onComplete);
+      return;
+    }
+    _phase = RecordingPhase.uploading;
+    notifyListeners();
+
+    try {
+      if (_dialogueTurns.isNotEmpty) {
+        _exchangeScore = await _multiTurnRepo.scoreExchange(
+          question: currentPrompt.text,
+          turns: _dialogueTurns,
+        );
+      }
+    } catch (_) {}
+
+    await _finalizeSessionUpload(_activeAudioPath, onComplete);
+  }
+
+  Future<void> _finalizeSessionUpload(
+    String? audioPath,
+    void Function(String? sessionId) onComplete,
+  ) async {
     final effectiveSessionId = _sessionId ?? const Uuid().v4();
     _sessionId = effectiveSessionId;
     _activeAudioPath = audioPath;
@@ -250,9 +626,9 @@ class InterviewSessionController extends ChangeNotifier {
           'filler_word_count': 0,
           'pause_count': 0,
           'avg_pause_length': 0.0,
-          'clarity_score': 0.0,
-          'confidence_score': 0.0,
-          'overall_score': 0.0,
+          'clarity_score': _exchangeScore?.clarityScore ?? 0.0,
+          'confidence_score': _exchangeScore?.confidenceScore ?? 0.0,
+          'overall_score': _exchangeScore?.overallScore ?? 0.0,
           'status': 'pending',
           'created_at': DateTime.now().toUtc().toIso8601String(),
           'local_date': localDate,
@@ -271,6 +647,8 @@ class InterviewSessionController extends ChangeNotifier {
             'duration_seconds': _elapsedSeconds.toDouble(),
             'local_date': localDate,
             'tz_offset_minutes': tzOffsetMinutes,
+            'parent_session_id': parentSessionId,
+            'template_id': _selectedTemplate?.id,
           }),
           localAudioPath: audioPath,
         );
@@ -460,6 +838,7 @@ class InterviewSessionController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _ttsService.removeListener(notifyListeners);
     _timer?.cancel();
     _amplitudeSubscription?.cancel();
     _bloc?.close();

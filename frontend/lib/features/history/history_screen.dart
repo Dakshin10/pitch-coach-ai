@@ -7,6 +7,7 @@ import '../../core/providers/user_provider.dart';
 import '../../core/repositories/demo_repository.dart';
 import '../../core/models/session_result.dart';
 import '../../core/repositories/session_repository.dart';
+import '../../core/services/outbox_worker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/circular_gauge_painter.dart';
@@ -30,6 +31,8 @@ class _HistoryScreenState extends State<HistoryScreen>
   List<SessionSummary> _sessions = [];
   bool _isLoading = true;
   String? _errorMessage;
+  int _pendingOutboxCount = 0;
+  bool _isSyncingOutbox = false;
 
   final List<String> _filterChips = [
     'All',
@@ -51,6 +54,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       _isLoading = false;
     }
     _loadSessions(isInitial: cached == null || cached.isEmpty);
+    _checkOutboxCount();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<SlideCoachProvider>().loadSavedDecks();
@@ -119,7 +123,113 @@ class _HistoryScreenState extends State<HistoryScreen>
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+      _checkOutboxCount();
     }
+  }
+
+  Future<void> _checkOutboxCount() async {
+    if (!mounted) return;
+    try {
+      final user = context.read<UserProvider>().user;
+      if (user.id.isNotEmpty && user.id != 'guest') {
+        final count = await OutboxWorker.instance.getPendingCount(userId: user.id);
+        if (mounted) {
+          setState(() => _pendingOutboxCount = count);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _syncPendingOutbox() async {
+    if (_isSyncingOutbox) return;
+    setState(() => _isSyncingOutbox = true);
+    try {
+      final user = context.read<UserProvider>().user;
+      await OutboxWorker.instance.process(userId: user.id);
+      await _checkOutboxCount();
+      await _loadSessions(force: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingOutbox = false);
+      }
+    }
+  }
+
+  Widget _buildOutboxBanner() {
+    if (_pendingOutboxCount == 0) return const SizedBox.shrink();
+    return Container(
+      key: const Key('history_outbox_banner'),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warningAmber.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.warningAmber.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.cloud_upload_outlined,
+            color: AppColors.warningAmber,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$_pendingOutboxCount recording${_pendingOutboxCount > 1 ? 's' : ''} pending sync',
+                  style: AppTextStyles.bodyMOf(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
+                Text(
+                  'Saved locally. Will sync automatically when online.',
+                  style: AppTextStyles.captionOf(context).copyWith(
+                    color: AppColors.textSecondaryOf(context),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            key: const Key('history_sync_now_button'),
+            onPressed: _isSyncingOutbox ? null : _syncPendingOutbox,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: AppColors.primaryPurple,
+            ),
+            child: _isSyncingOutbox
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primaryPurple,
+                      ),
+                    ),
+                  )
+                : const Text(
+                    'Sync Now',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Group sessions by relative date label ("Today", "Yesterday", "This Week", older date strings).
@@ -322,6 +432,7 @@ class _HistoryScreenState extends State<HistoryScreen>
               ),
 
               const SizedBox(height: 16),
+              _buildOutboxBanner(),
 
               // 4. Session List / Loading / Error / Empty State
               Expanded(
@@ -474,13 +585,44 @@ class _HistoryScreenState extends State<HistoryScreen>
                     size: 30,
                   ),
                 )
-              : CircularGauge(
-                  value: score,
-                  size: 46,
-                  strokeWidth: 4.5,
-                  centerBigText: '${score.round()}%',
-                  gradientColors: [scoreColor, scoreColor],
-                ),
+              : !session.isAnalyzed
+                  ? Container(
+                      key: Key('pending_indicator_${session.id}'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningAmber.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.cloud_upload_outlined,
+                            size: 14,
+                            color: AppColors.warningAmber,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Pending',
+                            style: TextStyle(
+                              color: AppColors.warningAmber,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : CircularGauge(
+                      value: score,
+                      size: 46,
+                      strokeWidth: 4.5,
+                      centerBigText: '${score.round()}%',
+                      gradientColors: [scoreColor, scoreColor],
+                    ),
           isThreeLine: true,
         ),
       ),

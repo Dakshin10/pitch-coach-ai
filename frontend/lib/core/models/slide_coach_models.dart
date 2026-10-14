@@ -5,12 +5,24 @@ class DeckSummaryModel {
   final List<String> missingSections;
   final int overallScore;
   final List<String> top3Fixes;
+  final bool hasProblem;
+  final bool hasSolution;
+  final bool hasTraction;
+  final bool hasAsk;
+  final List<String> missingPillars;
+  final List<String> storyArcWarnings;
 
   const DeckSummaryModel({
     required this.storyArc,
     required this.missingSections,
     required this.overallScore,
     required this.top3Fixes,
+    this.hasProblem = false,
+    this.hasSolution = false,
+    this.hasTraction = false,
+    this.hasAsk = false,
+    this.missingPillars = const [],
+    this.storyArcWarnings = const [],
   });
 
   factory DeckSummaryModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +39,20 @@ class DeckSummaryModel {
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      hasProblem: json['has_problem'] as bool? ?? false,
+      hasSolution: json['has_solution'] as bool? ?? false,
+      hasTraction: json['has_traction'] as bool? ?? false,
+      hasAsk: json['has_ask'] as bool? ?? false,
+      missingPillars:
+          (json['missing_pillars'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      storyArcWarnings:
+          (json['story_arc_warnings'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 
@@ -35,6 +61,12 @@ class DeckSummaryModel {
     'missing_sections': missingSections,
     'overall_score': overallScore,
     'top_3_fixes': top3Fixes,
+    'has_problem': hasProblem,
+    'has_solution': hasSolution,
+    'has_traction': hasTraction,
+    'has_ask': hasAsk,
+    'missing_pillars': missingPillars,
+    'story_arc_warnings': storyArcWarnings,
   };
 }
 
@@ -51,6 +83,11 @@ class SlideCoachingModel {
   final String? visuals;
   final String? textDensity;
   final List<String> readabilityIssues;
+  final bool tooMuchText;
+  final bool weakTitle;
+  final bool missingCta;
+  final String visualHierarchyRating;
+  final List<String> designCritique;
 
   SlideCoachingModel({
     required this.slideNumber,
@@ -65,6 +102,11 @@ class SlideCoachingModel {
     this.visuals,
     this.textDensity,
     required this.readabilityIssues,
+    this.tooMuchText = false,
+    this.weakTitle = false,
+    this.missingCta = false,
+    this.visualHierarchyRating = 'good',
+    this.designCritique = const [],
   });
 
   factory SlideCoachingModel.fromJson(Map<String, dynamic> json) {
@@ -94,6 +136,16 @@ class SlideCoachingModel {
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      tooMuchText: json['too_much_text'] as bool? ?? false,
+      weakTitle: json['weak_title'] as bool? ?? false,
+      missingCta: json['missing_cta'] as bool? ?? false,
+      visualHierarchyRating:
+          json['visual_hierarchy_rating'] as String? ?? 'good',
+      designCritique:
+          (json['design_critique'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 
@@ -110,6 +162,11 @@ class SlideCoachingModel {
     'visuals': visuals,
     'text_density': textDensity,
     'readability_issues': readabilityIssues,
+    'too_much_text': tooMuchText,
+    'weak_title': weakTitle,
+    'missing_cta': missingCta,
+    'visual_hierarchy_rating': visualHierarchyRating,
+    'design_critique': designCritique,
   };
 }
 

@@ -216,12 +216,13 @@ class TestSection2PostSessions:
         main.app.dependency_overrides.clear()
 
     def _post_session(self, **kwargs):
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         data = {
             "session_id": kwargs.get("session_id", "11111111-1111-4111-a111-111111111111"),
             "mode": kwargs.get("mode", "interview"),
             "topic_or_question": kwargs.get("topic_or_question", "Tell me about your project"),
             "duration_seconds": kwargs.get("duration_seconds", "30.0"),
-            "local_date": kwargs.get("local_date", "2026-10-09"),
+            "local_date": kwargs.get("local_date", today_str),
             "tz_offset_minutes": kwargs.get("tz_offset_minutes", "330"),
         }
         if "user_id" in kwargs:
@@ -280,7 +281,7 @@ class TestSection2PostSessions:
                 "mode": "interview",
                 "topic_or_question": "Concurrent test",
                 "duration_seconds": "30.0",
-                "local_date": "2026-10-09",
+                "local_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                 "tz_offset_minutes": "330",
             }
             files = {"audio_file": ("test.m4a", io.BytesIO(b"AUDIO"), "audio/mp4")}

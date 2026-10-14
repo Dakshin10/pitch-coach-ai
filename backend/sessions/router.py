@@ -19,6 +19,7 @@ from schemas import (
     SessionSummary,
     StartSessionRequest,
     StartSessionResponse,
+    WordTimestamp,
 )
 from sessions.pipeline import analyze_audio
 from d1.d1_client import get_d1_client
@@ -49,12 +50,27 @@ def _to_result(s: PracticeSession) -> SessionResult:
                 severity=item.get("severity", "tip"),
                 example=item.get("example"),
             ))
+    word_timestamps = []
+    for item in (s.word_timestamps or []):
+        if isinstance(item, dict):
+            word_timestamps.append(WordTimestamp(
+                word=str(item.get("word", "")),
+                start=float(item.get("start", 0.0)),
+                end=float(item.get("end", 0.0)),
+            ))
     return SessionResult(
         id=s.id,
+        parent_session_id=s.parent_session_id,
+        template_id=getattr(s, "template_id", None),
+        structure_score=getattr(s, "structure_score", None),
+        template_sections_detected=getattr(s, "template_sections_detected", None) or [],
+        template_sections_missing=getattr(s, "template_sections_missing", None) or [],
         mode=s.mode,
         topic_or_question=s.topic_or_question,
         duration_seconds=s.duration_seconds or 0.0,
         transcript=s.transcript,
+        word_timestamps=word_timestamps,
+        audio_offset_seconds=getattr(s, "audio_offset_seconds", 0.0) or 0.0,
         wpm=s.wpm or 0.0,
         filler_word_count=s.filler_word_count or 0,
         filler_word_breakdown=s.filler_word_breakdown or {},
@@ -71,12 +87,18 @@ def _to_result(s: PracticeSession) -> SessionResult:
         analysis_failed=s.analysis_failed,
         failure_reason=s.failure_reason,
         audio_url=f"/sessions/{s.id}/audio" if _audio_exists(s.audio_url) else None,
+        energy_curve=getattr(s, "energy_curve", None) or [],
+        pitch_variation_score=getattr(s, "pitch_variation_score", None),
+        volume_consistency_score=getattr(s, "volume_consistency_score", None),
     )
 
 
 def _to_summary(s: PracticeSession) -> SessionSummary:
     return SessionSummary(
         id=s.id,
+        parent_session_id=s.parent_session_id,
+        template_id=getattr(s, "template_id", None),
+        structure_score=getattr(s, "structure_score", None),
         mode=s.mode,
         topic_or_question=s.topic_or_question,
         duration_seconds=s.duration_seconds or 0.0,
@@ -143,6 +165,9 @@ def _run_pipeline_bg(
         if not doc.exists:
             return
 
+        doc_data = doc.to_dict() or {}
+        template_id = doc_data.get("template_id")
+
         local_path, is_temp = _fetch_audio(audio_ref)
         analysis = analyze_audio(
             audio_path=local_path,
@@ -151,10 +176,20 @@ def _run_pipeline_bg(
             groq_api_key=get_groq_key("audio"),
             whisper_model=settings.GROQ_WHISPER_MODEL,
             llm_model=settings.GROQ_LLM_MODEL,
+            template_id=template_id,
         )
 
         doc_ref.update({
             "transcript": analysis.transcript,
+            "word_timestamps": [
+                {
+                    "word": wt.word,
+                    "start": round(wt.start, 2),
+                    "end": round(wt.end, 2),
+                }
+                for wt in analysis.word_timestamps
+            ],
+            "audio_offset_seconds": 0.0,
             "wpm": analysis.wpm,
             "filler_word_count": analysis.filler.total_count,
             "filler_word_breakdown": analysis.filler.breakdown,
@@ -163,6 +198,10 @@ def _run_pipeline_bg(
             "clarity_score": analysis.clarity_score,
             "confidence_score": analysis.confidence_score,
             "overall_score": analysis.overall_score,
+            "structure_score": analysis.structure_score,
+            "template_sections_detected": analysis.template_sections_detected,
+            "template_sections_missing": analysis.template_sections_missing,
+            "template_id": analysis.template_id,
             "duration_seconds": analysis.duration_seconds,
             "ai_feedback": [
                 {
@@ -178,6 +217,7 @@ def _run_pipeline_bg(
                 "overall": analysis.overall_score,
                 "clarity": analysis.clarity_score,
                 "confidence": analysis.confidence_score,
+                "structure_score": analysis.structure_score,
                 "pause_count": analysis.pauses.count,
                 "duration": analysis.duration_seconds,
                 "filler_count": analysis.filler.total_count,
@@ -236,6 +276,8 @@ async def create_session(
     background_tasks: BackgroundTasks,
     audio_file: UploadFile = File(...),
     session_id: Optional[str] = Form(None),
+    parent_session_id: Optional[str] = Form(None),
+    template_id: Optional[str] = Form(None),
     mode: str = Form("interview"),
     topic_or_question: str = Form("Tell me about yourself."),
     duration_seconds: float = Form(0.0),
@@ -270,6 +312,9 @@ async def create_session(
             raise HTTPException(status_code=403, detail="Forbidden")
         if data.get("is_analyzed") and not data.get("analysis_failed"):
             # Idempotent response: return existing analyzed session
+            return _to_result(PracticeSession.from_dict(data))
+        if data.get("stage") == "analyzing":
+            # Idempotent response: return existing in-progress session without duplicate queueing
             return _to_result(PracticeSession.from_dict(data))
 
     # Validate dates
@@ -346,6 +391,7 @@ async def create_session(
                 groq_api_key=get_groq_key("audio"),
                 whisper_model=settings.GROQ_WHISPER_MODEL,
                 llm_model=settings.GROQ_LLM_MODEL,
+                template_id=template_id,
             )
         )
     finally:
@@ -367,6 +413,7 @@ async def create_session(
         "overall": analysis.overall_score,
         "clarity": analysis.clarity_score,
         "confidence": analysis.confidence_score,
+        "structure_score": analysis.structure_score,
         "pause_count": analysis.pauses.count,
         "duration": analysis.duration_seconds,
         "filler_count": analysis.filler.total_count,
@@ -375,11 +422,19 @@ async def create_session(
     doc_data = {
         "id": session_id,
         "user_id": current_user.id,
+        "parent_session_id": parent_session_id,
+        "template_id": template_id,
+        "structure_score": analysis.structure_score,
+        "template_sections_detected": analysis.template_sections_detected,
+        "template_sections_missing": analysis.template_sections_missing,
         "mode": mode,
         "topic_or_question": topic_or_question,
         "audio_url": stored_ref,
         "duration_seconds": analysis.duration_seconds,
         "transcript": analysis.transcript,
+        "energy_curve": analysis.energy_curve,
+        "pitch_variation_score": analysis.pitch_variation_score,
+        "volume_consistency_score": analysis.volume_consistency_score,
         "wpm": analysis.wpm,
         "filler_word_count": analysis.filler.total_count,
         "filler_word_breakdown": analysis.filler.breakdown,
@@ -454,6 +509,8 @@ def start_session(
     session = PracticeSession(
         id=session_id,
         user_id=current_user.id,
+        parent_session_id=req.parent_session_id,
+        template_id=req.template_id,
         mode=req.mode,
         topic_or_question=req.topic_or_question,
         local_date=local_date,

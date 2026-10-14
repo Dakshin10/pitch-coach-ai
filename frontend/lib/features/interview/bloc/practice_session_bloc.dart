@@ -113,6 +113,7 @@ class PracticeSessionState extends Equatable {
   final String? activeAudioPath;
   final MicPermissionState micPermissionState;
   final bool isGuest;
+  final String? parentSessionId;
 
   const PracticeSessionState({
     required this.currentMode,
@@ -126,6 +127,7 @@ class PracticeSessionState extends Equatable {
     this.activeAudioPath,
     this.micPermissionState = MicPermissionState.granted,
     this.isGuest = false,
+    this.parentSessionId,
   });
 
   PracticePrompt get currentPrompt => currentMode.prompts[promptIndex];
@@ -156,6 +158,7 @@ class PracticeSessionState extends Equatable {
       currentMode: mode,
       promptIndex: index,
       isGuest: isGuest,
+      parentSessionId: config?.parentSessionId,
     );
   }
 
@@ -171,6 +174,7 @@ class PracticeSessionState extends Equatable {
     String? activeAudioPath,
     MicPermissionState? micPermissionState,
     bool? isGuest,
+    String? parentSessionId,
   }) {
     return PracticeSessionState(
       currentMode: currentMode ?? this.currentMode,
@@ -184,6 +188,7 @@ class PracticeSessionState extends Equatable {
       activeAudioPath: activeAudioPath ?? this.activeAudioPath,
       micPermissionState: micPermissionState ?? this.micPermissionState,
       isGuest: isGuest ?? this.isGuest,
+      parentSessionId: parentSessionId ?? this.parentSessionId,
     );
   }
 
@@ -200,6 +205,7 @@ class PracticeSessionState extends Equatable {
     activeAudioPath,
     micPermissionState,
     isGuest,
+    parentSessionId,
   ];
 }
 
@@ -327,6 +333,7 @@ class PracticeSessionBloc
         final startedId = await _sessionRepo.startSession(
           mode: state.currentMode.id,
           topicOrQuestion: state.currentPrompt.text,
+          parentSessionId: state.parentSessionId,
         );
         sessionId = startedId ?? const Uuid().v4();
       }

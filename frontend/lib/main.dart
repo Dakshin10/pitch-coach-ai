@@ -15,6 +15,7 @@ import 'core/providers/settings_provider.dart';
 import 'core/providers/slide_coach_provider.dart';
 import 'core/providers/stats_provider.dart';
 import 'core/providers/user_provider.dart';
+import 'core/providers/gamification_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/services/api_client.dart';
 import 'core/services/notification_service.dart';
@@ -81,6 +82,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => SlideCoachProvider()..restoreActiveDeckIfProcessing(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => GamificationProvider()..loadGamificationData(),
         ),
       ],
       child: const PitchCoachApp(),

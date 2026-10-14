@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/stats_models.dart';
+import '../../core/providers/gamification_provider.dart';
 import '../../core/providers/stats_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -9,6 +10,8 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_icon.dart';
 import '../../core/widgets/app_illustration.dart';
 import '../../core/widgets/theme_toggle_button.dart';
+import 'widgets/challenges_card.dart';
+import 'widgets/leaderboard_card.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -30,6 +33,8 @@ class _ProgressScreenState extends State<ProgressScreen>
     // Load all stats data when screen opens if not already ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final stats = context.read<StatsProvider>();
+      final gamification = context.read<GamificationProvider>();
+      gamification.loadGamificationData();
       if (context.read<UserProvider>().isGuest) {
         stats.loadDemo();
       } else {
@@ -53,6 +58,8 @@ class _ProgressScreenState extends State<ProgressScreen>
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
+            final gamification = context.read<GamificationProvider>();
+            gamification.loadGamificationData(silent: true);
             if (context.read<UserProvider>().isGuest) {
               statsProvider.loadDemo();
             } else {
@@ -136,12 +143,22 @@ class _ProgressScreenState extends State<ProgressScreen>
 
                 const SizedBox(height: 20),
 
-                // 5. Achievements Section — real achievements
+                // 5. Weekly Rotating Challenges (Feature 11)
+                const ChallengesCard(),
+
+                const SizedBox(height: 20),
+
+                // 6. Privacy-Preserving Weekly Leaderboard (Feature 11)
+                const LeaderboardCard(),
+
+                const SizedBox(height: 20),
+
+                // 7. Achievements Section — real achievements
                 _buildAchievementsSection(statsProvider, isLoading),
 
                 const SizedBox(height: 20),
 
-                // 6. Filler Word Reduction Card — real data
+                // 8. Filler Word Reduction Card — real data
                 _buildFillerWordTrendCard(statsProvider, isLoading),
 
                 const SizedBox(height: 24),

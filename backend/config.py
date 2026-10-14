@@ -64,6 +64,8 @@ class Settings(BaseSettings):
 
     # Audio storage directory fallback for local disk
     AUDIO_UPLOAD_DIR: str = "./audio_files"
+    # Audio retention policy in days (0 = delete audio after analysis, 30 = 30-day retention)
+    AUDIO_RETENTION_DAYS: int = 30
 
     # Slide Coach Groq models
     # Groq deprecated llama-4-scout and llama-3.3-70b-versatile in mid-2026.

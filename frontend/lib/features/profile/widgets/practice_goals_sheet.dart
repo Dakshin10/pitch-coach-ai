@@ -29,6 +29,8 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
   late TimeOfDay _time;
   late Set<int> _selectedDays;
   late int _weeklyGoal;
+  DateTime? _targetDate;
+  bool _quietHours = true;
   bool _isSaving = false;
 
   final List<Map<String, dynamic>> _daysInfo = const [
@@ -48,6 +50,8 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
     _time = settings.reminderTime;
     _selectedDays = Set<int>.from(settings.reminderDays);
     _weeklyGoal = settings.weeklyGoal.clamp(1, 14);
+    _targetDate = settings.interviewTargetDate;
+    _quietHours = settings.quietHoursEnabled;
   }
 
   Future<void> _pickTime() async {
@@ -66,6 +70,19 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
     }
   }
 
+  Future<void> _pickTargetDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _targetDate ?? now.add(const Duration(days: 14)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      setState(() => _targetDate = picked);
+    }
+  }
+
   Future<void> _saveGoals() async {
     setState(() => _isSaving = true);
     final settings = context.read<SettingsProvider>();
@@ -75,6 +92,8 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
       await settings.setReminderTime(_time);
       await settings.setReminderDays(daysList);
       await settings.setWeeklyGoal(_weeklyGoal);
+      await settings.setInterviewTargetDate(_targetDate);
+      await settings.setQuietHours(enabled: _quietHours);
 
       if (daysList.isNotEmpty) {
         await NotificationService.instance.schedulePracticeReminders(
@@ -83,6 +102,15 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
         );
       } else {
         await NotificationService.instance.cancelPracticeReminders();
+      }
+
+      if (_targetDate != null) {
+        await NotificationService.instance.scheduleInterviewTargetReminders(
+          targetDate: _targetDate!,
+          quietHoursEnabled: _quietHours,
+        );
+      } else {
+        await NotificationService.instance.cancelInterviewTargetReminders();
       }
 
       if (mounted) {
@@ -134,10 +162,11 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // Handle
               Center(
                 child: Container(
@@ -387,6 +416,134 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
                 ),
               ),
 
+              const SizedBox(height: 16),
+
+              // Interview Goal Date Card
+              Text(
+                'Interview Goal Date',
+                style: AppTextStyles.label.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimaryOf(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              GlassSurface(
+                padding: const EdgeInsets.all(16),
+                borderRadius: BorderRadius.circular(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.event_available_rounded,
+                          color: AppColors.primaryPurpleLight,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _targetDate != null
+                                  ? '${_targetDate!.year}-${_targetDate!.month.toString().padLeft(2, '0')}-${_targetDate!.day.toString().padLeft(2, '0')}'
+                                  : 'No target date set',
+                              style: AppTextStyles.bodyM.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimaryOf(context),
+                              ),
+                            ),
+                            Text(
+                              _targetDate != null
+                                  ? 'Countdown reminders active'
+                                  : 'Optional countdown push alerts',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_targetDate != null)
+                          IconButton(
+                            onPressed: () => setState(() => _targetDate = null),
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                            color: AppColors.textSecondaryOf(context),
+                          ),
+                        OutlinedButton(
+                          onPressed: _pickTargetDate,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primaryPurpleLight,
+                            side: const BorderSide(
+                              color: AppColors.primaryPurple,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            _targetDate == null ? 'Set Date' : 'Change',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Quiet Hours Card
+              GlassSurface(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.bedtime_outlined,
+                          color: AppColors.accentTeal,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Quiet Hours (10 PM - 8 AM)',
+                              style: AppTextStyles.bodyM.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimaryOf(context),
+                              ),
+                            ),
+                            Text(
+                              'Silences reminders during rest hours',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondaryOf(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Switch.adaptive(
+                      value: _quietHours,
+                      activeThumbColor: AppColors.accentTeal,
+                      onChanged: (val) => setState(() => _quietHours = val),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 24),
 
               // Actions: Save & Disable
@@ -423,6 +580,7 @@ class _PracticeGoalsSheetState extends State<PracticeGoalsSheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

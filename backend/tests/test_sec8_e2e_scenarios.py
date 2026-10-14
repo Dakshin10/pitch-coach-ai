@@ -55,8 +55,10 @@ class TestSection8E2EScenarios:
         yield
         main.app.dependency_overrides.clear()
 
-    def _post(self, local_date="2026-10-09", tz_offset=330, topic="Pitch"):
+    def _post(self, local_date=None, tz_offset=330, topic="Pitch"):
         sid = str(uuid.uuid4())
+        if local_date is None:
+            local_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         data = {
             "session_id": sid,
             "mode": "interview",

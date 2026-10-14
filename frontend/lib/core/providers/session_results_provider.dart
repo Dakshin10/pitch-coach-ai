@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
 import '../models/session_result.dart';
+import '../repositories/practice_plan_repository.dart';
 import '../repositories/session_repository.dart';
 import '../services/local_database_service.dart';
 import '../services/notification_service.dart';
@@ -251,6 +252,19 @@ class SessionResultsProvider extends ChangeNotifier {
           } else {
             _state = ResultsLoadState.ready;
             _completedSessionToAnnounce = session;
+
+            // Automatically check and complete targeted drills (Feature 6)
+            try {
+              unawaited(
+                PracticePlanRepository.instance.evaluateSessionAgainstDrills(
+                  durationSeconds: session.durationSeconds.toDouble(),
+                  wpm: session.wpm.toDouble(),
+                  fillerCount: session.fillerWordCount,
+                  pauseCount: session.pauseCount,
+                  sessionId: session.id,
+                ),
+              );
+            } catch (_) {}
 
             // Trigger instant phone notification
             try {

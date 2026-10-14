@@ -42,7 +42,7 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
   Future<void> _pickPdf() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf'],
+      allowedExtensions: ['pdf', 'pptx', 'ppt'],
     );
 
     if (result != null && result.files.single.path != null) {
@@ -57,7 +57,7 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
   Future<void> _handleUpload() async {
     if (_pickedFilePath == null || _pickedFileName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a PDF presentation file')),
+        const SnackBar(content: Text('Please select a PDF or PPTX presentation file')),
       );
       return;
     }
@@ -151,9 +151,9 @@ class _SlideUploadScreenState extends State<SlideUploadScreen> {
 
             const SizedBox(height: 24),
 
-            // 1. PDF File Drop Zone
+            // 1. Presentation File Drop Zone
             Text(
-              'Presentation Deck (PDF only)',
+              'Presentation Deck (PDF or PPTX)',
               style: AppTextStyles.sectionHeaderOf(context),
             ),
             const SizedBox(height: 8),

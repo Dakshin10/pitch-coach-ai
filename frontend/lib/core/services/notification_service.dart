@@ -342,4 +342,130 @@ class NotificationService {
         id ?? (DateTime.now().millisecondsSinceEpoch % 100000);
     await _plugin.show(notificationId, title, body, details);
   }
+
+  // ── Quiet Hours & Goal Date Reminders ──────────────────────────────────────
+
+  /// Returns true if [time] falls inside the quiet hours window.
+  /// Default quiet hours: 22:00 (10 PM) to 08:00 (8 AM).
+  bool isQuietHours(
+    TimeOfDay time, {
+    int startHour = 22,
+    int endHour = 8,
+  }) {
+    if (startHour > endHour) {
+      return time.hour >= startHour || time.hour < endHour;
+    } else {
+      return time.hour >= startHour && time.hour < endHour;
+    }
+  }
+
+  /// Adjusts [time] to outside quiet hours (clamped to [endHour]:00).
+  TimeOfDay adjustForQuietHours(
+    TimeOfDay time, {
+    int startHour = 22,
+    int endHour = 8,
+  }) {
+    if (isQuietHours(time, startHour: startHour, endHour: endHour)) {
+      return TimeOfDay(hour: endHour, minute: 0);
+    }
+    return time;
+  }
+
+  /// Schedule target date countdown reminders (7 days, 3 days, 1 day, day-of).
+  Future<void> scheduleInterviewTargetReminders({
+    required DateTime targetDate,
+    bool quietHoursEnabled = true,
+    int quietHoursStart = 22,
+    int quietHoursEnd = 8,
+  }) async {
+    if (kIsWeb) return;
+    await initialize();
+    await cancelInterviewTargetReminders();
+
+    final now = tz.TZDateTime.now(tz.local);
+    final offsets = [
+      {
+        'days': 7,
+        'id': 201,
+        'body': '1 week until your interview target date. Keep up the practice!',
+      },
+      {
+        'days': 3,
+        'id': 202,
+        'body': '3 days left until your interview. Polish your answers with a quick drill.',
+      },
+      {
+        'days': 1,
+        'id': 203,
+        'body': 'Tomorrow is interview day! Deliver one confident mock session today.',
+      },
+      {
+        'days': 0,
+        'id': 204,
+        'body': 'Today is interview day! Take a deep breath and speak with clarity.',
+      },
+    ];
+
+    const androidDetails = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: _channelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@drawable/ic_notification',
+    );
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+    );
+
+    for (final offset in offsets) {
+      final daysBefore = offset['days'] as int;
+      final id = offset['id'] as int;
+      final body = offset['body'] as String;
+
+      var scheduledTime = const TimeOfDay(hour: 9, minute: 0);
+      if (quietHoursEnabled) {
+        scheduledTime = adjustForQuietHours(
+          scheduledTime,
+          startHour: quietHoursStart,
+          endHour: quietHoursEnd,
+        );
+      }
+
+      final reminderDate = targetDate.subtract(Duration(days: daysBefore));
+      var scheduledDate = tz.TZDateTime(
+        tz.local,
+        reminderDate.year,
+        reminderDate.month,
+        reminderDate.day,
+        scheduledTime.hour,
+        scheduledTime.minute,
+      );
+
+      if (scheduledDate.isAfter(now)) {
+        await _scheduleZonedWithFallback(
+          id: id,
+          title: 'Pitch Coach Goal Reminder',
+          body: body,
+          scheduledDate: scheduledDate,
+          details: details,
+          matchComponents: DateTimeComponents.dateAndTime,
+        );
+      }
+    }
+  }
+
+  /// Cancel all interview goal countdown reminders.
+  Future<void> cancelInterviewTargetReminders() async {
+    if (kIsWeb) return;
+    for (int i = 201; i <= 204; i++) {
+      await _plugin.cancel(i);
+    }
+  }
 }

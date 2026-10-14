@@ -124,6 +124,8 @@ class FeedbackResponse(BaseModel):
 
 class StartSessionRequest(BaseModel):
     session_id: Optional[str] = None
+    parent_session_id: Optional[str] = None
+    template_id: Optional[str] = None
     mode: str = "interview"
     topic_or_question: str = "Tell me about yourself."
     local_date: Optional[str] = None
@@ -175,12 +177,25 @@ class FeedbackItem(BaseModel):
     example: Optional[str] = None
 
 
+class WordTimestamp(BaseModel):
+    word: str
+    start: float
+    end: float
+
+
 class SessionResult(BaseModel):
     id: str
-    mode: str
+    parent_session_id: Optional[str] = None
+    template_id: Optional[str] = None
+    structure_score: Optional[float] = None
+    template_sections_detected: Optional[List[str]] = None
+    template_sections_missing: Optional[List[str]] = None
+    mode: str = "interview"
     topic_or_question: str
     duration_seconds: float
     transcript: Optional[str] = None
+    word_timestamps: Optional[List[WordTimestamp]] = None
+    audio_offset_seconds: Optional[float] = 0.0
     wpm: float
     filler_word_count: int
     filler_word_breakdown: Dict[str, int]
@@ -197,12 +212,18 @@ class SessionResult(BaseModel):
     analysis_failed: bool = False
     failure_reason: Optional[str] = None
     audio_url: Optional[str] = None
+    energy_curve: Optional[List[float]] = None
+    pitch_variation_score: Optional[float] = None
+    volume_consistency_score: Optional[float] = None
 
     model_config = {"from_attributes": True}
 
 
 class SessionSummary(BaseModel):
     id: str
+    parent_session_id: Optional[str] = None
+    template_id: Optional[str] = None
+    structure_score: Optional[float] = None
     mode: str
     topic_or_question: str
     duration_seconds: float
@@ -262,3 +283,44 @@ class AchievementResponse(BaseModel):
     is_unlocked: bool
     unlocked_at: Optional[datetime] = None
     description: str
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Gamification & Leaderboard
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ChallengeResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    icon: str
+    current_progress: int
+    target: int
+    is_completed: bool
+    is_claimed: bool
+    reward_points: int
+
+
+class ClaimChallengeResponse(BaseModel):
+    success: bool
+    challenge_id: str
+    reward_points: int
+    total_claimed_points: int
+    message: str
+
+
+class LeaderboardEntryResponse(BaseModel):
+    rank: Optional[int] = None
+    display_name: str
+    score: float
+    sessions_count: int
+    is_current_user: bool = False
+
+
+class LeaderboardResponse(BaseModel):
+    week_id: str
+    week_start: str
+    user_opted_in: bool
+    entries: List[LeaderboardEntryResponse]
+    current_user_entry: LeaderboardEntryResponse
+

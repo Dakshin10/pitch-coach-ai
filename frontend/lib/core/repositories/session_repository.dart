@@ -145,6 +145,7 @@ class SessionRepository {
   Future<String?> startSession({
     required String mode,
     required String topicOrQuestion,
+    String? parentSessionId,
   }) async {
     if (!await _recorder.hasPermission()) {
       throw StateError('Microphone permission is required to record.');
@@ -178,16 +179,21 @@ class SessionRepository {
         '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final tzOffsetMinutes = now.timeZoneOffset.inMinutes;
 
+    final payload = <String, dynamic>{
+      'session_id': generatedSessionId,
+      'mode': mode,
+      'topic_or_question': topicOrQuestion,
+      'local_date': localDate,
+      'tz_offset_minutes': tzOffsetMinutes,
+    };
+    if (parentSessionId != null && parentSessionId.isNotEmpty) {
+      payload['parent_session_id'] = parentSessionId;
+    }
+
     _api
         .post(
           '/sessions/start',
-          data: {
-            'session_id': generatedSessionId,
-            'mode': mode,
-            'topic_or_question': topicOrQuestion,
-            'local_date': localDate,
-            'tz_offset_minutes': tzOffsetMinutes,
-          },
+          data: payload,
         )
         .then((res) {
           final data = res as Map<String, dynamic>;
@@ -393,17 +399,41 @@ class SessionRepository {
     };
     if (mode != null && mode != 'All') params['mode'] = mode;
     if (search != null && search.isNotEmpty) params['search'] = search;
-    final raw = await _api.get('/sessions', params: params) as List<dynamic>;
-    final list = raw
-        .map((e) => SessionSummary.fromJson(e as Map<String, dynamic>))
-        .toList();
 
-    if (isDefaultQuery) {
-      _cachedSessions = list;
-      _sessionsCacheTime = DateTime.now();
+    try {
+      final raw = await _api.get('/sessions', params: params) as List<dynamic>;
+      final list = raw
+          .map((e) => SessionSummary.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      if (isDefaultQuery) {
+        _cachedSessions = list;
+        _sessionsCacheTime = DateTime.now();
+      }
+
+      return list;
+    } catch (e) {
+      // Offline fallback: load from local SQLite database
+      final localDb = LocalDatabaseService.instance;
+      if (localDb.isOpen &&
+          localDb.currentUserId != null &&
+          localDb.currentUserId != 'guest') {
+        try {
+          final localList = await localDb.getSessionSummaries(
+            localDb.currentUserId!,
+            mode: (mode != null && mode != 'All') ? mode : null,
+            limit: limit,
+          );
+          if (localList.isNotEmpty) {
+            return localList;
+          }
+        } catch (_) {}
+      }
+      if (_cachedSessions != null && _cachedSessions!.isNotEmpty) {
+        return _cachedSessions!;
+      }
+      rethrow;
     }
-
-    return list;
   }
 
   /// Recent session helper for HomeScreen with caching support.

@@ -88,6 +88,62 @@ def validate_and_render_pdf(
     return page_count, image_paths
 
 
+def convert_pptx_to_pdf(pptx_bytes: bytes) -> bytes:
+    """
+    Converts a PPTX presentation to PDF bytes preserving text layout, hierarchy, and images.
+    Uses python-pptx to parse slides and PyMuPDF to render into a structured PDF document.
+    """
+    import io
+    import pptx
+
+    prs = pptx.Presentation(io.BytesIO(pptx_bytes))
+    doc = pymupdf.open()
+
+    width_pt = prs.slide_width / 12700 if prs.slide_width else 720
+    height_pt = prs.slide_height / 12700 if prs.slide_height else 405
+
+    for slide in prs.slides:
+        page = doc.new_page(width=width_pt, height=height_pt)
+        # Background: soft subtle background for presentation
+        page.draw_rect(page.rect, color=(0.97, 0.97, 0.98), fill=(0.97, 0.97, 0.98))
+
+        for shape in slide.shapes:
+            # Handle picture shapes
+            try:
+                if shape.shape_type == pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE and hasattr(shape, "image"):
+                    image_bytes = shape.image.blob
+                    x0 = shape.left / 12700
+                    y0 = shape.top / 12700
+                    x1 = x0 + (shape.width / 12700)
+                    y1 = y0 + (shape.height / 12700)
+                    img_rect = pymupdf.Rect(x0, y0, x1, y1)
+                    page.insert_image(img_rect, stream=image_bytes)
+            except Exception as e:
+                logger.debug("Could not render PPTX image shape: %s", e)
+
+            # Handle text shapes & placeholders
+            try:
+                if shape.has_text_frame:
+                    x0 = shape.left / 12700
+                    y0 = shape.top / 12700
+                    x1 = x0 + (shape.width / 12700)
+                    y1 = y0 + (shape.height / 12700)
+                    rect = pymupdf.Rect(x0, y0, x1, y1)
+
+                    full_text = "\n".join(p.text for p in shape.text_frame.paragraphs if p.text.strip())
+                    if full_text:
+                        is_title = (shape == slide.shapes.title or "title" in getattr(shape, "name", "").lower())
+                        fontsize = 20 if is_title else 13
+                        color = (0.08, 0.1, 0.18) if is_title else (0.18, 0.2, 0.25)
+                        page.insert_textbox(rect, full_text, fontsize=fontsize, color=color)
+            except Exception as e:
+                logger.debug("Could not render PPTX text shape: %s", e)
+
+    pdf_bytes = doc.tobytes()
+    doc.close()
+    return pdf_bytes
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage B: Vision Extraction (Batches of <= 5 images)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -157,7 +213,9 @@ def _extract_single_slide_vision(
     Sending 1 image per request respects Groq's 3-image ceiling and delivers deep per-slide analysis.
     """
     system_prompt = (
-        "You are an expert presentation visual analyst. Describe what is visible on this slide accurately. Do not use emojis in your response.\n"
+        "You are an expert presentation visual analyst. Describe what is visible on this slide accurately. "
+        "Perform a thorough slide design critique assessing text density, headline strength, call to action, and visual hierarchy. "
+        "Do not use emojis in your response.\n"
         "Return ONLY a JSON object with this exact schema:\n"
         "{\n"
         '  "slide_number": int,\n'
@@ -166,7 +224,12 @@ def _extract_single_slide_vision(
         '  "visible_text": "Key text, bullets, labels, or numbers present",\n'
         '  "visuals": "Describe charts, diagrams, product mockups, trend direction, and metrics",\n'
         '  "text_density": "low" | "medium" | "high",\n'
-        '  "readability_issues": ["list any font size, contrast, or clutter issues"]\n'
+        '  "readability_issues": ["list any font size, contrast, or clutter issues"],\n'
+        '  "too_much_text": true | false (true if more than 6 bullet points or overly dense text),\n'
+        '  "weak_title": true | false (true if title is missing, generic like Overview, or lacks impact),\n'
+        '  "missing_cta": true | false (true if slide is closing or proposes an initiative without clear next step),\n'
+        '  "visual_hierarchy_rating": "poor" | "fair" | "good" | "excellent",\n'
+        '  "design_critique": ["concise actionable design critique observations"]\n'
         "}\n"
         f"You are analyzing Slide {slide_num}."
     )
@@ -238,7 +301,12 @@ def _extract_single_slide_vision(
             visible_text="",
             visuals="Visual slide diagram",
             text_density="medium",
-            readability_issues=[]
+            readability_issues=[],
+            too_much_text=False,
+            weak_title=False,
+            missing_cta=False,
+            visual_hierarchy_rating="good",
+            design_critique=[],
         )
 
 
@@ -330,6 +398,67 @@ def rescale_durations(slides: List[Dict[str, Any]], total_target_seconds: int) -
         s["target_duration_seconds"] = scaled[i]
 
 
+def audit_deck_story_arc(
+    descriptions: List[SlideVisionDescription],
+    deck_summary: DeckSummary,
+) -> DeckSummary:
+    """
+    Audits the deck against the 4 core narrative pillars: Problem, Solution, Traction, and Ask.
+    Cross-checks LLM output with deterministic text/title keyword inspection across all slides.
+    Guarantees that missing pillars (especially missing 'ask') are reliably flagged.
+    """
+    all_text = " ".join(
+        f"{d.title} {d.main_message} {d.visible_text}".lower()
+        for d in descriptions
+    )
+
+    # Keywords for each pillar
+    has_problem = deck_summary.has_problem or any(
+        kw in all_text for kw in ["problem", "pain", "challenge", "frustration", "inefficiency", "broken"]
+    )
+    has_solution = deck_summary.has_solution or any(
+        kw in all_text for kw in ["solution", "product", "platform", "how it works", "features", "solve"]
+    )
+    has_traction = deck_summary.has_traction or any(
+        kw in all_text for kw in ["traction", "revenue", "growth", "metrics", "users", "kpi", "milestone", "pilot", "retention"]
+    )
+    has_ask = deck_summary.has_ask or any(
+        kw in all_text for kw in ["ask", "raising", "raise", "funding", "investment", "seed", "series a", "series b", "capital", "call to action", "partner with us", "next steps"]
+    )
+
+    missing_pillars = []
+    warnings = list(deck_summary.story_arc_warnings)
+
+    if not has_problem:
+        missing_pillars.append("Problem")
+        warnings.append("Missing Problem Slide: Your audience needs to understand the exact pain point being solved.")
+    if not has_solution:
+        missing_pillars.append("Solution")
+        warnings.append("Missing Solution Slide: Clearly demonstrate how your product resolves the user's pain.")
+    if not has_traction:
+        missing_pillars.append("Traction")
+        warnings.append("Missing Traction Slide: Include measurable validation, user adoption, or key metrics.")
+    if not has_ask:
+        missing_pillars.append("Ask")
+        warnings.append("Missing Ask Slide: Decks must close with a clear call-to-action or funding/partnership ask.")
+
+    # Deduplicate and ensure missing sections reflect missing pillars
+    missing_sections = list(deck_summary.missing_sections)
+    for p in missing_pillars:
+        if p not in missing_sections and p.lower() not in [s.lower() for s in missing_sections]:
+            missing_sections.append(p)
+
+    deck_summary.has_problem = has_problem
+    deck_summary.has_solution = has_solution
+    deck_summary.has_traction = has_traction
+    deck_summary.has_ask = has_ask
+    deck_summary.missing_pillars = missing_pillars
+    deck_summary.story_arc_warnings = warnings
+    deck_summary.missing_sections = missing_sections
+
+    return deck_summary
+
+
 def synthesize_deck_coaching(
     descriptions: List[SlideVisionDescription],
     audience: str,
@@ -354,7 +483,8 @@ def synthesize_deck_coaching(
             f"  Visuals: {d.visuals}\n"
             f"  Visible text: {d.visible_text}\n"
             f"  Text density: {d.text_density}\n"
-            f"  Readability issues: {', '.join(d.readability_issues) if d.readability_issues else 'None'}"
+            f"  Readability issues: {', '.join(d.readability_issues) if d.readability_issues else 'None'}\n"
+            f"  Too much text: {d.too_much_text}, Weak title: {d.weak_title}, Missing CTA: {d.missing_cta}, Hierarchy: {d.visual_hierarchy_rating}"
         )
     formatted_slides = "\n\n".join(desc_items)
 
@@ -379,7 +509,13 @@ def synthesize_deck_coaching(
         '    "story_arc": "3-4 concise sentences describing the overall narrative arc and flow.",\n'
         '    "missing_sections": ["e.g. Problem, Solution, Traction, Market, Unit Economics, Team, Ask"],\n'
         '    "overall_score": int between 0 and 100,\n'
-        '    "top_3_fixes": ["3 most impactful strategic improvements to make"]\n'
+        '    "top_3_fixes": ["3 most impactful strategic improvements to make"],\n'
+        '    "has_problem": bool,\n'
+        '    "has_solution": bool,\n'
+        '    "has_traction": bool,\n'
+        '    "has_ask": bool,\n'
+        '    "missing_pillars": ["Problem", "Solution", "Traction", "Ask"],\n'
+        '    "story_arc_warnings": ["warnings regarding missing narrative components"]\n'
         "  },\n"
         '  "slides": [\n'
         "    {\n"
@@ -448,6 +584,11 @@ def synthesize_deck_coaching(
                     suggested_script=None,
                     transition_to_next="",
                     slide_critique=[],
+                    too_much_text=d.too_much_text,
+                    weak_title=d.weak_title,
+                    missing_cta=d.missing_cta,
+                    visual_hierarchy_rating=d.visual_hierarchy_rating,
+                    design_critique=d.design_critique,
                 )
                 for d in descriptions
             ]
@@ -477,9 +618,17 @@ def synthesize_deck_coaching(
             s_dict["visuals"] = desc.visuals
             s_dict["text_density"] = desc.text_density
             s_dict["readability_issues"] = desc.readability_issues
+            s_dict["too_much_text"] = desc.too_much_text
+            s_dict["weak_title"] = desc.weak_title
+            s_dict["missing_cta"] = desc.missing_cta
+            s_dict["visual_hierarchy_rating"] = desc.visual_hierarchy_rating
+            s_dict["design_critique"] = desc.design_critique
         rehydrated_slides.append(SlideCoaching.model_validate(s_dict))
 
     result.slides = rehydrated_slides
+
+    # Rigorous story arc audit across all 4 core pillars
+    result.deck_summary = audit_deck_story_arc(descriptions, result.deck_summary)
 
     elapsed = time.time() - start_time
     logger.info("Stage C (Coaching Synthesis): completed in %.2fs", elapsed)

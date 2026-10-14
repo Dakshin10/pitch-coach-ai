@@ -98,47 +98,60 @@ class CircularGauge extends StatelessWidget {
         [AppColors.primaryPurpleLight, AppColors.primaryPurple];
 
     final displayValueText = centerBigText ?? '${value.round()}%';
+    final semanticLabel = centerSmallLabel != null
+        ? '$centerSmallLabel: $displayValueText'
+        : 'Score: $displayValueText';
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CustomPaint(
-            size: Size(size, size),
-            painter: CircularGaugePainter(
-              value: value,
-              strokeWidth: strokeWidth,
-              trackColor: defaultTrackColor,
-              gradientColors: defaultGradient,
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                displayValueText,
-                style: AppTextStyles.displayLarge.copyWith(
-                  fontSize: size * 0.24,
-                  color: isDark
-                      ? AppColors.textOnDark
-                      : AppColors.textPrimaryDark,
-                ),
+    return Semantics(
+      label: semanticLabel,
+      value: '${value.round()}%',
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CustomPaint(
+              size: Size(size, size),
+              painter: CircularGaugePainter(
+                value: value,
+                strokeWidth: strokeWidth,
+                trackColor: defaultTrackColor,
+                gradientColors: defaultGradient,
               ),
-              if (centerSmallLabel != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  centerSmallLabel!,
-                  style: AppTextStyles.caption.copyWith(
-                    fontSize: math.max(10, size * 0.08),
-                    color: AppColors.textSecondary,
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    displayValueText,
+                    style: AppTextStyles.displayLarge.copyWith(
+                      fontSize: size * 0.24,
+                      color: isDark
+                          ? AppColors.textOnDark
+                          : AppColors.textPrimaryDark,
+                    ),
                   ),
                 ),
+                if (centerSmallLabel != null) ...[
+                  const SizedBox(height: 2),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      centerSmallLabel!,
+                      style: AppTextStyles.caption.copyWith(
+                        fontSize: math.max(10, size * 0.08),
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

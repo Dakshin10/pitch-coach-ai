@@ -232,13 +232,25 @@ class PracticeMode {
 class PracticeSessionConfig {
   final String modeId;
   final PracticePrompt prompt;
+  final String? parentSessionId;
 
-  const PracticeSessionConfig({required this.modeId, required this.prompt});
+  const PracticeSessionConfig({
+    required this.modeId,
+    required this.prompt,
+    this.parentSessionId,
+  });
 
   PracticeMode get mode => PracticeMode.fromId(modeId);
 
-  factory PracticeSessionConfig.defaultFor(String? modeId) {
+  factory PracticeSessionConfig.defaultFor(
+    String? modeId, {
+    String? parentSessionId,
+  }) {
     final mode = PracticeMode.fromId(modeId);
-    return PracticeSessionConfig(modeId: mode.id, prompt: mode.prompts.first);
+    return PracticeSessionConfig(
+      modeId: mode.id,
+      prompt: mode.prompts.first,
+      parentSessionId: parentSessionId,
+    );
   }
 }

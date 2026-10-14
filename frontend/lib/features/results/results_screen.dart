@@ -4,11 +4,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/models/practice_mode.dart';
 import '../../core/models/session_result.dart';
 import '../../core/providers/session_results_provider.dart';
 import '../../core/providers/user_provider.dart';
 import '../../core/repositories/demo_repository.dart';
 import '../../core/repositories/session_repository.dart';
+import '../../core/services/report_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/app_icon.dart';
@@ -18,7 +20,14 @@ import '../../core/widgets/theme_toggle_button.dart';
 
 class ResultsScreen extends StatefulWidget {
   final String? sessionId;
-  const ResultsScreen({super.key, this.sessionId});
+  final SessionResult? initialResult;
+  final SessionResult? initialParentResult;
+  const ResultsScreen({
+    super.key,
+    this.sessionId,
+    this.initialResult,
+    this.initialParentResult,
+  });
 
   @override
   State<ResultsScreen> createState() => _ResultsScreenState();
@@ -38,6 +47,11 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   int _navIndex = 0;
 
+  // ── Attempt Comparison (Feature 2) ────────────────────────────────────
+  SessionResult? _parentResult;
+  bool _isLoadingParent = false;
+  String? _loadedParentId;
+
   // ── Audio Playback (Unit 2) ────────────────────────────────────────────
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
@@ -48,9 +62,46 @@ class _ResultsScreenState extends State<ResultsScreen>
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<void>? _playerCompleteSub;
 
+  // ── Shareable Reports (Feature 10) ────────────────────────────────────
+  bool _isExportingReport = false;
+
+  Future<void> _exportPdfReport(SessionResult? result) async {
+    if (result == null || _isExportingReport) return;
+    setState(() => _isExportingReport = true);
+    try {
+      final success = await ReportService.instance.openOrShareSessionReport(result.id);
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Report staged in local cache. Check downloads or network connection.',
+            ),
+            backgroundColor: AppColors.primaryPurple,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not generate report: $e'),
+            backgroundColor: AppColors.dangerRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExportingReport = false);
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+
+    _parentResult = widget.initialParentResult;
+    _loadedParentId = widget.initialParentResult?.id;
 
     _mainController = AnimationController(
       vsync: this,
@@ -128,10 +179,39 @@ class _ResultsScreenState extends State<ResultsScreen>
     });
   }
 
+  void _checkAndFetchParent(SessionResult currentResult) {
+    final parentId = currentResult.parentSessionId;
+    if (parentId == null ||
+        parentId.isEmpty ||
+        _loadedParentId == parentId ||
+        _isLoadingParent) {
+      return;
+    }
+    _isLoadingParent = true;
+    _loadedParentId = parentId;
+    SessionRepository.instance.getSession(parentId).then((parent) {
+      if (mounted) {
+        setState(() {
+          _parentResult = parent;
+          _isLoadingParent = false;
+        });
+      }
+    }).catchError((e) {
+      debugPrint('[ResultsScreen] Error fetching parent session $parentId: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingParent = false;
+        });
+      }
+    });
+  }
+
   void _onResultsUpdate() {
     final provider = context.read<SessionResultsProvider>();
     if (provider.state == ResultsLoadState.ready && provider.result != null) {
-      final score = provider.result!.overallScore;
+      final res = provider.result!;
+      final score = res.overallScore;
+      _checkAndFetchParent(res);
       // Re-create the tween with the real score target and replay
       _scoreGaugeAnimation = Tween<double>(begin: 0.0, end: score).animate(
         CurvedAnimation(
@@ -168,10 +248,14 @@ class _ResultsScreenState extends State<ResultsScreen>
     final resultsProvider = context.watch<SessionResultsProvider>();
     final isGuest = context.watch<UserProvider>().isGuest;
     final result =
+        widget.initialResult ??
         resultsProvider.result ??
         (isGuest && widget.sessionId == null
             ? DemoRepository.instance.result
             : null);
+    if (result != null && result.parentSessionId != null) {
+      _checkAndFetchParent(result);
+    }
     final isAnalyzing =
         resultsProvider.state == ResultsLoadState.analyzing ||
         resultsProvider.state == ResultsLoadState.loading;
@@ -182,7 +266,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         child: Column(
           children: [
             // 1. Top App Bar
-            _buildTopAppBar(context),
+            _buildTopAppBar(context, result),
 
             // Analyzing banner
             if (isAnalyzing && widget.sessionId != null && result != null)
@@ -262,6 +346,26 @@ class _ResultsScreenState extends State<ResultsScreen>
                         child: _buildOverallScoreCard(result),
                       ),
 
+                      // Section 0.1: Pitch Template Structure & Rubric Breakdown (Feature 5)
+                      if (result != null &&
+                          (result.templateId != null ||
+                              result.structureScore != null)) ...[
+                        const SizedBox(height: 20),
+                        _buildAnimatedSection(
+                          animation: _card0Anim,
+                          child: _buildTemplateStructureCard(result),
+                        ),
+                      ],
+
+                      // Section 0.25: Attempt Comparison Delta Card (Feature 2)
+                      if (result != null && result.parentSessionId != null) ...[
+                        const SizedBox(height: 20),
+                        _buildAnimatedSection(
+                          animation: _card0Anim,
+                          child: _buildAttemptComparisonSection(result),
+                        ),
+                      ],
+
                       const SizedBox(height: 20),
 
                       // Section 0.5: Audio Playback Card (Unit 2)
@@ -272,10 +376,26 @@ class _ResultsScreenState extends State<ResultsScreen>
 
                       const SizedBox(height: 20),
 
+                      // Section 0.75: Interactive Transcript Playback Card
+                      _buildAnimatedSection(
+                        animation: _card0Anim,
+                        child: _buildInteractiveTranscriptCard(result),
+                      ),
+
+                      const SizedBox(height: 20),
+
                       // Section 1: Performance Summary Grid
                       _buildAnimatedSection(
                         animation: _card1Anim,
                         child: _buildPerformanceSummary(result),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Section 1.5: Vocal Delivery & Energy Curve (Feature 7)
+                      _buildAnimatedSection(
+                        animation: _card1Anim,
+                        child: _buildVocalDeliveryCard(result),
                       ),
 
                       const SizedBox(height: 20),
@@ -301,55 +421,151 @@ class _ResultsScreenState extends State<ResultsScreen>
                         animation: _card3Anim,
                         child: Column(
                           children: [
-                            SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryPurple,
-                                  foregroundColor: Colors.white,
-                                  elevation: 4,
-                                  shadowColor: AppColors.primaryPurple
-                                      .withValues(alpha: 0.35),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minHeight: 52,
+                                minWidth: double.infinity,
+                              ),
+                              child: Semantics(
+                                button: true,
+                                label: 'Practice again with this prompt',
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryPurple,
+                                    foregroundColor: Colors.white,
+                                    elevation: 4,
+                                    shadowColor: AppColors.primaryPurple
+                                        .withValues(alpha: 0.35),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
                                   ),
-                                ),
-                                onPressed: () => context.push('/interview'),
-                                icon: const Icon(Icons.mic_rounded, size: 20),
-                                label: Text(
-                                  'Practice Again',
-                                  style: AppTextStyles.bodyM.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
+                                  onPressed: () {
+                                    if (result == null) {
+                                      context.push('/interview');
+                                      return;
+                                    }
+                                    final mode = result.mode;
+                                    final promptText = result.topicOrQuestion;
+                                    final practiceMode =
+                                        PracticeMode.fromId(mode);
+                                    final matchedPrompt =
+                                        practiceMode.prompts.firstWhere(
+                                      (p) => p.text == promptText,
+                                      orElse: () => PracticePrompt(
+                                        id: 'retry-${result.id}',
+                                        text: promptText,
+                                        category: 'Practice Again',
+                                        hint:
+                                            'Focus on improving your pace and reducing fillers.',
+                                        targetDurationSeconds:
+                                            result.durationSeconds > 0
+                                                ? result.durationSeconds.round()
+                                                : 90,
+                                      ),
+                                    );
+                                    context.push(
+                                      '/interview',
+                                      extra: PracticeSessionConfig(
+                                        modeId: mode,
+                                        prompt: matchedPrompt,
+                                        parentSessionId: result.id,
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.mic_rounded, size: 20),
+                                  label: Text(
+                                    'Practice Again',
+                                    style: AppTextStyles.bodyM.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.textPrimaryOf(
-                                    context,
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minHeight: 48,
+                                minWidth: double.infinity,
+                              ),
+                              child: Semantics(
+                                button: true,
+                                label: 'Export PDF Report and share',
+                                child: OutlinedButton.icon(
+                                  key: const Key('export_pdf_report_button'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primaryPurple,
+                                    side: const BorderSide(
+                                      color: AppColors.primaryPurple,
+                                      width: 1.4,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
                                   ),
-                                  side: BorderSide(
-                                    color: AppColors.borderOf(context),
-                                    width: 1.2,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                  onPressed: _isExportingReport || result == null
+                                      ? null
+                                      : () => _exportPdfReport(result),
+                                  icon: _isExportingReport
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              AppColors.primaryPurple,
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.picture_as_pdf_outlined,
+                                          size: 20,
+                                        ),
+                                  label: Text(
+                                    _isExportingReport
+                                        ? 'Generating PDF Report...'
+                                        : 'Export PDF Report',
+                                    style: AppTextStyles.bodyMOf(context).copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primaryPurple,
+                                    ),
                                   ),
                                 ),
-                                onPressed: () => context.go('/home'),
-                                icon: const Icon(Icons.home_outlined, size: 20),
-                                label: Text(
-                                  'Back to Home',
-                                  style: AppTextStyles.bodyMOf(
-                                    context,
-                                  ).copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minHeight: 48,
+                                minWidth: double.infinity,
+                              ),
+                              child: Semantics(
+                                button: true,
+                                label: 'Navigate back to Home',
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.textPrimaryOf(
+                                      context,
+                                    ),
+                                    side: BorderSide(
+                                      color: AppColors.borderOf(context),
+                                      width: 1.2,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  onPressed: () => context.go('/home'),
+                                  icon: const Icon(Icons.home_outlined, size: 20),
+                                  label: Text(
+                                    'Back to Home',
+                                    style: AppTextStyles.bodyMOf(
+                                      context,
+                                    ).copyWith(fontWeight: FontWeight.w600),
+                                  ),
                                 ),
                               ),
                             ),
@@ -522,7 +738,7 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
-  Widget _buildTopAppBar(BuildContext context) {
+  Widget _buildTopAppBar(BuildContext context, SessionResult? result) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
       child: Row(
@@ -561,7 +777,25 @@ class _ResultsScreenState extends State<ResultsScreen>
             ).copyWith(fontWeight: FontWeight.w700),
           ),
 
-          const ThemeToggleButton(size: 38, compact: true),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (result != null) ...[
+                IconButton(
+                  key: const Key('top_bar_share_report_button'),
+                  tooltip: 'Export PDF Report',
+                  icon: Icon(
+                    Icons.share_outlined,
+                    size: 20,
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                  onPressed: _isExportingReport ? null : () => _exportPdfReport(result),
+                ),
+                const SizedBox(width: 4),
+              ],
+              const ThemeToggleButton(size: 38, compact: true),
+            ],
+          ),
         ],
       ),
     );
@@ -665,41 +899,45 @@ class _ResultsScreenState extends State<ResultsScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   // Play / Pause Button
-                  GestureDetector(
-                    onTap: () async {
-                      if (_isPlaying) {
-                        await _audioPlayer.pause();
-                      } else {
-                        if (_audioPosition >= _audioDuration &&
-                            _audioDuration > Duration.zero) {
-                          await _audioPlayer.seek(Duration.zero);
-                          await _audioPlayer.resume();
-                        } else if (_audioDuration == Duration.zero) {
-                          final isRemote =
-                              audioUri.startsWith('http://') ||
-                              audioUri.startsWith('https://');
-                          final Source source = isRemote
-                              ? UrlSource(audioUri)
-                              : DeviceFileSource(audioUri);
-                          await _audioPlayer.play(source);
+                  Semantics(
+                    button: true,
+                    label: _isPlaying ? 'Pause audio playback' : 'Play audio playback',
+                    child: GestureDetector(
+                      onTap: () async {
+                        if (_isPlaying) {
+                          await _audioPlayer.pause();
                         } else {
-                          await _audioPlayer.resume();
+                          if (_audioPosition >= _audioDuration &&
+                              _audioDuration > Duration.zero) {
+                            await _audioPlayer.seek(Duration.zero);
+                            await _audioPlayer.resume();
+                          } else if (_audioDuration == Duration.zero) {
+                            final isRemote =
+                                audioUri.startsWith('http://') ||
+                                audioUri.startsWith('https://');
+                            final Source source = isRemote
+                                ? UrlSource(audioUri)
+                                : DeviceFileSource(audioUri);
+                            await _audioPlayer.play(source);
+                          } else {
+                            await _audioPlayer.resume();
+                          }
                         }
-                      }
-                    },
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryPurple,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 24,
+                      },
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primaryPurple,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
                   ),
@@ -720,6 +958,1017 @@ class _ResultsScreenState extends State<ResultsScreen>
       ),
     );
   }
+
+  // ── Interactive Transcript Playback (Feature 1) ──────────────────────────
+
+  static const Set<String> _commonFillers = {
+    'um',
+    'uh',
+    'like',
+    'actually',
+    'basically',
+    'so',
+    'right',
+    'literally',
+    'well',
+    'okay',
+    'enna',
+    'paa',
+    'ah',
+    'you know',
+    'i mean',
+    'kind of',
+    'sort of',
+  };
+
+  bool _isFillerWord(String rawWord, Map<String, int>? breakdown) {
+    final clean = rawWord
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '')
+        .trim();
+    if (clean.isEmpty) return false;
+    if (_commonFillers.contains(clean)) return true;
+    if (breakdown != null && breakdown.containsKey(clean)) return true;
+    return false;
+  }
+
+  Future<void> _seekAndPlay(double startSeconds, SessionResult? result) async {
+    final offset = result?.audioOffsetSeconds ?? 0.0;
+    // Spec: Tapping seeks the audio player to `word.start - 0.3s` (clamped to 0) and plays
+    final rawTime = (startSeconds - offset) - 0.3;
+    final maxSec = _audioDuration.inMilliseconds > 0
+        ? _audioDuration.inMilliseconds / 1000.0
+        : (result?.durationSeconds ?? 999.0);
+    final clampedSeconds = rawTime.clamp(0.0, maxSec);
+    final targetDuration =
+        Duration(milliseconds: (clampedSeconds * 1000).round());
+
+    final audioUri = result?.playableAudioUri;
+    if (audioUri != null && audioUri.isNotEmpty) {
+      if (_audioDuration == Duration.zero) {
+        final isRemote =
+            audioUri.startsWith('http://') || audioUri.startsWith('https://');
+        final Source source =
+            isRemote ? UrlSource(audioUri) : DeviceFileSource(audioUri);
+        await _audioPlayer.play(source, position: targetDuration);
+      } else {
+        await _audioPlayer.seek(targetDuration);
+        if (!_isPlaying) {
+          await _audioPlayer.resume();
+        }
+      }
+    } else {
+      // Local / demo simulation without audio file
+      setState(() {
+        _audioPosition = targetDuration;
+      });
+    }
+  }
+
+  List<_TranscriptSentence> _parseSentences(
+    String transcript,
+    List<WordTimestamp> timestamps,
+    double durationSeconds,
+  ) {
+    final List<WordTimestamp> words = timestamps.isNotEmpty
+        ? timestamps
+        : _synthesizeWordTimestamps(transcript, durationSeconds);
+
+    if (words.isEmpty) return [];
+
+    final List<_TranscriptSentence> sentences = [];
+    List<WordTimestamp> currentSentenceWords = [];
+
+    for (int i = 0; i < words.length; i++) {
+      final w = words[i];
+      currentSentenceWords.add(w);
+
+      final isLast = i == words.length - 1;
+      final endsWithPunct = w.word.contains('.') ||
+          w.word.contains('?') ||
+          w.word.contains('!') ||
+          w.word.contains(';');
+
+      if (endsWithPunct || isLast || currentSentenceWords.length >= 20) {
+        final start = currentSentenceWords.first.start;
+        final end = currentSentenceWords.last.end;
+        sentences.add(_TranscriptSentence(
+          index: sentences.length,
+          startTime: start,
+          endTime: end,
+          words: List.from(currentSentenceWords),
+        ));
+        currentSentenceWords.clear();
+      }
+    }
+
+    return sentences;
+  }
+
+  List<WordTimestamp> _synthesizeWordTimestamps(
+    String transcript,
+    double durationSeconds,
+  ) {
+    final tokens = transcript
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (tokens.isEmpty) return [];
+    final dur = durationSeconds > 0 ? durationSeconds : (tokens.length * 0.4);
+    final wordDur = dur / tokens.length;
+    return List.generate(tokens.length, (i) {
+      final start = i * wordDur;
+      final end = (i + 1) * wordDur;
+      return WordTimestamp(word: tokens[i], start: start, end: end);
+    });
+  }
+
+  Widget _buildInteractiveTranscriptCard(SessionResult? result) {
+    final transcript = result?.transcript ?? '';
+    final timestamps = result?.wordTimestamps ?? const [];
+    final duration = result?.durationSeconds ?? 0.0;
+    final offset = result?.audioOffsetSeconds ?? 0.0;
+    final breakdown = result?.fillerWordBreakdown;
+
+    final sentences = _parseSentences(transcript, timestamps, duration);
+    final currentSec = (_audioPosition.inMilliseconds / 1000.0) + offset;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardOf(context),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderOf(context)),
+        boxShadow: AppColors.softShadowOf(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryPurple.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.subtitles_rounded,
+                        color: AppColors.primaryPurple,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Interactive Transcript',
+                            style: AppTextStyles.headingMOf(context).copyWith(
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            'Tap any word or sentence to listen',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (result != null && result.fillerWordCount > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningAmber.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.warningAmber.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: minAxisSize(),
+                    children: [
+                      const Icon(
+                        Icons.flag_rounded,
+                        size: 12,
+                        color: AppColors.warningAmber,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${result.fillerWordCount} Fillers',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.warningAmber,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Legend
+          Row(
+            children: [
+              _buildLegendDot(AppColors.warningAmber, 'Filler word'),
+              const SizedBox(width: 14),
+              _buildLegendDot(AppColors.primaryPurple, 'Playing now'),
+              const SizedBox(width: 14),
+              Text(
+                '• Jump -0.3s',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 10.5,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          if (sentences.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: Text(
+                  'No transcript recorded for this session.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: sentences.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, idx) {
+                final sentence = sentences[idx];
+                final isSentenceActive = _isPlaying &&
+                    currentSec >= (sentence.startTime - offset) &&
+                    currentSec <= (sentence.endTime - offset + 0.15);
+
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isSentenceActive
+                        ? AppColors.primaryPurple.withValues(alpha: 0.08)
+                        : Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withValues(alpha: 0.03)
+                            : const Color(0xFFF9F9FC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSentenceActive
+                          ? AppColors.primaryPurple.withValues(alpha: 0.5)
+                          : AppColors.borderOf(context),
+                      width: isSentenceActive ? 1.5 : 1.0,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sentence Seek / Play Button
+                      Semantics(
+                        button: true,
+                        label: 'Play sentence from ${sentence.startTime.toStringAsFixed(1)} seconds: "${sentence.text}"',
+                        child: GestureDetector(
+                          onTap: () => _seekAndPlay(sentence.startTime, result),
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            margin: const EdgeInsets.only(top: 2, right: 8),
+                            decoration: BoxDecoration(
+                              color: isSentenceActive
+                                  ? AppColors.primaryPurple
+                                  : AppColors.primaryPurple
+                                      .withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isSentenceActive && _isPlaying
+                                  ? Icons.volume_up_rounded
+                                  : Icons.play_arrow_rounded,
+                              size: 15,
+                              color: isSentenceActive
+                                  ? Colors.white
+                                  : AppColors.primaryPurple,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Sentence Words Wrap
+                      Expanded(
+                        child: Wrap(
+                          spacing: 4,
+                          runSpacing: 5,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: sentence.words.map((w) {
+                            final isWordActive = _isPlaying &&
+                                currentSec >= (w.start - offset) &&
+                                currentSec <= (w.end - offset + 0.12);
+                            final isFiller = _isFillerWord(w.word, breakdown);
+
+                            return Semantics(
+                              button: true,
+                              label: isFiller
+                                  ? 'Filler word: ${w.word}. Tap to seek audio.'
+                                  : 'Word: ${w.word}. Tap to seek audio.',
+                              child: InkWell(
+                                onTap: () => _seekAndPlay(w.start, result),
+                                borderRadius: BorderRadius.circular(5),
+                                child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal:
+                                      (isWordActive || isFiller) ? 5 : 2,
+                                  vertical: (isWordActive || isFiller) ? 2 : 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isWordActive
+                                      ? AppColors.primaryPurple
+                                      : isFiller
+                                          ? AppColors.warningAmber
+                                              .withValues(alpha: 0.18)
+                                          : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: isFiller && !isWordActive
+                                      ? Border.all(
+                                          color: AppColors.warningAmber
+                                              .withValues(alpha: 0.45),
+                                        )
+                                      : null,
+                                ),
+                                child: Text(
+                                  w.word,
+                                  style: AppTextStyles.bodyMOf(context)
+                                      .copyWith(
+                                    fontSize: 13,
+                                    height: 1.3,
+                                    fontWeight: isWordActive || isFiller
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
+                                    color: isWordActive
+                                        ? Colors.white
+                                        : isFiller
+                                            ? AppColors.warningAmber
+                                            : AppColors.textPrimaryOf(
+                                                context,
+                                              ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textSecondary,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Attempt Comparison Section (Feature 2) ─────────────────────────────
+
+  Widget _buildAttemptComparisonSection(SessionResult current) {
+    final parent = _parentResult;
+    if (parent == null) {
+      if (_isLoadingParent) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.cardOf(context),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.borderOf(context)),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Loading previous attempt comparison...',
+                style: AppTextStyles.captionOf(context),
+              ),
+            ],
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    }
+
+    // Only allow comparison between attempts of the same prompt, question or deck.
+    final currentTopic = current.topicOrQuestion.trim().toLowerCase();
+    final parentTopic = parent.topicOrQuestion.trim().toLowerCase();
+    if (currentTopic != parentTopic) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildAttemptComparisonDeltaCard(current, parent);
+  }
+
+  Widget _buildAttemptComparisonDeltaCard(
+    SessionResult current,
+    SessionResult parent,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // 1. Overall Score Delta
+    final scoreDelta = current.overallScore - parent.overallScore;
+    final isScoreSame = scoreDelta.abs() < 0.1;
+    final isScoreBetter = scoreDelta > 0;
+    final scoreDeltaStr = isScoreSame
+        ? 'Same'
+        : '${scoreDelta > 0 ? '+' : ''}${scoreDelta.toStringAsFixed(1)} pts';
+    final scoreDeltaColor = isScoreSame
+        ? AppColors.textSecondaryOf(context)
+        : (isScoreBetter ? const Color(0xFF10B981) : const Color(0xFFEF4444));
+
+    // 2. Fillers per 100 words (fewer is better)
+    final currFillers = current.fillersPer100Words;
+    final parentFillers = parent.fillersPer100Words;
+    final fillersDelta = currFillers - parentFillers;
+    final isFillersBetter = fillersDelta < -0.05;
+    final isFillersWorse = fillersDelta > 0.05;
+    final fillersDeltaStr = (isFillersBetter || isFillersWorse)
+        ? '${fillersDelta > 0 ? '+' : ''}${fillersDelta.toStringAsFixed(1)} /100w'
+        : 'Same';
+    final fillersDeltaColor = isFillersBetter
+        ? const Color(0xFF10B981)
+        : (isFillersWorse
+            ? const Color(0xFFF59E0B)
+            : AppColors.textSecondaryOf(context));
+
+    // 3. WPM relative to the 120-160 optimal band
+    final currWpm = current.wpm;
+    final parentWpm = parent.wpm;
+    final currDist = SessionResult.wpmBandDistance(currWpm);
+    final parentDist = SessionResult.wpmBandDistance(parentWpm);
+
+    final bool currInBand = currDist == 0.0;
+    final bool parentInBand = parentDist == 0.0;
+
+    String pacingTitle;
+    String pacingSub;
+    Color pacingColor;
+
+    if (currInBand && parentInBand) {
+      pacingTitle = 'In Optimal Band';
+      pacingSub = 'Maintained 120–160 WPM pace';
+      pacingColor = const Color(0xFF10B981);
+    } else if (currInBand && !parentInBand) {
+      pacingTitle = 'Reached Optimal Band!';
+      pacingSub = '+${parentDist.round()} WPM closer to target';
+      pacingColor = const Color(0xFF10B981);
+    } else if (!currInBand && currDist < parentDist) {
+      final improvement = (parentDist - currDist).round();
+      pacingTitle = currWpm < 120
+          ? 'Slow (${currWpm.round()} WPM)'
+          : 'Fast (${currWpm.round()} WPM)';
+      pacingSub = '+$improvement WPM closer to band';
+      pacingColor = const Color(0xFF10B981);
+    } else if (!currInBand && currDist > parentDist) {
+      final regression = (currDist - parentDist).round();
+      pacingTitle = currWpm < 120
+          ? 'Slow (${currWpm.round()} WPM)'
+          : 'Fast (${currWpm.round()} WPM)';
+      pacingSub = '-$regression WPM away from band';
+      pacingColor = const Color(0xFFF59E0B);
+    } else {
+      pacingTitle = currWpm < 120
+          ? 'Slow (${currWpm.round()} WPM)'
+          : 'Fast (${currWpm.round()} WPM)';
+      pacingSub = 'Pacing distance unchanged';
+      pacingColor = AppColors.textSecondaryOf(context);
+    }
+
+    // 4. Pauses count
+    final pauseDelta = current.pauseCount - parent.pauseCount;
+    final isPauseFewer = pauseDelta < 0;
+    final pauseDeltaStr = pauseDelta == 0
+        ? 'Same (${current.pauseCount})'
+        : '${pauseDelta > 0 ? '+' : ''}$pauseDelta pauses';
+    final pauseColor = pauseDelta == 0
+        ? AppColors.textSecondaryOf(context)
+        : (isPauseFewer ? const Color(0xFF10B981) : const Color(0xFFF59E0B));
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.cardOf(context),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.primaryPurple.withValues(alpha: isDark ? 0.4 : 0.25),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color:
+                AppColors.primaryPurple.withValues(alpha: isDark ? 0.15 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryPurple.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.compare_arrows_rounded,
+                  color: AppColors.primaryPurple,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Attempt Comparison',
+                      style: AppTextStyles.headingMOf(context).copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Comparing against your previous run',
+                      style: AppTextStyles.captionOf(context),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryPurple.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.repeat_rounded,
+                      size: 13,
+                      color: AppColors.primaryPurple,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Linked Attempt',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryPurple,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 18),
+
+          // 2x2 Delta Metrics Grid
+          Row(
+            children: [
+              // Overall Score
+              Expanded(
+                child: _buildAttemptDeltaItem(
+                  context,
+                  title: 'Overall Score',
+                  currentValue: '${current.overallScore.round()}',
+                  parentValue: 'was ${parent.overallScore.round()}',
+                  deltaBadge: scoreDeltaStr,
+                  deltaColor: scoreDeltaColor,
+                  icon: Icons.emoji_events_outlined,
+                  isPositive: isScoreBetter,
+                  isNeutral: isScoreSame,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Fillers per 100 words
+              Expanded(
+                child: _buildAttemptDeltaItem(
+                  context,
+                  title: 'Fillers / 100w',
+                  currentValue: currFillers.toStringAsFixed(1),
+                  parentValue: 'was ${parentFillers.toStringAsFixed(1)}',
+                  deltaBadge: fillersDeltaStr,
+                  deltaColor: fillersDeltaColor,
+                  icon: Icons.chat_bubble_outline_rounded,
+                  isPositive: isFillersBetter,
+                  isNeutral: !isFillersBetter && !isFillersWorse,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              // Pacing (Relative to 120-160 WPM Band)
+              Expanded(
+                child: _buildAttemptDeltaItem(
+                  context,
+                  title: 'Pacing (120–160 Band)',
+                  currentValue: '${currWpm.round()} WPM',
+                  parentValue: pacingTitle,
+                  deltaBadge: pacingSub,
+                  deltaColor: pacingColor,
+                  icon: Icons.speed_rounded,
+                  isPositive: currInBand || currDist < parentDist,
+                  isNeutral: currDist == parentDist,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Pauses
+              Expanded(
+                child: _buildAttemptDeltaItem(
+                  context,
+                  title: 'Pauses (>1.5s)',
+                  currentValue: '${current.pauseCount}',
+                  parentValue: 'was ${parent.pauseCount}',
+                  deltaBadge: pauseDeltaStr,
+                  deltaColor: pauseColor,
+                  icon: Icons.pause_circle_outline_rounded,
+                  isPositive: isPauseFewer,
+                  isNeutral: pauseDelta == 0,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttemptDeltaItem(
+    BuildContext context, {
+    required String title,
+    required String currentValue,
+    required String parentValue,
+    required String deltaBadge,
+    required Color deltaColor,
+    required IconData icon,
+    required bool isPositive,
+    required bool isNeutral,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.04)
+            : const Color(0xFFF8F9FD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.borderOf(context).withValues(alpha: 0.8),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: AppColors.textSecondaryOf(context)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.captionOf(context).copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                currentValue,
+                style: AppTextStyles.headingLOf(context).copyWith(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  parentValue,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.captionOf(context).copyWith(
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: deltaColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isNeutral)
+                  Icon(
+                    isPositive
+                        ? Icons.arrow_upward_rounded
+                        : Icons.arrow_downward_rounded,
+                    size: 11,
+                    color: deltaColor,
+                  ),
+                if (!isNeutral) const SizedBox(width: 2),
+                Flexible(
+                  child: Text(
+                    deltaBadge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: deltaColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTemplateStructureCard(SessionResult result) {
+    final structureScore = result.structureScore ?? 0.0;
+    final detected = result.templateSectionsDetected;
+    final missing = result.templateSectionsMissing;
+    final templateTitle = result.templateId != null
+        ? result.templateId!
+            .replaceAll('_', ' ')
+            .split(' ')
+            .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+            .join(' ')
+        : 'Pitch Template';
+
+    return Container(
+      key: const Key('template_structure_results_card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.cardOf(context),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.primaryPurple.withValues(alpha: 0.3),
+          width: 1.2,
+        ),
+        boxShadow: AppColors.softShadowOf(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.architecture_rounded,
+                      color: AppColors.primaryPurple,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        templateTitle,
+                        style: AppTextStyles.headingMOf(context).copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'Structure Rubric Adherence',
+                        style: AppTextStyles.captionOf(context).copyWith(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (structureScore >= 70
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFF59E0B))
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: (structureScore >= 70
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFF59E0B))
+                        .withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  '${structureScore.round()}% Structure',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: structureScore >= 70
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF59E0B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (detected.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Covered Sections (${detected.length})',
+              style: AppTextStyles.captionOf(context).copyWith(
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF10B981),
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: detected.map((name) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 13,
+                        color: Color(0xFF10B981),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        name,
+                        style: AppTextStyles.captionOf(context).copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+          if (missing.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Missing Sections (${missing.length})',
+              style: AppTextStyles.captionOf(context).copyWith(
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFF59E0B),
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: missing.map((name) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 13,
+                        color: Color(0xFFF59E0B),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        name,
+                        style: AppTextStyles.captionOf(context).copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  MainAxisSize minAxisSize() => MainAxisSize.min;
 
   Widget _buildAnimatedSection({
     required Animation<double> animation,
@@ -824,6 +2073,33 @@ class _ResultsScreenState extends State<ResultsScreen>
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (result?.structureScore != null) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryPurple
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Structure: ${result!.structureScore!.round()}% (Template Rubric)',
+                                  style: AppTextStyles.captionOf(context)
+                                      .copyWith(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primaryPurple,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -976,6 +2252,245 @@ class _ResultsScreenState extends State<ResultsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildVocalDeliveryCard(SessionResult? result) {
+    final energyData = (result?.energyCurve.isNotEmpty ?? false)
+        ? result!.energyCurve
+        : [0.35, 0.42, 0.65, 0.78, 0.82, 0.70, 0.55, 0.60, 0.75, 0.88, 0.80, 0.65, 0.45, 0.52, 0.68, 0.75, 0.80, 0.85, 0.72, 0.60, 0.50, 0.58, 0.64, 0.70, 0.78, 0.82, 0.75, 0.60, 0.45, 0.35];
+
+    final pitchScore = result?.pitchVariationScore ?? 65.0;
+    final isMonotone = pitchScore < 45.0;
+    final isExpressive = pitchScore >= 70.0;
+    final volScore = (result?.volumeConsistencyScore ?? 78.0).round();
+
+    final Color badgeColor;
+    final String badgeLabel;
+    final IconData badgeIcon;
+
+    if (isMonotone) {
+      badgeColor = AppColors.warningAmber;
+      badgeLabel = 'Monotone Tone';
+      badgeIcon = Icons.warning_amber_rounded;
+    } else if (isExpressive) {
+      badgeColor = AppColors.accentGreen;
+      badgeLabel = 'Expressive Pitch';
+      badgeIcon = Icons.auto_awesome_rounded;
+    } else {
+      badgeColor = AppColors.primaryPurple;
+      badgeLabel = 'Balanced Pitch';
+      badgeIcon = Icons.graphic_eq_rounded;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.graphic_eq_rounded,
+                    size: 20,
+                    color: AppColors.primaryPurple,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Vocal Delivery & Dynamics',
+                      style: AppTextStyles.headingMOf(context),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: badgeColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(badgeIcon, size: 13, color: badgeColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    badgeLabel,
+                    style: AppTextStyles.caption.copyWith(
+                      color: badgeColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.cardOf(context),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.borderOf(context), width: 1),
+            boxShadow: AppColors.softShadowOf(context),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pitch Variation',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${pitchScore.round()} / 100',
+                        style: AppTextStyles.headingMOf(context).copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: badgeColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Volume Stability',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$volScore%',
+                        style: AppTextStyles.headingMOf(context).copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimaryOf(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Vocal Energy Contour (Timeline)',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 130,
+                child: LineChart(
+                  LineChartData(
+                    minX: 0,
+                    maxX: (energyData.length - 1).toDouble(),
+                    minY: 0,
+                    maxY: 1.05,
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: 0.25,
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: AppColors.dividerOf(context).withValues(alpha: 0.5),
+                        strokeWidth: 1,
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 28,
+                          interval: 0.5,
+                          getTitlesWidget: (val, meta) {
+                            if (val == 0.0) return const SizedBox.shrink();
+                            return Text(
+                              '${(val * 100).toInt()}%',
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 9,
+                                color: AppColors.textSecondary,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 18,
+                          interval: ((energyData.length - 1) / 4.0).clamp(1.0, 30.0),
+                          getTitlesWidget: (val, meta) {
+                            final pct = ((val / (energyData.length - 1)) * 100).round();
+                            return Text(
+                              '$pct%',
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 9,
+                                color: AppColors.textSecondary,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: List.generate(
+                          energyData.length,
+                          (i) => FlSpot(i.toDouble(), energyData[i]),
+                        ),
+                        isCurved: true,
+                        curveSmoothness: 0.35,
+                        color: AppColors.primaryPurple,
+                        barWidth: 2.5,
+                        isStrokeCapRound: true,
+                        dotData: const FlDotData(show: false),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primaryPurple.withValues(alpha: 0.30),
+                              AppColors.primaryPurple.withValues(alpha: 0.02),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1331,4 +2846,20 @@ class _ResultsScreenState extends State<ResultsScreen>
       ),
     );
   }
+}
+
+class _TranscriptSentence {
+  final int index;
+  final double startTime;
+  final double endTime;
+  final List<WordTimestamp> words;
+
+  const _TranscriptSentence({
+    required this.index,
+    required this.startTime,
+    required this.endTime,
+    required this.words,
+  });
+
+  String get text => words.map((w) => w.word).join(' ');
 }

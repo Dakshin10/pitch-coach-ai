@@ -20,7 +20,7 @@ Usage:
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from groq import Groq
 
@@ -128,8 +128,16 @@ class SessionAnalysis:
     clarity_score: float
     confidence_score: float
     overall_score: float
-    ai_feedback: List[FeedbackItem]
-    duration_seconds: float
+    structure_score: float = 70.0
+    template_sections_detected: List[str] = field(default_factory=list)
+    template_sections_missing: List[str] = field(default_factory=list)
+    template_id: Optional[str] = None
+    energy_curve: List[float] = field(default_factory=list)
+    pitch_variation_score: float = 50.0
+    volume_consistency_score: float = 75.0
+    vocal_delivery_latency_ms: float = 0.0
+    ai_feedback: List[FeedbackItem] = field(default_factory=list)
+    duration_seconds: float = 0.0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -319,31 +327,78 @@ def _compute_wpm_score(wpm: float) -> float:
     return round(max(0.0, min(100.0, 100.0 - deviation * WPM_PENALTY_PER_WPM)), 1)
 
 
-def _compute_confidence_score(clarity: float, wpm: float) -> float:
+def _compute_confidence_score(
+    clarity: float,
+    wpm: float,
+    delivery_metrics: Optional[Any] = None,
+) -> float:
     """
-    confidence = clarity * 0.50 + wpm_score * 0.30 + energy_bonus * 0.20
-    energy_bonus = 75 (placeholder; v2 will use librosa pitch/energy analysis)
+    confidence score incorporating speech clarity, conversational pacing (WPM),
+    and vocal delivery (pitch variation & volume consistency).
     """
     wpm_score = _compute_wpm_score(wpm)
-    energy_bonus = 75.0  # TODO v2: replace with librosa-based vocal energy signal
-    raw = (
-        CONFIDENCE_CLARITY_W * clarity
-        + CONFIDENCE_WPM_W * wpm_score
-        + CONFIDENCE_ENERGY_W * energy_bonus
-    )
+    if delivery_metrics is not None and hasattr(delivery_metrics, "pitch_variation_score"):
+        delivery_score = (
+            0.50 * float(delivery_metrics.pitch_variation_score)
+            + 0.50 * float(delivery_metrics.volume_consistency_score)
+        )
+        raw = (
+            0.40 * clarity
+            + 0.30 * wpm_score
+            + 0.30 * delivery_score
+        )
+    else:
+        energy_bonus = 75.0
+        raw = (
+            CONFIDENCE_CLARITY_W * clarity
+            + CONFIDENCE_WPM_W * wpm_score
+            + CONFIDENCE_ENERGY_W * energy_bonus
+        )
     return round(max(0.0, min(100.0, raw)), 1)
 
 
-def _compute_overall_score(confidence: float, clarity: float) -> float:
+def _compute_structure_score(
+    transcript: str,
+    template_id: Optional[str] = None,
+) -> Tuple[float, List[str], List[str]]:
     """
-    overall = confidence * 0.40 + clarity * 0.40 + structure_bonus * 0.20
-    structure_bonus = 70 (placeholder; v2 will use LLM-assessed structure quality)
+    Computes structure score (0-100) based on coverage of template sections.
+    Returns (structure_score, detected_sections, missing_sections).
     """
-    structure_bonus = 70.0  # TODO v2: derive from LLM structure quality rating
+    from templates.registry import get_template
+    template = get_template(template_id)
+    if not template or not template.sections:
+        return (70.0, [], [])
+
+    transcript_lower = transcript.lower()
+    detected: List[str] = []
+    missing: List[str] = []
+    score = 0.0
+
+    for section in template.sections:
+        matches = [kw for kw in section.keywords if kw.lower() in transcript_lower]
+        if matches:
+            detected.append(section.name)
+            score += section.weight
+        else:
+            missing.append(section.name)
+
+    return (round(max(0.0, min(100.0, score)), 1), detected, missing)
+
+
+def _compute_overall_score(
+    confidence: float,
+    clarity: float,
+    structure_score: Optional[float] = 70.0,
+) -> float:
+    """
+    overall = confidence * 0.40 + clarity * 0.40 + structure_score * 0.20
+    """
+    effective_structure = 70.0 if structure_score is None else structure_score
     raw = (
         OVERALL_CONFIDENCE_W * confidence
         + OVERALL_CLARITY_W * clarity
-        + OVERALL_STRUCTURE_W * structure_bonus
+        + OVERALL_STRUCTURE_W * effective_structure
     )
     return round(max(0.0, min(100.0, raw)), 1)
 
@@ -393,6 +448,9 @@ def _get_qualitative_feedback(
     client: Groq,
     word_timestamps: Optional[List[WordTimestamp]] = None,
     llm_model: str = LLM_MODEL,
+    template_id: Optional[str] = None,
+    detected_sections: Optional[List[str]] = None,
+    missing_sections: Optional[List[str]] = None,
 ) -> List[FeedbackItem]:
     """
     Generate 3 short actionable improvement suggestions.
@@ -401,6 +459,21 @@ def _get_qualitative_feedback(
     2. Single-shot prompt — if the agent errors or returns nothing usable.
     3. _FALLBACK_FEEDBACK — so the app always shows something.
     """
+    from templates.registry import get_template
+    template = get_template(template_id)
+    template_context = ""
+    if template:
+        template_context = (
+            f"\nPITCH TEMPLATE CONTEXT:\n"
+            f"- Template: {template.title}\n"
+            f"- Target Duration: {template.target_duration_seconds}s\n"
+            f"- Coaching Focus: {template.coaching_focus}\n"
+            f"- Sections Detected: {', '.join(detected_sections) if detected_sections else 'None'}\n"
+            f"- Sections Missing: {', '.join(missing_sections) if missing_sections else 'None'}\n"
+            f"- Rubric Guidelines: {json.dumps(template.rubric)}\n"
+            f"IMPORTANT: At least one feedback item MUST address adherence to this template and suggest how to cover the missing sections.\n"
+        )
+
     if word_timestamps:
         try:
             items = run_feedback_agent(
@@ -415,6 +488,8 @@ def _get_qualitative_feedback(
                     "filler_breakdown": dict(list(filler.breakdown.items())[:6]),
                     "pause_count": pauses.count, "avg_pause_s": pauses.avg_length,
                     "clarity": round(clarity), "confidence": round(confidence),
+                    "template": template.title if template else None,
+                    "missing_sections": missing_sections or [],
                 },
                 feedback_style=feedback_style,
                 fillers_single=_FILLER_SINGLE,
@@ -446,7 +521,7 @@ METRICS:
 - Pauses detected: {pauses.count}, avg length: {pauses.avg_length:.1f}s
 - Clarity score: {clarity:.0f}/100
 - Confidence score: {confidence:.0f}/100
-
+{template_context}
 COACHING STYLE: {feedback_style}
 
 Return a JSON object with key "feedback" whose value is an array of exactly 3 items. Do not use emojis in your response.
@@ -461,7 +536,7 @@ Example:
   "feedback": [
     {{"category": "filler_words", "message": "Replace 'um' with a deliberate pause for stronger impact.", "severity": "warning", "example": "...um I think the key..."}},
     {{"category": "pacing", "message": "Your pace is excellent — keep this rhythm throughout.", "severity": "positive", "example": null}},
-    {{"category": "structure", "message": "Lead with your main point, then explain the reasoning.", "severity": "tip", "example": null}}
+    {{"category": "structure", "message": "Ensure you clearly cover the missing Ask section.", "severity": "tip", "example": null}}
   ]
 }}"""
 
@@ -479,6 +554,14 @@ Example:
 
     except Exception as exc:
         logger.error("[pipeline] LLM feedback error: %s", exc)
+        if missing_sections:
+            return [
+                FeedbackItem(
+                    category="structure",
+                    message=f"Include missing section: {missing_sections[0]}.",
+                    severity="tip",
+                ),
+            ]
         return _FALLBACK_FEEDBACK
 
 
@@ -493,6 +576,7 @@ def analyze_audio(
     groq_api_key: str,
     whisper_model: str = WHISPER_MODEL,
     llm_model: str = LLM_MODEL,
+    template_id: Optional[str] = None,
 ) -> SessionAnalysis:
     """
     Run the full 5-step AI pipeline on a recorded audio file.
@@ -503,6 +587,7 @@ def analyze_audio(
         user_profile:      Dict with at least 'feedback_style'
         groq_api_key:      Groq API key (the dedicated audio-pipeline key)
         whisper_model / llm_model: Groq model names (see config.py)
+        template_id:       Optional pitch template ID for structure scoring & rubric
 
     Returns:
         SessionAnalysis — all computed metrics + LLM feedback
@@ -520,16 +605,35 @@ def analyze_audio(
     pauses = _compute_pauses(word_timestamps)
     wpm = _compute_wpm(word_timestamps, duration_seconds)
 
+    # Step 2b — Vocal delivery analysis (Feature 7)
+    from audio_analysis.vocal_delivery import analyze_vocal_delivery, VocalDeliveryMetrics
+    try:
+        delivery = analyze_vocal_delivery(audio_path)
+    except Exception as delivery_err:
+        logger.debug("[pipeline] vocal delivery analysis fallback: %s", delivery_err)
+        delivery = VocalDeliveryMetrics()
+
     # Step 3
     clarity = _compute_clarity_score(filler, pauses)
-    confidence = _compute_confidence_score(clarity, wpm)
-    overall = _compute_overall_score(confidence, clarity)
+    confidence = _compute_confidence_score(clarity, wpm, delivery_metrics=delivery)
+    structure_score, detected_sections, missing_sections = _compute_structure_score(
+        transcript, template_id
+    )
+    overall = _compute_overall_score(confidence, clarity, structure_score=structure_score)
 
     # Step 4
     ai_feedback = _get_qualitative_feedback(
         transcript, wpm, filler, pauses, clarity, confidence, feedback_style, client,
         word_timestamps=word_timestamps, llm_model=llm_model,
+        template_id=template_id, detected_sections=detected_sections, missing_sections=missing_sections,
     )
+
+    if delivery.is_monotone:
+        ai_feedback.append(FeedbackItem(
+            category="confidence",
+            message="Vocal Delivery: Pitch variation is relatively monotone. Practice inflecting your voice and varying cadence on key transition words.",
+            severity="tip",
+        ))
 
     return SessionAnalysis(
         transcript=transcript,
@@ -540,6 +644,14 @@ def analyze_audio(
         clarity_score=clarity,
         confidence_score=confidence,
         overall_score=overall,
+        structure_score=structure_score,
+        template_sections_detected=detected_sections,
+        template_sections_missing=missing_sections,
+        template_id=template_id,
+        energy_curve=delivery.energy_curve,
+        pitch_variation_score=delivery.pitch_variation_score,
+        volume_consistency_score=delivery.volume_consistency_score,
+        vocal_delivery_latency_ms=delivery.latency_ms,
         ai_feedback=ai_feedback,
         duration_seconds=duration_seconds,
     )

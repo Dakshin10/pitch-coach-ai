@@ -96,11 +96,18 @@ class User:
 class PracticeSession:
     id: str = field(default_factory=_gen_uuid)
     user_id: str = ""
+    parent_session_id: Optional[str] = None
+    template_id: Optional[str] = None
+    structure_score: Optional[float] = None
+    template_sections_detected: Optional[List[str]] = None
+    template_sections_missing: Optional[List[str]] = None
     mode: str = "interview"
     topic_or_question: str = "Tell me about yourself."
     audio_url: Optional[str] = None
     duration_seconds: float = 0.0
     transcript: Optional[str] = None
+    word_timestamps: Optional[List[Dict[str, Any]]] = None
+    audio_offset_seconds: float = 0.0
 
     wpm: float = 0.0
     filler_word_count: int = 0
@@ -111,6 +118,10 @@ class PracticeSession:
     clarity_score: float = 0.0
     confidence_score: float = 0.0
     overall_score: float = 0.0
+
+    energy_curve: Optional[List[float]] = None
+    pitch_variation_score: Optional[float] = None
+    volume_consistency_score: Optional[float] = None
 
     ai_feedback: List[Dict[str, Any]] = field(default_factory=list)
     created_at: datetime = field(default_factory=_now_utc)
@@ -126,11 +137,21 @@ class PracticeSession:
         return {
             "id": self.id,
             "user_id": self.user_id,
+            "parent_session_id": self.parent_session_id,
+            "template_id": self.template_id,
+            "structure_score": self.structure_score,
+            "template_sections_detected": self.template_sections_detected or [],
+            "template_sections_missing": self.template_sections_missing or [],
+            "energy_curve": self.energy_curve or [],
+            "pitch_variation_score": self.pitch_variation_score,
+            "volume_consistency_score": self.volume_consistency_score,
             "mode": self.mode,
             "topic_or_question": self.topic_or_question,
             "audio_url": self.audio_url,
             "duration_seconds": self.duration_seconds,
             "transcript": self.transcript,
+            "word_timestamps": self.word_timestamps or [],
+            "audio_offset_seconds": self.audio_offset_seconds,
             "wpm": self.wpm,
             "filler_word_count": self.filler_word_count,
             "pause_count": self.pause_count,
@@ -163,11 +184,21 @@ class PracticeSession:
         return PracticeSession(
             id=d.get("id", ""),
             user_id=d.get("user_id", ""),
+            parent_session_id=d.get("parent_session_id"),
+            template_id=d.get("template_id"),
+            structure_score=d.get("structure_score"),
+            template_sections_detected=d.get("template_sections_detected"),
+            template_sections_missing=d.get("template_sections_missing"),
+            energy_curve=d.get("energy_curve") or [],
+            pitch_variation_score=d.get("pitch_variation_score"),
+            volume_consistency_score=d.get("volume_consistency_score"),
             mode=d.get("mode", "interview"),
             topic_or_question=d.get("topic_or_question", ""),
             audio_url=d.get("audio_url"),
             duration_seconds=d.get("duration_seconds", 0.0),
             transcript=d.get("transcript"),
+            word_timestamps=d.get("word_timestamps") or [],
+            audio_offset_seconds=float(d.get("audio_offset_seconds", 0.0)),
             wpm=d.get("wpm", 0.0),
             filler_word_count=d.get("filler_word_count", 0),
             filler_word_breakdown=d.get("filler_word_breakdown", {}),

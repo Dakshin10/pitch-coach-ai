@@ -247,7 +247,7 @@ class TestPhase1PostSessionsEndpoint(unittest.TestCase):
                 "mode": "presentation",
                 "topic_or_question": "Series A Pitch",
                 "duration_seconds": 45.0,
-                "local_date": "2026-10-09",
+                "local_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                 "tz_offset_minutes": 330,
             },
             files={"audio_file": ("test.m4a", io.BytesIO(audio_bytes), "audio/mp4")},

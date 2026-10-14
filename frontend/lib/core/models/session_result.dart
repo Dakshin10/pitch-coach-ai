@@ -28,6 +28,34 @@ class FeedbackItem {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WordTimestamp
+// ─────────────────────────────────────────────────────────────────────────────
+
+class WordTimestamp {
+  final String word;
+  final double start;
+  final double end;
+
+  const WordTimestamp({
+    required this.word,
+    required this.start,
+    required this.end,
+  });
+
+  factory WordTimestamp.fromJson(Map<String, dynamic> j) => WordTimestamp(
+    word: j['word'] as String? ?? '',
+    start: (j['start'] as num?)?.toDouble() ?? 0.0,
+    end: (j['end'] as num?)?.toDouble() ?? 0.0,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'word': word,
+    'start': start,
+    'end': end,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SessionResult  (GET /sessions/{id})
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -37,6 +65,8 @@ class SessionResult {
   final String topicOrQuestion;
   final double durationSeconds;
   final String? transcript;
+  final List<WordTimestamp> wordTimestamps;
+  final double audioOffsetSeconds;
   final double wpm;
   final int fillerWordCount;
   final Map<String, int> fillerWordBreakdown;
@@ -61,12 +91,38 @@ class SessionResult {
   /// Remote or relative streaming URL for the session audio.
   final String? audioUrl;
 
+  /// Optional parent session id if this session was a practice retry of a previous attempt.
+  final String? parentSessionId;
+
+  /// Optional pitch template ID used for rubric and structure evaluation.
+  final String? templateId;
+
+  /// Structure adherence score (0-100) based on template sections.
+  final double? structureScore;
+
+  /// Sections detected in user's pitch.
+  final List<String> templateSectionsDetected;
+
+  /// Sections missing from user's pitch based on the template.
+  final List<String> templateSectionsMissing;
+
+  /// Downsampled RMS vocal energy curve (normalized points 0.0 - 1.0).
+  final List<double> energyCurve;
+
+  /// Pitch variation score (0-100; < 45 indicates monotone delivery).
+  final double? pitchVariationScore;
+
+  /// Volume consistency score (0-100).
+  final double? volumeConsistencyScore;
+
   const SessionResult({
     required this.id,
     required this.mode,
     required this.topicOrQuestion,
     required this.durationSeconds,
     this.transcript,
+    this.wordTimestamps = const [],
+    this.audioOffsetSeconds = 0.0,
     required this.wpm,
     required this.fillerWordCount,
     required this.fillerWordBreakdown,
@@ -84,6 +140,14 @@ class SessionResult {
     this.failureReason,
     this.audioPath,
     this.audioUrl,
+    this.parentSessionId,
+    this.templateId,
+    this.structureScore,
+    this.templateSectionsDetected = const [],
+    this.templateSectionsMissing = const [],
+    this.energyCurve = const [],
+    this.pitchVariationScore,
+    this.volumeConsistencyScore,
   });
 
   /// Returns whichever audio locator is available: local file path or remote URL.
@@ -95,6 +159,11 @@ class SessionResult {
     topicOrQuestion: j['topic_or_question'] as String? ?? '',
     durationSeconds: (j['duration_seconds'] as num?)?.toDouble() ?? 0,
     transcript: j['transcript'] as String?,
+    wordTimestamps: (j['word_timestamps'] as List<dynamic>? ?? [])
+        .map((e) => WordTimestamp.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    audioOffsetSeconds:
+        (j['audio_offset_seconds'] as num?)?.toDouble() ?? 0.0,
     wpm: (j['wpm'] as num?)?.toDouble() ?? 0,
     fillerWordCount: (j['filler_word_count'] as num?)?.toInt() ?? 0,
     fillerWordBreakdown:
@@ -117,6 +186,22 @@ class SessionResult {
     failureReason: j['failure_reason'] as String?,
     audioPath: j['audio_path'] as String?,
     audioUrl: j['audio_url'] as String?,
+    parentSessionId: j['parent_session_id'] as String?,
+    templateId: j['template_id'] as String?,
+    structureScore: (j['structure_score'] as num?)?.toDouble(),
+    templateSectionsDetected:
+        (j['template_sections_detected'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList(),
+    templateSectionsMissing:
+        (j['template_sections_missing'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList(),
+    energyCurve: (j['energy_curve'] as List<dynamic>? ?? [])
+        .map((e) => (e as num).toDouble())
+        .toList(),
+    pitchVariationScore: (j['pitch_variation_score'] as num?)?.toDouble(),
+    volumeConsistencyScore: (j['volume_consistency_score'] as num?)?.toDouble(),
   );
 
   SessionResult copyWith({
@@ -125,6 +210,8 @@ class SessionResult {
     String? topicOrQuestion,
     double? durationSeconds,
     String? transcript,
+    List<WordTimestamp>? wordTimestamps,
+    double? audioOffsetSeconds,
     double? wpm,
     int? fillerWordCount,
     Map<String, int>? fillerWordBreakdown,
@@ -140,6 +227,14 @@ class SessionResult {
     String? failureReason,
     String? audioPath,
     String? audioUrl,
+    String? parentSessionId,
+    String? templateId,
+    double? structureScore,
+    List<String>? templateSectionsDetected,
+    List<String>? templateSectionsMissing,
+    List<double>? energyCurve,
+    double? pitchVariationScore,
+    double? volumeConsistencyScore,
   }) {
     return SessionResult(
       id: id ?? this.id,
@@ -147,6 +242,8 @@ class SessionResult {
       topicOrQuestion: topicOrQuestion ?? this.topicOrQuestion,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       transcript: transcript ?? this.transcript,
+      wordTimestamps: wordTimestamps ?? this.wordTimestamps,
+      audioOffsetSeconds: audioOffsetSeconds ?? this.audioOffsetSeconds,
       wpm: wpm ?? this.wpm,
       fillerWordCount: fillerWordCount ?? this.fillerWordCount,
       fillerWordBreakdown: fillerWordBreakdown ?? this.fillerWordBreakdown,
@@ -162,6 +259,16 @@ class SessionResult {
       failureReason: failureReason ?? this.failureReason,
       audioPath: audioPath ?? this.audioPath,
       audioUrl: audioUrl ?? this.audioUrl,
+      parentSessionId: parentSessionId ?? this.parentSessionId,
+      templateId: templateId ?? this.templateId,
+      structureScore: structureScore ?? this.structureScore,
+      templateSectionsDetected:
+          templateSectionsDetected ?? this.templateSectionsDetected,
+      templateSectionsMissing:
+          templateSectionsMissing ?? this.templateSectionsMissing,
+      energyCurve: energyCurve ?? this.energyCurve,
+      pitchVariationScore: pitchVariationScore ?? this.pitchVariationScore,
+      volumeConsistencyScore: volumeConsistencyScore ?? this.volumeConsistencyScore,
     );
   }
 
@@ -187,6 +294,27 @@ class SessionResult {
   }
 
   int get totalFillerCount => fillerWordCount;
+
+  /// Filler words normalized per 100 words spoken.
+  /// Uses word timestamps or transcript word count if available; falls back to WPM * duration.
+  double get fillersPer100Words {
+    final words = wordTimestamps.isNotEmpty
+        ? wordTimestamps.length
+        : (transcript != null && transcript!.trim().isNotEmpty
+            ? transcript!.trim().split(RegExp(r'\s+')).length
+            : ((wpm * durationSeconds) / 60.0).round());
+    if (words <= 0) return 0.0;
+    return (fillerWordCount / words) * 100.0;
+  }
+
+  /// Distance from the optimal 120-160 WPM pacing band.
+  /// Returns 0.0 if pace is within [120, 160].
+  /// Positive values represent distance outside the band.
+  static double wpmBandDistance(double value) {
+    if (value < 120.0) return 120.0 - value;
+    if (value > 160.0) return value - 160.0;
+    return 0.0;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,6 +334,7 @@ class SessionSummary {
   final bool isAnalyzed;
   final bool analysisFailed;
   final String? failureReason;
+  final String? parentSessionId;
 
   const SessionSummary({
     required this.id,
@@ -220,6 +349,7 @@ class SessionSummary {
     required this.isAnalyzed,
     this.analysisFailed = false,
     this.failureReason,
+    this.parentSessionId,
   });
 
   factory SessionSummary.fromJson(Map<String, dynamic> j) => SessionSummary(
@@ -235,6 +365,7 @@ class SessionSummary {
     isAnalyzed: j['is_analyzed'] as bool? ?? false,
     analysisFailed: j['analysis_failed'] as bool? ?? false,
     failureReason: j['failure_reason'] as String?,
+    parentSessionId: j['parent_session_id'] as String?,
   );
 
   String get durationFormatted {

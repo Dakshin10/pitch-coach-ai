@@ -16,6 +16,13 @@ class SettingsProvider extends ChangeNotifier {
   static const String _keyReminderDays = 'pitch_coach_reminder_days';
   static const String _keyWeeklyGoal = 'pitch_coach_weekly_goal';
   static const String _keyLastReviewPrompt = 'pitch_coach_last_review_prompt';
+  static const String _keyAmbientLiveCues = 'pitch_coach_ambient_live_cues';
+  static const String _keyInterviewTargetDate =
+      'pitch_coach_interview_target_date';
+  static const String _keyQuietHoursEnabled =
+      'pitch_coach_quiet_hours_enabled';
+  static const String _keyQuietHoursStart = 'pitch_coach_quiet_hours_start';
+  static const String _keyQuietHoursEnd = 'pitch_coach_quiet_hours_end';
 
   /// Helper to check if slide deck ready notification is enabled from background/isolated services
   static Future<bool> isSlideDeckReadyAlertEnabled() async {
@@ -37,10 +44,16 @@ class SettingsProvider extends ChangeNotifier {
   bool _slideDeckReadyAlerts = true;
   bool _weeklyProgressSummary = true;
   bool _tipsAndLessons = true;
+  bool _ambientLiveCues = true;
 
   TimeOfDay _reminderTime = const TimeOfDay(hour: 9, minute: 0);
   List<int> _reminderDays = [1, 2, 3, 4, 5]; // 1 = Monday ... 7 = Sunday
   int _weeklyGoal = 5;
+
+  DateTime? _interviewTargetDate;
+  bool _quietHoursEnabled = true;
+  int _quietHoursStart = 22; // 10 PM
+  int _quietHoursEnd = 8; // 8 AM
 
   bool _isLoading = false;
   String? _syncError;
@@ -51,9 +64,14 @@ class SettingsProvider extends ChangeNotifier {
   bool get slideDeckReadyAlerts => _slideDeckReadyAlerts;
   bool get weeklyProgressSummary => _weeklyProgressSummary;
   bool get tipsAndLessons => _tipsAndLessons;
+  bool get ambientLiveCues => _ambientLiveCues;
   TimeOfDay get reminderTime => _reminderTime;
   List<int> get reminderDays => List.unmodifiable(_reminderDays);
   int get weeklyGoal => _weeklyGoal;
+  DateTime? get interviewTargetDate => _interviewTargetDate;
+  bool get quietHoursEnabled => _quietHoursEnabled;
+  int get quietHoursStart => _quietHoursStart;
+  int get quietHoursEnd => _quietHoursEnd;
   bool get isLoading => _isLoading;
   String? get syncError => _syncError;
 
@@ -96,6 +114,7 @@ class SettingsProvider extends ChangeNotifier {
     _slideDeckReadyAlerts = _prefs!.getBool(_keySlideDeckReady) ?? true;
     _weeklyProgressSummary = _prefs!.getBool(_keyWeeklySummary) ?? true;
     _tipsAndLessons = _prefs!.getBool(_keyTipsLessons) ?? true;
+    _ambientLiveCues = _prefs!.getBool(_keyAmbientLiveCues) ?? true;
 
     final hour = _prefs!.getInt(_keyReminderHour) ?? 9;
     final minute = _prefs!.getInt(_keyReminderMinute) ?? 0;
@@ -109,6 +128,16 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     _weeklyGoal = _prefs!.getInt(_keyWeeklyGoal) ?? 5;
+
+    final targetDateStr = _prefs!.getString(_keyInterviewTargetDate);
+    if (targetDateStr != null && targetDateStr.isNotEmpty) {
+      _interviewTargetDate = DateTime.tryParse(targetDateStr);
+    } else {
+      _interviewTargetDate = null;
+    }
+    _quietHoursEnabled = _prefs!.getBool(_keyQuietHoursEnabled) ?? true;
+    _quietHoursStart = _prefs!.getInt(_keyQuietHoursStart) ?? 22;
+    _quietHoursEnd = _prefs!.getInt(_keyQuietHoursEnd) ?? 8;
   }
 
   /// Map representation for Firestore sync
@@ -120,10 +149,15 @@ class SettingsProvider extends ChangeNotifier {
       'slide_deck_ready_alerts': _slideDeckReadyAlerts,
       'weekly_progress_summary': _weeklyProgressSummary,
       'tips_and_lessons': _tipsAndLessons,
+      'ambient_live_cues': _ambientLiveCues,
       'reminder_hour': _reminderTime.hour,
       'reminder_minute': _reminderTime.minute,
       'reminder_days': _reminderDays,
       'weekly_goal': _weeklyGoal,
+      'interview_target_date': _interviewTargetDate?.toIso8601String(),
+      'quiet_hours_enabled': _quietHoursEnabled,
+      'quiet_hours_start': _quietHoursStart,
+      'quiet_hours_end': _quietHoursEnd,
     };
   }
 
@@ -154,6 +188,9 @@ class SettingsProvider extends ChangeNotifier {
     if (data['tips_and_lessons'] != null) {
       _tipsAndLessons = data['tips_and_lessons'] as bool;
     }
+    if (data['ambient_live_cues'] != null) {
+      _ambientLiveCues = data['ambient_live_cues'] as bool;
+    }
     if (data['reminder_hour'] != null && data['reminder_minute'] != null) {
       _reminderTime = TimeOfDay(
         hour: (data['reminder_hour'] as num).toInt(),
@@ -167,9 +204,37 @@ class SettingsProvider extends ChangeNotifier {
     if (data['weekly_goal'] != null) {
       _weeklyGoal = (data['weekly_goal'] as num).toInt().clamp(1, 14);
     }
+    if (data.containsKey('interview_target_date')) {
+      final str = data['interview_target_date'] as String?;
+      _interviewTargetDate = str != null ? DateTime.tryParse(str) : null;
+    }
+    if (data['quiet_hours_enabled'] != null) {
+      _quietHoursEnabled = data['quiet_hours_enabled'] as bool;
+    }
+    if (data['quiet_hours_start'] != null) {
+      _quietHoursStart = (data['quiet_hours_start'] as num).toInt();
+    }
+    if (data['quiet_hours_end'] != null) {
+      _quietHoursEnd = (data['quiet_hours_end'] as num).toInt();
+    }
 
     await _saveToPrefs();
     notifyListeners();
+  }
+
+  /// Toggle ambient pacing cues indicator around live recording timer
+  Future<void> setAmbientLiveCues(bool enabled) async {
+    final previous = _ambientLiveCues;
+    _ambientLiveCues = enabled;
+    notifyListeners();
+    await _saveToPrefs();
+    await _syncToBackend(
+      rollback: () {
+        _ambientLiveCues = previous;
+        _saveToPrefs();
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> _saveToPrefs() async {
@@ -181,6 +246,7 @@ class SettingsProvider extends ChangeNotifier {
     await _prefs!.setBool(_keySlideDeckReady, _slideDeckReadyAlerts);
     await _prefs!.setBool(_keyWeeklySummary, _weeklyProgressSummary);
     await _prefs!.setBool(_keyTipsLessons, _tipsAndLessons);
+    await _prefs!.setBool(_keyAmbientLiveCues, _ambientLiveCues);
     await _prefs!.setInt(_keyReminderHour, _reminderTime.hour);
     await _prefs!.setInt(_keyReminderMinute, _reminderTime.minute);
     await _prefs!.setStringList(
@@ -188,6 +254,18 @@ class SettingsProvider extends ChangeNotifier {
       _reminderDays.map((d) => d.toString()).toList(),
     );
     await _prefs!.setInt(_keyWeeklyGoal, _weeklyGoal);
+
+    if (_interviewTargetDate != null) {
+      await _prefs!.setString(
+        _keyInterviewTargetDate,
+        _interviewTargetDate!.toIso8601String(),
+      );
+    } else {
+      await _prefs!.remove(_keyInterviewTargetDate);
+    }
+    await _prefs!.setBool(_keyQuietHoursEnabled, _quietHoursEnabled);
+    await _prefs!.setInt(_keyQuietHoursStart, _quietHoursStart);
+    await _prefs!.setInt(_keyQuietHoursEnd, _quietHoursEnd);
   }
 
   /// Optimistically update theme mode and sync
@@ -322,6 +400,48 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setWeeklyGoal(int goal) async {
     await setReminderConfig(weeklyGoal: goal);
+  }
+
+  Future<bool> setInterviewTargetDate(DateTime? date) async {
+    final prev = _interviewTargetDate;
+    _interviewTargetDate = date;
+    notifyListeners();
+    await _saveToPrefs();
+
+    return _syncToBackend(
+      rollback: () {
+        _interviewTargetDate = prev;
+        _saveToPrefs();
+        notifyListeners();
+      },
+    );
+  }
+
+  Future<bool> setQuietHours({
+    bool? enabled,
+    int? startHour,
+    int? endHour,
+  }) async {
+    final prevEnabled = _quietHoursEnabled;
+    final prevStart = _quietHoursStart;
+    final prevEnd = _quietHoursEnd;
+
+    if (enabled != null) _quietHoursEnabled = enabled;
+    if (startHour != null) _quietHoursStart = startHour;
+    if (endHour != null) _quietHoursEnd = endHour;
+
+    notifyListeners();
+    await _saveToPrefs();
+
+    return _syncToBackend(
+      rollback: () {
+        _quietHoursEnabled = prevEnabled;
+        _quietHoursStart = prevStart;
+        _quietHoursEnd = prevEnd;
+        _saveToPrefs();
+        notifyListeners();
+      },
+    );
   }
 
   Future<bool> syncWithBackend() async {

@@ -95,6 +95,13 @@ class SlideCoachProvider extends ChangeNotifier {
     return _deck!.slides[_currentSlideIndex];
   }
 
+  @visibleForTesting
+  void setDeckForTesting(SlideDeckModel deck) {
+    _deck = deck;
+    _currentSlideIndex = 0;
+    notifyListeners();
+  }
+
   // ── Rehearsal State ──
   bool _isRehearsing = false;
   final List<Map<String, dynamic>> _rehearsalTimestamps = [];

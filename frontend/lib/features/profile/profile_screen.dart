@@ -637,6 +637,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                               settingsProvider.toggleDarkMode(context),
                         ),
                         SettingsTile(
+                          leadingIcon: AppIcons.timer,
+                          title: 'Ambient Live Pacing Cues',
+                          subtitle: 'Subtle color glow around timer indicating speech pace',
+                          trailingType: SettingsTileTrailing.toggle,
+                          toggleValue: settingsProvider.ambientLiveCues,
+                          onToggle: (val) =>
+                              settingsProvider.setAmbientLiveCues(val),
+                        ),
+                        SettingsTile(
                           leadingIcon: AppIcons.globe,
                           title: 'Language',
                           subtitle: 'Transcription & interface language',

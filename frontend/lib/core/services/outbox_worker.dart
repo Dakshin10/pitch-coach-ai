@@ -60,6 +60,29 @@ class OutboxWorker {
     }
   }
 
+  /// Returns the number of queued outbox items for the active user.
+  Future<int> getPendingCount({String? userId}) async {
+    final effectiveUserId = userId ?? _localDb.currentUserId;
+    if (effectiveUserId == null ||
+        effectiveUserId.isEmpty ||
+        effectiveUserId == 'guest') {
+      return 0;
+    }
+    if (!_localDb.isOpen || _localDb.currentUserId != effectiveUserId) {
+      try {
+        await _localDb.initForUser(effectiveUserId);
+      } catch (_) {
+        return 0;
+      }
+    }
+    try {
+      final pending = await _localDb.getPendingOutbox(effectiveUserId);
+      return pending.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// Processes all pending outbox items for the active user.
   Future<void> process({String? userId}) async {
     if (_isProcessing) return;
@@ -157,7 +180,7 @@ class OutboxWorker {
         filename: 'recording.m4a',
       );
 
-      final formData = FormData.fromMap({
+      final formMap = <String, dynamic>{
         'audio_file': multipartFile,
         'session_id': id,
         'mode': payload['mode'] ?? 'interview',
@@ -165,7 +188,14 @@ class OutboxWorker {
         'duration_seconds': (payload['duration_seconds'] ?? 0.0).toString(),
         'local_date': payload['local_date'],
         'tz_offset_minutes': (payload['tz_offset_minutes'] ?? 0).toString(),
-      });
+      };
+      if (payload['parent_session_id'] != null) {
+        formMap['parent_session_id'] = payload['parent_session_id'];
+      }
+      if (payload['template_id'] != null) {
+        formMap['template_id'] = payload['template_id'];
+      }
+      final formData = FormData.fromMap(formMap);
 
       final raw =
           await _api.postMultipart('/sessions', formData)
