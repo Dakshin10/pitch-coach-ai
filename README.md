@@ -1,4 +1,4 @@
-# <p align="center"><img src="assets/images/pitch_coach_logo.png" alt="Pitch Coach Logo" width="120" height="120" /><br>🎯 Pitch Coach</p>
+# <p align="center">🎯 Pitch Coach</p>
 
 <p align="center">
   <strong>Master Your Voice • Ace Your Interviews • Elevate Your Public Speaking</strong><br>
