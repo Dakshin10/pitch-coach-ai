@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="icon_image.png" alt="Pitch Coach App Icon" width="128" style="border-radius: 28px;" />
-</p>
-
 # <p align="center">🎯 Pitch Coach</p>
 
 <p align="center">
