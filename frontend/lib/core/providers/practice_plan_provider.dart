@@ -93,4 +93,13 @@ class PracticePlanProvider extends ChangeNotifier {
     notifyListeners();
     return success;
   }
+
+  /// Resets practice plan cache and in-memory state.
+  void reset() {
+    _plan = null;
+    _isLoading = false;
+    _isCollapsed = false;
+    _repo.resetPlan();
+    notifyListeners();
+  }
 }
