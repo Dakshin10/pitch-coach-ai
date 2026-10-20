@@ -637,8 +637,9 @@ class LocalDatabaseService {
     String userId, {
     int days = 7,
     int tzOffsetMinutes = 330,
+    DateTime? asOf,
   }) async {
-    final nowLocal = DateTime.now().toUtc().add(
+    final nowLocal = (asOf ?? DateTime.now()).toUtc().add(
       Duration(minutes: tzOffsetMinutes),
     );
     final cutoffDate = _formatDate(nowLocal.subtract(Duration(days: days)));

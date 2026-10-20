@@ -158,7 +158,11 @@ void main() {
         expect(streak, 3);
 
         // Assert Trend
-        final trend = await service.getTrend(userId, days: 7);
+        final trend = await service.getTrend(
+          userId,
+          days: 7,
+          asOf: DateTime.parse('2026-10-09T12:00:00Z'),
+        );
         expect(trend.length, 3);
         expect(trend[0].date, '2026-10-07');
         expect(trend[1].date, '2026-10-08');
