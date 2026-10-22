@@ -11,3 +11,4 @@ Pillow==12.3.0
 email-validator==2.3.0
 slowapi==0.1.10
 numpy>=1.26.0
+pymongo>=4.6.0

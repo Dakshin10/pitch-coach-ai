@@ -537,7 +537,7 @@ async def rehearse_deck(
             **report,
         }
 
-        # 4. Save to deck rehearsals list & persist in Firestore
+        # 4. Save to deck rehearsals list & persist in MongoDB
         deck.rehearsals.append(report_record)
         deck_store.save(deck)
 

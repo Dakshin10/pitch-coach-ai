@@ -221,8 +221,8 @@ The core dock of the mobile app provides one-tap routing across key views:
                                   └──────┬───────────────┬───────┘
                                          │               │
                  ┌───────────────────────┴──┐         ┌──┴────────────────────────┐
-                 │  SQLite / SQLAlchemy     │         │   Groq AI Cloud Engine    │
-                 │  Local DB: pitch_coach.db│         │   LLaMA-3 Evaluation LLM  │
+                 │  MongoDB + Cloudflare D1 │         │   Groq AI Cloud Engine    │
+                 │  Flexible Document Store │         │   LLaMA-3 Evaluation LLM  │
                  └──────────────────────────┘         └───────────────────────────┘
 ```
 
@@ -238,9 +238,10 @@ The core dock of the mobile app provides one-tap routing across key views:
 - **Auth Integrations**: `firebase_core: ^3.8.1`, `firebase_auth: ^5.3.4`, `google_sign_in: ^6.2.2`
 - **Video & Notifications**: `video_player: ^2.9.2`, `flutter_local_notifications: ^18.0.1`
 
-### ⚙️ Backend (FastAPI + Groq AI)
+### ⚙️ Backend (FastAPI + MongoDB + Groq AI)
 - **Engine**: `fastapi==0.115.5` with ASGI runner `uvicorn==0.32.1`
-- **ORM & Database**: `sqlalchemy==2.0.36` backed by SQLite (`pitch_coach.db`)
+- **Primary Document Store**: `pymongo>=4.6.0` (MongoDB storing users, practice sessions, speech metrics, slide decks, achievements, and quotas)
+- **Edge Analytics & Local Sync**: Cloudflare D1 for edge queries + local SQLite offline cache
 - **AI Speech Inference**: `groq==0.13.0` connecting to ultra-fast Groq LPU inference
 - **Security & Hashing**: `python-jose==3.3.0` (JWT token creation), `passlib==1.7.4`, `bcrypt==4.0.1`
 - **File Ingestion**: `python-multipart==0.0.12`, `aiofiles==24.1.0`
