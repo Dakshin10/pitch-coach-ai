@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
 from config import get_settings
-from database.mongodb import SLIDE_DECKS_COL, get_mongo_db
+from database.mongodb import SLIDE_DECKS_COL, get_mongo_db, get_db
 from firestore import get_bucket
 from models import SlideDeck
 

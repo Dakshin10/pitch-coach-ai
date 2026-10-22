@@ -15,9 +15,14 @@ Usage:
 """
 import argparse
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from typing import Any, Dict
+
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -85,9 +90,12 @@ def migrate_collection(fs_client, mongo_db, collection_name: str, dry_run: bool 
             data["id"] = data.get("id") or doc_id
             data["_id"] = doc_id
 
+            if collection_name == USERS_COL and data.get("email") is None:
+                data.pop("email", None)
+
             if not dry_run:
                 mongo_col.update_one(
-                    {"$or": [{"id": doc_id}, {"_id": doc_id}]},
+                    {"_id": doc_id},
                     {"$set": data},
                     upsert=True,
                 )

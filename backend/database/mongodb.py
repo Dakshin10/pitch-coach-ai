@@ -379,7 +379,18 @@ def init_db_indexes(db: MongoDatabaseWrapper) -> None:
     try:
         # Users
         db[USERS_COL].create_index([("id", ASCENDING)], unique=True)
-        db[USERS_COL].create_index([("email", ASCENDING)], unique=True, sparse=True)
+        try:
+            for idx in db[USERS_COL].list_indexes():
+                if idx.get("name") == "email_1" and "partialFilterExpression" not in idx:
+                    db[USERS_COL].drop_index("email_1")
+                    break
+        except Exception:
+            pass
+        db[USERS_COL].create_index(
+            [("email", ASCENDING)],
+            unique=True,
+            partialFilterExpression={"email": {"$type": "string"}},
+        )
 
         # User emails reservation
         db[USER_EMAILS_COL].create_index([("email", ASCENDING)], unique=True)

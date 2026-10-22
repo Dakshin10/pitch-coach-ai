@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from pymongo import ReturnDocument
-from database.mongodb import USER_QUOTAS_COL, get_mongo_db
+from database.mongodb import USER_QUOTAS_COL, get_mongo_db, get_db
 
 logger = logging.getLogger(__name__)
 
