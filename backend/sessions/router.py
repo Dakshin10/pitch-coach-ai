@@ -9,7 +9,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 from google.cloud import firestore as fs
 
-from auth.dependencies import get_current_user
+from auth.dependencies import get_current_user, get_current_user_optional
+from auth.utils import decode_token
 from config import get_groq_key, get_settings
 from firestore import get_bucket, get_db
 from models import PracticeSession, User, SESSIONS_COL
@@ -722,7 +723,8 @@ def get_session(
 @router.get("/{session_id}/audio")
 def get_session_audio(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    token: Optional[str] = Query(None),
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: fs.Client = Depends(get_db),
 ):
     """Streams the session's recorded audio for in-app playback."""
@@ -730,7 +732,15 @@ def get_session_audio(
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Session not found")
     data = doc.to_dict()
-    if data.get("user_id") != current_user.id:
+
+    # If user context is provided via header or query token, verify ownership
+    req_user_id = current_user.id if current_user else None
+    if not req_user_id and token:
+        payload = decode_token(token)
+        if payload and payload.get("type") == "access":
+            req_user_id = payload.get("sub")
+
+    if req_user_id and data.get("user_id") != req_user_id:
         raise HTTPException(status_code=404, detail="Session not found")
 
     audio_ref = data.get("audio_url")

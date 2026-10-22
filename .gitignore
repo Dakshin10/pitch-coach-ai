@@ -74,6 +74,8 @@ backend/avatars/
 backend/*.db
 backend/*.db-shm
 backend/*.db-wal
+.wrangler/
+*.d1_backfill_checkpoint
 
 # ─── Flutter / Dart / Pub ─────────────────────────────────────────────────────
 **/doc/api/

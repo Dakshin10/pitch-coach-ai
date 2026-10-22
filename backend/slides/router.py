@@ -300,8 +300,8 @@ def list_user_decks(
                 page_count=deck.page_count,
                 deck_summary=summary_obj,
                 slides=slides_objs,
-                created_at=deck.created_at.isoformat(),
-                updated_at=deck.updated_at.isoformat(),
+                created_at=deck.created_at.isoformat() if hasattr(deck.created_at, "isoformat") else str(deck.created_at),
+                updated_at=deck.updated_at.isoformat() if hasattr(deck.updated_at, "isoformat") else str(deck.updated_at),
             )
         )
     return results
@@ -398,8 +398,8 @@ def get_deck_details(
         page_count=deck.page_count,
         deck_summary=summary_obj,
         slides=slides_objs,
-        created_at=deck.created_at.isoformat(),
-        updated_at=deck.updated_at.isoformat(),
+        created_at=deck.created_at.isoformat() if hasattr(deck.created_at, "isoformat") else str(deck.created_at),
+        updated_at=deck.updated_at.isoformat() if hasattr(deck.updated_at, "isoformat") else str(deck.updated_at),
     )
 
 

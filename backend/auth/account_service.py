@@ -113,6 +113,11 @@ def delete_user_account(user: User, db=None) -> Dict[str, Any]:
             for f in feedbacks:
                 firestore_db.collection(FEEDBACK_COL).document(f.id).delete()
 
+            # Quotas
+            quotas = firestore_db.collection("user_quotas").where("user_id", "==", user_id).stream()
+            for q in quotas:
+                firestore_db.collection("user_quotas").document(q.id).delete()
+
             # Email reservation
             if email:
                 firestore_db.collection(USER_EMAILS_COL).document(email).delete()
