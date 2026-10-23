@@ -433,10 +433,11 @@ def get_mongo_client() -> MongoClient:
         logger.info("[mongodb] Connecting to MongoDB at %s...", uri.split("@")[-1])
         _mongo_client = MongoClient(
             uri,
-            serverSelectionTimeoutMS=4000,
-            connectTimeoutMS=4000,
+            serverSelectionTimeoutMS=15000,
+            connectTimeoutMS=15000,
+            socketTimeoutMS=30000,
             maxPoolSize=50,
-            minPoolSize=5,
+            minPoolSize=0,
         )
     return _mongo_client
 

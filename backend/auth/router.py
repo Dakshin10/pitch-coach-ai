@@ -1,4 +1,5 @@
 """Auth routes: signup, login, guest, refresh, upgrade-guest."""
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -14,6 +15,7 @@ from limiter import limiter
 from models import User
 from schemas import AuthResponse, FirebaseLoginRequest, LoginRequest, RefreshRequest, SignupRequest, UpgradeGuestRequest, UserResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
 
@@ -126,8 +128,9 @@ def firebase_login(req: FirebaseLoginRequest, db: MongoDatabaseWrapper = Depends
     """
     try:
         decoded = fb_auth.verify_id_token(req.id_token)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid Firebase token")
+    except Exception as exc:
+        logger.warning("[auth] Firebase token verification failed: %s", exc)
+        raise HTTPException(status_code=401, detail=f"Invalid Firebase token: {exc}")
 
     uid: str = decoded["uid"]
     doc = db.collection(USERS_COL).document(uid).get()

@@ -93,7 +93,10 @@ def _run_deck_pipeline(
         deck_store.save(deck)
 
         # Upload slide images to Firebase Storage if configured
-        deck_store.upload_slide_images_to_storage(deck_id, image_paths)
+        try:
+            deck_store.upload_slide_images_to_storage(deck_id, image_paths)
+        except Exception as upload_err:
+            logger.warning("Optional slide image storage upload failed for %s: %s", deck_id, upload_err)
 
         # ── Stage B: Vision Extraction ──
         deck.stage = "reading_slides"

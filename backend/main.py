@@ -38,6 +38,8 @@ app = FastAPI(
 @app.on_event("startup")
 async def on_startup():
     try:
+        from firestore import init_firebase
+        init_firebase()
         from database.mongodb import get_mongo_db, init_db_indexes
         db = get_mongo_db()
         if db is not None:

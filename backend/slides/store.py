@@ -41,6 +41,23 @@ class DeckStore:
     def get_slide_image_path(self, deck_id: str, slide_number: int) -> str:
         return os.path.join(self.get_slides_dir(deck_id), f"slide_{slide_number}.jpg")
 
+    def upload_slide_images_to_storage(self, deck_id: str, image_paths: List[str]) -> None:
+        """Optionally uploads slide images to Firebase Storage bucket if configured."""
+        if not self.settings.FIREBASE_STORAGE_BUCKET:
+            return
+        try:
+            bucket = get_bucket()
+            for path in image_paths:
+                if not os.path.exists(path):
+                    continue
+                filename = os.path.basename(path)
+                blob_path = f"slides/{deck_id}/{filename}"
+                blob = bucket.blob(blob_path)
+                blob.upload_from_filename(path, content_type="image/jpeg")
+            logger.info("Successfully uploaded %d slide images for deck %s to storage", len(image_paths), deck_id)
+        except Exception as e:
+            logger.warning("Could not upload slide images for deck %s to storage: %s", deck_id, e)
+
     def _update_cache(self, deck: SlideDeck) -> None:
         self._memory_cache[deck.id] = deck
         self._memory_cache.move_to_end(deck.id)
