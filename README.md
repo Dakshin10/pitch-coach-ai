@@ -47,9 +47,9 @@ Pitch Coach combines **digital signal processing (DSP)** for acoustic telemetry 
 
 ## 📱 Application Screenshots & Feature Walkthrough
 
-Explore the complete user journey and interactive UI modules of Pitch Coach. The screens are organized into functional clusters below, each featuring responsive 3-column previews with detailed descriptions of their role in presentation coaching.
+Explore the complete user journey and interactive UI modules of Pitch Coach. The screens are organized into functional modules below, each featuring responsive 3-column previews with detailed descriptions of their role in presentation coaching.
 
-### 🔐 Cluster 1: Authentication & Security
+### 🔐 1. Authentication & Security
 *Secure onboarding, account registration, and credential validation.*
 
 | <kbd>&nbsp;🚀&nbsp;Splash&nbsp;Launch&nbsp;</kbd> | <kbd>&nbsp;🔑&nbsp;Account&nbsp;Login&nbsp;</kbd> | <kbd>&nbsp;📝&nbsp;Sign&nbsp;Up&nbsp;</kbd> |
@@ -59,7 +59,7 @@ Explore the complete user journey and interactive UI modules of Pitch Coach. The
 
 <br/>
 
-### 🏠 Cluster 2: Access & Central Dashboard
+### 🏠 2. Access & Central Dashboard
 *One-tap OAuth entry, presentation statistics, and module quick-launch cards.*
 
 | <kbd>&nbsp;🌐&nbsp;Google&nbsp;SSO&nbsp;</kbd> | <kbd>&nbsp;📊&nbsp;Dashboard&nbsp;Top&nbsp;</kbd> | <kbd>&nbsp;🎯&nbsp;Quick&nbsp;Actions&nbsp;</kbd> |
@@ -69,7 +69,7 @@ Explore the complete user journey and interactive UI modules of Pitch Coach. The
 
 <br/>
 
-### 📑 Cluster 3: Slide Coach — Deck Ingestion & Background Audits
+### 📑 3. Slide Coach — Deck Ingestion & Background Audits
 *Multimodal PDF pitch deck ingestion, audience strategy selection, and async background processing.*
 
 | <kbd>&nbsp;📁&nbsp;Deck&nbsp;Upload&nbsp;</kbd> | <kbd>&nbsp;🎯&nbsp;Target&nbsp;Audience&nbsp;</kbd> | <kbd>&nbsp;⏳&nbsp;Background&nbsp;Task&nbsp;</kbd> |
@@ -82,7 +82,7 @@ Explore the complete user journey and interactive UI modules of Pitch Coach. The
 
 <br/>
 
-### 💡 Cluster 4: Slide Coach — Cue Cards, Rehearsal Mode & Q&A Prep
+### 💡 4. Slide Coach — Cue Cards, Rehearsal Mode & Q&A Prep
 *Slide-by-slide speaker cue cards, live timed presentation rehearsals, and tough cross-examination prep.*
 
 | <kbd>&nbsp;🎯&nbsp;Slide&nbsp;1:&nbsp;Hook&nbsp;</kbd> | <kbd>&nbsp;💡&nbsp;Slide&nbsp;2:&nbsp;Solution&nbsp;</kbd> | <kbd>&nbsp;📈&nbsp;Slide&nbsp;3:&nbsp;Traction&nbsp;</kbd> |
@@ -95,7 +95,7 @@ Explore the complete user journey and interactive UI modules of Pitch Coach. The
 
 <br/>
 
-### 🎙️ Cluster 5: Speech Studio — Vocal DSP & Acoustic Telemetry
+### 🎙️ 5. Speech Studio — Vocal DSP & Acoustic Telemetry
 *Acoustic signal processing, fundamental frequency ($F_0$) variation, pacing telemetry, and AI delivery advice.*
 
 | <kbd>&nbsp;📜&nbsp;Prompt&nbsp;Script&nbsp;</kbd> | <kbd>&nbsp;🎙️&nbsp;Recording&nbsp;Studio&nbsp;</kbd> | <kbd>&nbsp;📊&nbsp;Speech&nbsp;Score&nbsp;</kbd> |
@@ -110,7 +110,7 @@ Explore the complete user journey and interactive UI modules of Pitch Coach. The
 
 <br/>
 
-### 📈 Cluster 6: Progress Tracking, History & Profile Management
+### 📈 6. Progress Tracking, History & Profile Management
 *Longitudinal speaking analytics, radar skill breakdown, rehearsal archives, and user configurations.*
 
 | <kbd>&nbsp;📈&nbsp;Practice&nbsp;Stats&nbsp;</kbd> | <kbd>&nbsp;🕸️&nbsp;Skills&nbsp;Radar&nbsp;</kbd> | <kbd>&nbsp;🔥&nbsp;Streak&nbsp;Badges&nbsp;</kbd> |
