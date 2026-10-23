@@ -45,31 +45,81 @@ Pitch Coach combines **digital signal processing (DSP)** for acoustic telemetry 
 
 ---
 
-## 📱 Application Screenshots
+## 📱 Application Screenshots & Feature Walkthrough
 
-Explore the complete user journey and interactive UI modules of Pitch Coach. Every screen is presented in a responsive 3-column grid with consistent dimensions, fluid scaling, and clean boxed headings.
+Explore the complete user journey and interactive UI modules of Pitch Coach. The screens are organized into functional clusters below, each featuring responsive 3-column previews with detailed descriptions of their role in presentation coaching.
 
-| <kbd>&nbsp;🚀&nbsp;Splash&nbsp;Launch&nbsp;</kbd> | <kbd>&nbsp;🔑&nbsp;Account&nbsp;Login&nbsp;</kbd> | <kbd>&nbsp;📝&nbsp;New&nbsp;Account&nbsp;</kbd> |
+### 🔐 Cluster 1: Authentication & Security
+*Secure onboarding, account registration, and credential validation.*
+
+| <kbd>&nbsp;🚀&nbsp;Splash&nbsp;Launch&nbsp;</kbd> | <kbd>&nbsp;🔑&nbsp;Account&nbsp;Login&nbsp;</kbd> | <kbd>&nbsp;📝&nbsp;Sign&nbsp;Up&nbsp;</kbd> |
 | :---: | :---: | :---: |
-| <img src="screenshots_app/splash_screen.png" alt="🚀 Splash Launch" width="100%" /> | <img src="screenshots_app/login.png" alt="🔑 Account Login" width="100%" /> | <img src="screenshots_app/signup.png" alt="📝 New Account" width="100%" /> |
-| <kbd>&nbsp;🌐&nbsp;Google&nbsp;SSO&nbsp;</kbd> | <kbd>&nbsp;📊&nbsp;Home&nbsp;Dashboard&nbsp;</kbd> | <kbd>&nbsp;🎯&nbsp;Quick&nbsp;Actions&nbsp;</kbd> |
-| <img src="screenshots_app/google_login.png" alt="🌐 Google SSO" width="100%" /> | <img src="screenshots_app/home_screen1.png" alt="📊 Home Dashboard" width="100%" /> | <img src="screenshots_app/home_screen2.png" alt="🎯 Quick Actions" width="100%" /> |
+| <img src="screenshots_app/splash_screen.png" alt="Splash Launch" width="100%" /> | <img src="screenshots_app/login.png" alt="Account Login" width="100%" /> | <img src="screenshots_app/signup.png" alt="Sign Up" width="100%" /> |
+| **Splash Launch**<br>Brand splash initializing local caches, checking JWT expiration, and routing to auth or home. | **Account Login**<br>Secure email & password authentication with encrypted token storage and offline guest fallback. | **User Registration**<br>New speaker account creation interface with form validation and profile initialization. |
+
+<br/>
+
+### 🏠 Cluster 2: Access & Central Dashboard
+*One-tap OAuth entry, presentation statistics, and module quick-launch cards.*
+
+| <kbd>&nbsp;🌐&nbsp;Google&nbsp;SSO&nbsp;</kbd> | <kbd>&nbsp;📊&nbsp;Dashboard&nbsp;Top&nbsp;</kbd> | <kbd>&nbsp;🎯&nbsp;Quick&nbsp;Actions&nbsp;</kbd> |
+| :---: | :---: | :---: |
+| <img src="screenshots_app/google_login.png" alt="Google SSO" width="100%" /> | <img src="screenshots_app/home_screen1.png" alt="Dashboard Top" width="100%" /> | <img src="screenshots_app/home_screen2.png" alt="Quick Actions" width="100%" /> |
+| **Google OAuth SSO**<br>One-tap federated single sign-on dialog facilitating rapid password-less access. | **Home Dashboard (Top)**<br>Personalized greeting, current streak counter, and weekly practice time summaries. | **Quick Actions (Hub)**<br>Module launchers for Slide Coach, Speech Studio, recent rehearsal sessions, and targeted drills. |
+
+<br/>
+
+### 📑 Cluster 3: Slide Coach — Deck Ingestion & Background Audits
+*Multimodal PDF pitch deck ingestion, audience strategy selection, and async background processing.*
+
 | <kbd>&nbsp;📁&nbsp;Deck&nbsp;Upload&nbsp;</kbd> | <kbd>&nbsp;🎯&nbsp;Target&nbsp;Audience&nbsp;</kbd> | <kbd>&nbsp;⏳&nbsp;Background&nbsp;Task&nbsp;</kbd> |
-| <img src="screenshots_app/analyse_deck.png" alt="📁 Deck Upload" width="100%" /> | <img src="screenshots_app/analyse_deck2.png" alt="🎯 Target Audience" width="100%" /> | <img src="screenshots_app/pitch_deck_running_inbackground.png" alt="⏳ Background Task" width="100%" /> |
+| :---: | :---: | :---: |
+| <img src="screenshots_app/analyse_deck.png" alt="Deck Upload" width="100%" /> | <img src="screenshots_app/analyse_deck2.png" alt="Target Audience" width="100%" /> | <img src="screenshots_app/pitch_deck_running_inbackground.png" alt="Background Task" width="100%" /> |
+| **Deck Selector**<br>MediaStore SAF document selector for uploading presentation slide decks. | **Target Audience Selector**<br>Customizes AI evaluation criteria for Hackathons, Investors, Academics, Clients, or General Audiences. | **Background Task Worker**<br>Non-blocking worker screen executing slide rasterization and LLM audits asynchronously. |
 | <kbd>&nbsp;🔔&nbsp;Push&nbsp;Alert&nbsp;</kbd> | <kbd>&nbsp;⚡&nbsp;Resume&nbsp;Task&nbsp;</kbd> | <kbd>&nbsp;📋&nbsp;Slide&nbsp;Audits&nbsp;</kbd> |
-| <img src="screenshots_app/notification_after_completion_of_pitch_deck_in_background.png" alt="🔔 Push Alert" width="100%" /> | <img src="screenshots_app/pitch_deck_after_running_in_background.png" alt="⚡ Resume Task" width="100%" /> | <img src="screenshots_app/pitch_deck_analyses.png" alt="📋 Slide Audits" width="100%" /> |
+| <img src="screenshots_app/notification_after_completion_of_pitch_deck_in_background.png" alt="Push Alert" width="100%" /> | <img src="screenshots_app/pitch_deck_after_running_in_background.png" alt="Resume Task" width="100%" /> | <img src="screenshots_app/pitch_deck_analyses.png" alt="Slide Audits" width="100%" /> |
+| **System Push Notification**<br>Heads-up alert notifying the user the moment background multimodal analysis completes. | **Task Resume Card**<br>Live dashboard card with one-tap navigation to review completed presentation analysis. | **Deck Diagnostic Summary**<br>High-level slide audits displaying overall narrative score, text density, and slide anti-patterns. |
+
+<br/>
+
+### 💡 Cluster 4: Slide Coach — Cue Cards, Rehearsal Mode & Q&A Prep
+*Slide-by-slide speaker cue cards, live timed presentation rehearsals, and tough cross-examination prep.*
+
 | <kbd>&nbsp;🎯&nbsp;Slide&nbsp;1:&nbsp;Hook&nbsp;</kbd> | <kbd>&nbsp;💡&nbsp;Slide&nbsp;2:&nbsp;Solution&nbsp;</kbd> | <kbd>&nbsp;📈&nbsp;Slide&nbsp;3:&nbsp;Traction&nbsp;</kbd> |
-| <img src="screenshots_app/pitch_deck_result1.png" alt="🎯 Slide 1: Hook" width="100%" /> | <img src="screenshots_app/pitch_deck_result2.png" alt="💡 Slide 2: Solution" width="100%" /> | <img src="screenshots_app/pitch_deck_result3.png" alt="📈 Slide 3: Traction" width="100%" /> |
+| :---: | :---: | :---: |
+| <img src="screenshots_app/pitch_deck_result1.png" alt="Slide 1: Hook" width="100%" /> | <img src="screenshots_app/pitch_deck_result2.png" alt="Slide 2: Solution" width="100%" /> | <img src="screenshots_app/pitch_deck_result3.png" alt="Slide 3: Traction" width="100%" /> |
+| **Slide 1: Problem & Hook**<br>Slide preview with word-for-word pitch scripts, active talking points, and opening timing budget. | **Slide 2: Solution Architecture**<br>Technical architecture speaking cues, core value propositions, and transition hooks. | **Slide 3: Market & Traction**<br>Metric emphasis cues, visual data delivery tips, and pacing guidance for graphs. |
 | <kbd>&nbsp;🚀&nbsp;Slide&nbsp;4:&nbsp;The&nbsp;Ask&nbsp;</kbd> | <kbd>&nbsp;⏱️&nbsp;Live&nbsp;Rehearsal&nbsp;</kbd> | <kbd>&nbsp;❓&nbsp;Q&A&nbsp;Cross-Exam&nbsp;</kbd> |
-| <img src="screenshots_app/pitch_deck_result4.png" alt="🚀 Slide 4: The Ask" width="100%" /> | <img src="screenshots_app/pitch_deck_result_prep_talk.png" alt="⏱️ Live Rehearsal" width="100%" /> | <img src="screenshots_app/pitch_deck_question_prep.png" alt="❓ Q&A Cross-Exam" width="100%" /> |
+| <img src="screenshots_app/pitch_deck_result4.png" alt="Slide 4: The Ask" width="100%" /> | <img src="screenshots_app/pitch_deck_result_prep_talk.png" alt="Live Rehearsal" width="100%" /> | <img src="screenshots_app/pitch_deck_question_prep.png" alt="Q&A Cross-Exam" width="100%" /> |
+| **Slide 4: Business Model & Ask**<br>Closing call-to-action scripts, investment ask delivery tips, and contact slide wrap-up. | **Live Rehearsal Mode**<br>Interactive presentation timer with slide transition logging and pacing telemetry. | **Hostile Q&A Simulator**<br>AI-generated audience cross-examination with anticipated hard questions and model answers. |
+
+<br/>
+
+### 🎙️ Cluster 5: Speech Studio — Vocal DSP & Acoustic Telemetry
+*Acoustic signal processing, fundamental frequency ($F_0$) variation, pacing telemetry, and AI delivery advice.*
+
 | <kbd>&nbsp;📜&nbsp;Prompt&nbsp;Script&nbsp;</kbd> | <kbd>&nbsp;🎙️&nbsp;Recording&nbsp;Studio&nbsp;</kbd> | <kbd>&nbsp;📊&nbsp;Speech&nbsp;Score&nbsp;</kbd> |
-| <img src="screenshots_app/voice_feature.png" alt="📜 Prompt Script" width="100%" /> | <img src="screenshots_app/voice_feature2.png" alt="🎙️ Recording Studio" width="100%" /> | <img src="screenshots_app/voice_feature3_result1.png" alt="📊 Speech Score" width="100%" /> |
-| <kbd>&nbsp;⚡&nbsp;Acoustic&nbsp;DSP&nbsp;</kbd> | <kbd>&nbsp;💡&nbsp;Delivery&nbsp;Advice&nbsp;</kbd> | <kbd>&nbsp;📈&nbsp;Practice&nbsp;Stats&nbsp;</kbd> |
-| <img src="screenshots_app/voice_feature3_result2.png" alt="⚡ Acoustic DSP" width="100%" /> | <img src="screenshots_app/voice_feature3_result3.png" alt="💡 Delivery Advice" width="100%" /> | <img src="screenshots_app/progress_page1.png" alt="📈 Practice Stats" width="100%" /> |
-| <kbd>&nbsp;🕸️&nbsp;Skills&nbsp;Radar&nbsp;</kbd> | <kbd>&nbsp;🔥&nbsp;Streak&nbsp;Badges&nbsp;</kbd> | <kbd>&nbsp;🗂️&nbsp;Session&nbsp;History&nbsp;</kbd> |
-| <img src="screenshots_app/progress_page2.png" alt="🕸️ Skills Radar" width="100%" /> | <img src="screenshots_app/progress_page3.png" alt="🔥 Streak Badges" width="100%" /> | <img src="screenshots_app/History_page.png" alt="🗂️ Session History" width="100%" /> |
-| <kbd>&nbsp;👤&nbsp;User&nbsp;Profile&nbsp;</kbd> | <kbd>&nbsp;⚙️&nbsp;App&nbsp;Settings&nbsp;</kbd> |   |
-| <img src="screenshots_app/profile_screen1.png" alt="👤 User Profile" width="100%" /> | <img src="screenshots_app/profile_screen2.png" alt="⚙️ App Settings" width="100%" /> |   |
+| :---: | :---: | :---: |
+| <img src="screenshots_app/voice_feature.png" alt="Prompt Script" width="100%" /> | <img src="screenshots_app/voice_feature2.png" alt="Recording Studio" width="100%" /> | <img src="screenshots_app/voice_feature3_result1.png" alt="Speech Score" width="100%" /> |
+| **Speech Script Catalog**<br>Teleprompter prompt library featuring elevator pitches, technical talks, and custom speech entry. | **Active Recording Studio**<br>Low-latency recording view with real-time waveform dynamics and duration tracking. | **Vocal Delivery Scorecard**<br>Composite speech rating summarizing overall score, speaking rate (WPM), and filler word count. |
+
+| <kbd>&nbsp;⚡&nbsp;Acoustic&nbsp;DSP&nbsp;</kbd> | <kbd>&nbsp;💡&nbsp;Delivery&nbsp;Advice&nbsp;</kbd> |
+| :---: | :---: |
+| <img src="screenshots_app/voice_feature3_result2.png" alt="Acoustic DSP" width="100%" /> | <img src="screenshots_app/voice_feature3_result3.png" alt="Delivery Advice" width="100%" /> |
+| **Acoustic Pitch & Monotone DSP**<br>Scientific pitch telemetry displaying fundamental frequency ($F_0$) variation and monotone delivery alerts. | **Personalized Speech Coaching**<br>Actionable feedback detailing tips to enhance vocal modulation, pause control, and resonance. |
+
+<br/>
+
+### 📈 Cluster 6: Progress Tracking, History & Profile Management
+*Longitudinal speaking analytics, radar skill breakdown, rehearsal archives, and user configurations.*
+
+| <kbd>&nbsp;📈&nbsp;Practice&nbsp;Stats&nbsp;</kbd> | <kbd>&nbsp;🕸️&nbsp;Skills&nbsp;Radar&nbsp;</kbd> | <kbd>&nbsp;🔥&nbsp;Streak&nbsp;Badges&nbsp;</kbd> |
+| :---: | :---: | :---: |
+| <img src="screenshots_app/progress_page1.png" alt="Practice Stats" width="100%" /> | <img src="screenshots_app/progress_page2.png" alt="Skills Radar" width="100%" /> | <img src="screenshots_app/progress_page3.png" alt="Streak Badges" width="100%" /> |
+| **Practice Overview & Stats**<br>Long-term practice tracking showing total sessions, confidence curves, and average score trends. | **Skills Radar Analysis**<br>Multi-dimensional radar chart breaking down performance across Clarity, Cadence, Tone, and Energy. | **Streak & Achievement Badges**<br>Gamified daily practice streaks, weekly milestone challenges, and unlockable mastery trophies. |
+| <kbd>&nbsp;🗂️&nbsp;Session&nbsp;History&nbsp;</kbd> | <kbd>&nbsp;👤&nbsp;User&nbsp;Profile&nbsp;</kbd> | <kbd>&nbsp;⚙️&nbsp;App&nbsp;Settings&nbsp;</kbd> |
+| <img src="screenshots_app/History_page.png" alt="Session History" width="100%" /> | <img src="screenshots_app/profile_screen1.png" alt="User Profile" width="100%" /> | <img src="screenshots_app/profile_screen2.png" alt="App Settings" width="100%" /> |
+| **Rehearsal Audit Archive**<br>Chronological ledger of analyzed decks and recorded vocal sessions with full audit summaries. | **Speaker Profile Card**<br>User bio, presenter rank, cumulative rehearsal hours, and account credential management. | **Settings & Configuration**<br>Preferences menu for API endpoint configuration, local cache management, and account sign-out. |
 
 ---
 
