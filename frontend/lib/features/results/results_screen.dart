@@ -2633,7 +2633,12 @@ class _ResultsScreenState extends State<ResultsScreen>
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
+                              interval: 1.0,
                               getTitlesWidget: (val, meta) {
+                                final rounded = val.round();
+                                if ((val - rounded).abs() > 0.01) {
+                                  return const SizedBox.shrink();
+                                }
                                 const days = [
                                   'Mon',
                                   'Tue',
@@ -2643,7 +2648,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                                   'Sat',
                                   'Sun',
                                 ];
-                                final idx = val.toInt();
+                                final idx = rounded;
                                 if (idx >= 0 && idx < days.length) {
                                   return Padding(
                                     padding: const EdgeInsets.only(top: 6.0),
@@ -2656,7 +2661,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                                     ),
                                   );
                                 }
-                                return const SizedBox();
+                                return const SizedBox.shrink();
                               },
                             ),
                           ),

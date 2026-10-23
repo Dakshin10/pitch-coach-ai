@@ -133,3 +133,6 @@ ui-debug.log
 # ─── Symbolication & Obfuscation ──────────────────────────────────────────────
 app.*.symbols
 app.*.map.json
+
+
+screenshots_app_backup/*
